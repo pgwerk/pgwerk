@@ -1,0 +1,110 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wrk"
+version = "0.1.0"
+description = "Postgres-backed job queue. Durable, visible, transactional."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+keywords = [
+    "postgres",
+    "job queue",
+    "task queue",
+    "worker",
+    "background jobs",
+    "asyncio",
+    "postgresql",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: System :: Distributed Computing",
+]
+dependencies = ["psycopg[async]>=3.1", "psycopg-pool>=3.1", "click>=8.0"]
+
+[project.urls]
+Repository = "https://github.com/ccrvlh/wrk"
+Homepage = "https://ccrvlh.github.io/wrk"
+Documentation = "https://ccrvlh.github.io/wrk"
+"Bug Tracker" = "https://github.com/ccrvlh/wrk/issues"
+
+[project.scripts]
+wrk = "wrk.cli:main"
+
+[project.optional-dependencies]
+api = ["litestar>=2.0", "uvicorn>=0.30"]
+cron = ["croniter>=2.0"]
+exporter = ["prometheus-client>=0.8"]
+analytics = ["rich>=13.0", "plotext>=5.0"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "croniter>=2.0",
+    "litestar>=2.0",
+    "uvicorn>=0.30",
+    "prometheus-client>=0.8",
+    "rich>=13.0",
+    "plotext>=5.0",
+    "mkdocs-shadcn>=0.10",
+]
+
+
+[tool.ruff]
+exclude = [
+    ".archive",
+    ".roo",
+    ".github",
+    "migrations",
+    "docs",
+    "infra",
+    "scripts",
+    "static",
+]
+line-length = 120
+ignore = [
+    "D100", # Missing docstring in public module
+    "D104", # Missing docstring in public package
+    "D107", # Missing docstring in __init__
+    "E712", # Avoid equality comparison to True
+]
+
+
+[tool.ruff.lint.isort]
+force-single-line = true
+from-first = false
+# default-section = "first-party"
+force-sort-within-sections = false
+forced-separate = ["tests", "app"]
+known-first-party = ["app"]
+known-local-folder = ["app"]
+known-third-party = ["litestar"]
+length-sort = true
+length-sort-straight = true
+lines-after-imports = 2
+lines-between-types = 1
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder",
+    "testing",
+]
+
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.hatch.build.targets.wheel]
+packages = ["wrk"]
+include = ["wrk/py.typed"]
