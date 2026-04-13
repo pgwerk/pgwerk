@@ -1,0 +1,34 @@
+site_name: wrk
+site_description: Postgres-backed job queue. Durable, visible, transactional.
+site_url: https://ccrvlh.github.io/wrk
+repo_url: https://github.com/ccrvlh/wrk
+repo_name: ccrvlh/wrk
+
+theme:
+  name: shadcn
+
+nav:
+  - Home: index.md
+  - Guide:
+    - Quickstart: guide/quickstart.md
+    - Enqueueing: guide/enqueueing.md
+    - Workers: guide/workers.md
+    - Cron: guide/cron.md
+    - Serializers: guide/serializers.md
+    - CLI: guide/cli.md
+    - Dashboard: guide/dashboard.md
+  - Reference:
+    - App: reference/app.md
+    - Workers: reference/workers.md
+    - Schemas: reference/schemas.md
+    - Exceptions: reference/exceptions.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - admonition
+  - footnotes
+  - fenced_code
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.superfences
