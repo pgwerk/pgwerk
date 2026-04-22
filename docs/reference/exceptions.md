@@ -1,6 +1,6 @@
 # Exceptions
 
-All `wrk` exceptions inherit from `WrkError`.
+All `werk` exceptions inherit from `WrkError`.
 
 ## WrkError
 

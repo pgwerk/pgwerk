@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "wrk"
+name = "PGWerk"
 version = "0.1.0"
 description = "Postgres-backed job queue. Durable, visible, transactional."
 readme = "README.md"
@@ -32,13 +32,13 @@ classifiers = [
 dependencies = ["psycopg[async]>=3.1", "psycopg-pool>=3.1", "click>=8.0"]
 
 [project.urls]
-Repository = "https://github.com/ccrvlh/wrk"
-Homepage = "https://ccrvlh.github.io/wrk"
-Documentation = "https://ccrvlh.github.io/wrk"
-"Bug Tracker" = "https://github.com/ccrvlh/wrk/issues"
+Repository = "https://github.com/ccrvlh/pgwerk"
+Homepage = "https://ccrvlh.github.io/pgwerk"
+Documentation = "https://ccrvlh.github.io/pgwerk"
+"Bug Tracker" = "https://github.com/ccrvlh/pgwerk/issues"
 
 [project.scripts]
-wrk = "wrk.cli:main"
+werk = "pgwerk.cli:main"
 
 [project.optional-dependencies]
 api = ["litestar>=2.0", "uvicorn>=0.30"]
@@ -107,4 +107,4 @@ asyncio_mode = "auto"
 
 [tool.hatch.build.targets.wheel]
 packages = ["wrk"]
-include = ["wrk/py.typed"]
+include = ["pgwerk/py.typed"]

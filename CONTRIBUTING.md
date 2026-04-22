@@ -31,10 +31,10 @@ docker run -d \
 uv run pytest tests/unit/
 
 # Integration tests
-WRK_TEST_DSN="postgresql://wrk:wrk@localhost/wrk_test" uv run pytest tests/integration/
+PGWERK_TEST_DSN="postgresql://werk:wrk@localhost/wrk_test" uv run pytest tests/integration/
 
 # All tests
-WRK_TEST_DSN="postgresql://wrk:wrk@localhost/wrk_test" uv run pytest
+PGWERK_TEST_DSN="postgresql://werk:wrk@localhost/wrk_test" uv run pytest
 
 # Single file
 uv run pytest tests/unit/test_job.py -v
@@ -60,7 +60,7 @@ CI runs both on every push and pull request.
 ## Project structure
 
 ```
-wrk/              source package
+pgwerk/              source package
   app.py          Wrk app (connect, enqueue, inspect)
   worker/         BaseWorker + AsyncWorker / ThreadWorker / ProcessWorker / ForkWorker
   repos.py        Database repository layer (all SQL lives here)

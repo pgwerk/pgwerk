@@ -18,7 +18,7 @@ htmlcov/
 .pytest_cache/
 node_modules/
 dashboard/dist/
-wrk/api/static/*
-!wrk/api/static/.gitkeep
+pgwerk/api/static/*
+!pgwerk/api/static/.gitkeep
 site/
 .DS_Store

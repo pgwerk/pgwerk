@@ -1,8 +1,8 @@
 # wrk
 
-[![CI](https://github.com/ccrvlh/wrk/actions/workflows/ci.yml/badge.svg)](https://github.com/ccrvlh/wrk/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/wrk)](https://pypi.org/project/wrk/)
-[![Python](https://img.shields.io/pypi/pyversions/wrk)](https://pypi.org/project/wrk/)
+[![CI](https://github.com/ccrvlh/pgwerk/actions/workflows/ci.yml/badge.svg)](https://github.com/ccrvlh/pgwerk/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/wrk)](https://pypi.org/project/pgwerk/)
+[![Python](https://img.shields.io/pypi/pyversions/wrk)](https://pypi.org/project/pgwerk/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-ccrvlh.github.io/wrk-blue)](https://ccrvlh.github.io/wrk)
 
@@ -64,7 +64,7 @@ async def main():
 asyncio.run(main())
 ```
 
-Handlers are identified by their dotted import path (`myapp.tasks.send_email`). The function itself is passed to `enqueue`; `wrk` records its path and imports it on the worker side. `ctx` is injected when the first parameter is named `ctx` or annotated as `Context`.
+Handlers are identified by their dotted import path (`myapp.tasks.send_email`). The function itself is passed to `enqueue`; `werk` records its path and imports it on the worker side. `ctx` is injected when the first parameter is named `ctx` or annotated as `Context`.
 
 ### Enqueueing
 
@@ -182,15 +182,15 @@ wrk purge myapp.tasks:app --status complete,failed
 
 ## Schema
 
-All tables are prefixed (default `_wrk_`) and optionally placed in a named schema. Migrations run automatically on connect using an advisory lock to prevent races across multiple processes starting simultaneously.
+All tables are prefixed (default `_pgwerk_`) and optionally placed in a named schema. Migrations run automatically on connect using an advisory lock to prevent races across multiple processes starting simultaneously.
 
 | Table | Purpose |
 |---|---|
-| `_wrk_worker` | Registered workers + heartbeat tracking |
-| `_wrk_jobs` | Job queue — all state lives here |
-| `_wrk_worker_jobs` | Active claim tracking |
-| `_wrk_jobs_executions` | Per-attempt execution history |
-| `_wrk_job_deps` | Job dependency graph |
+| `_pgwerk_worker` | Registered workers + heartbeat tracking |
+| `_pgwerk_jobs` | Job queue — all state lives here |
+| `_pgwerk_worker_jobs` | Active claim tracking |
+| `_pgwerk_jobs_executions` | Per-attempt execution history |
+| `_pgwerk_job_deps` | Job dependency graph |
 
 
 ### Job lifecycle

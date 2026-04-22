@@ -1,6 +1,6 @@
 # CLI
 
-The `wrk` command-line tool lets you start workers, inspect queues, and manage jobs without writing Python scripts.
+The `werk` command-line tool lets you start workers, inspect queues, and manage jobs without writing Python scripts.
 
 ## APP argument
 
@@ -15,7 +15,7 @@ The module is imported at runtime, so the `Wrk` instance is initialised exactly 
 
 ## Commands
 
-### `wrk worker`
+### `werk worker`
 
 Start a worker process.
 
@@ -43,7 +43,7 @@ wrk worker myapp.tasks:app --worker-type thread --log-format json
 wrk worker myapp.tasks:app --worker-type process --concurrency 4
 ```
 
-### `wrk info`
+### `werk info`
 
 Print queue statistics, active workers, and server information.
 
@@ -51,7 +51,7 @@ Print queue statistics, active workers, and server information.
 wrk info APP
 ```
 
-### `wrk jobs`
+### `werk jobs`
 
 List recent jobs in a formatted table.
 
@@ -74,7 +74,7 @@ wrk jobs myapp.tasks:app --queue high --status failed
 wrk jobs myapp.tasks:app --limit 50 --offset 50
 ```
 
-### `wrk stats`
+### `werk stats`
 
 Show queue depth and throughput statistics.
 
@@ -82,7 +82,7 @@ Show queue depth and throughput statistics.
 wrk stats APP
 ```
 
-### `wrk throughput`
+### `werk throughput`
 
 Display a throughput chart over the last N minutes.
 
@@ -90,7 +90,7 @@ Display a throughput chart over the last N minutes.
 wrk throughput APP
 ```
 
-### `wrk slowest`
+### `werk slowest`
 
 List the slowest jobs by execution duration.
 
@@ -98,7 +98,7 @@ List the slowest jobs by execution duration.
 wrk slowest APP
 ```
 
-### `wrk cron`
+### `werk cron`
 
 Show registered cron jobs and their next scheduled run time.
 
@@ -106,7 +106,7 @@ Show registered cron jobs and their next scheduled run time.
 wrk cron APP
 ```
 
-### `wrk purge`
+### `werk purge`
 
 Delete jobs by status, optionally filtered to jobs older than N days.
 
@@ -127,7 +127,7 @@ wrk purge myapp.tasks:app --status complete
 wrk purge myapp.tasks:app --status failed --older-than 7
 ```
 
-### `wrk dashboard`
+### `werk dashboard`
 
 Open an interactive terminal dashboard showing live queue and worker metrics (requires the `analytics` optional extra).
 
@@ -136,7 +136,7 @@ pip install "wrk[analytics]"
 wrk dashboard myapp.tasks:app
 ```
 
-### `wrk api`
+### `werk api`
 
 Start the REST API server (requires the `litestar` optional extra).
 

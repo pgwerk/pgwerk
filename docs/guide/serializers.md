@@ -1,6 +1,6 @@
 # Serializers
 
-Serializers control how job payloads, results, and metadata are encoded for storage in Postgres. `wrk` ships with two built-in serializers and supports custom implementations.
+Serializers control how job payloads, results, and metadata are encoded for storage in Postgres. `werk` ships with two built-in serializers and supports custom implementations.
 
 ## JSONSerializer (default)
 

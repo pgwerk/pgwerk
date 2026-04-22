@@ -50,5 +50,5 @@ jobs:
 
       - name: Integration tests
         env:
-          WRK_TEST_DSN: postgresql://wrk:wrk@localhost/wrk_test
+          PGWERK_TEST_DSN: postgresql://werk:wrk@localhost/wrk_test
         run: uv run pytest tests/integration/ -v --tb=short

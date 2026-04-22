@@ -1,15 +1,15 @@
 """
 Shared app instance used by both producer and worker.
 
-Set WRK_DSN to point at your Postgres database, e.g.:
-    export WRK_DSN="postgresql://user:pass@localhost/mydb"
+Set PGWERK_DSN to point at your Postgres database, e.g.:
+    export PGWERK_DSN="postgresql://user:pass@localhost/mydb"
 """
 
 import os
 
-from pgwerk import Wrk
+from tests import Wrk
 
 
-DSN = os.environ.get("WRK_DSN", "postgresql://wrk:wrk@localhost/wrk")
+DSN = os.environ.get("PGWERK_DSN", "postgresql://werk:wrk@localhost/wrk")
 
 app = Wrk(DSN)

@@ -16,8 +16,6 @@ import logging
 
 from typing import Callable
 
-from pgwerk import Wrk
-from pgwerk import Retry
 from example.tasks import export_report
 from example.tasks import process_webhook
 from example.tasks import transcode_video
@@ -31,8 +29,11 @@ from example.tasks import refresh_search_index
 from example.tasks import send_push_notification
 from example.tasks import cleanup_expired_sessions
 
+from tests import Wrk
+from tests import Retry
 
-app = Wrk(os.environ.get("WRK_DSN", "postgresql://wrk:wrk@localhost/wrk"))
+
+app = Wrk(os.environ.get("PGWERK_DSN", "postgresql://werk:wrk@localhost/wrk"))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)

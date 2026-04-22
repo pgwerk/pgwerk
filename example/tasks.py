@@ -9,7 +9,7 @@ import random
 import asyncio
 import logging
 
-from pgwerk.schemas import Context
+from tests.schemas import Context
 
 
 logger = logging.getLogger(__name__)

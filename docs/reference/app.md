@@ -29,7 +29,7 @@ Wrk(
 | `dsn` | required | Postgres connection string |
 | `config` | `WrkConfig()` | Base configuration; keyword arguments take precedence |
 | `schema` | `None` | Postgres schema to qualify all table names |
-| `prefix` | `"_wrk"` | Prefix applied to every table name |
+| `prefix` | `"_pgwerk"` | Prefix applied to every table name |
 | `min_pool_size` | `2` | Minimum pooled connections |
 | `max_pool_size` | `10` | Maximum pooled connections |
 | `serializer` | `JSONSerializer` | Payload/result serializer |
@@ -208,7 +208,7 @@ app = Wrk(dsn, config=config)
 | Attribute | Default | Description |
 |---|---|---|
 | `schema` | `None` | Postgres schema for table qualification |
-| `prefix` | `"_wrk"` | Table name prefix |
+| `prefix` | `"_pgwerk"` | Table name prefix |
 | `min_pool_size` | `2` | Min connections in pool |
 | `max_pool_size` | `10` | Max connections in pool |
 | `max_active_secs` | `3600` | Stuck-job threshold for sweep |

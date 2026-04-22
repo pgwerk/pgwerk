@@ -32,7 +32,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `result_ttl` / `failure_ttl` — automatic expiry of completed / failed rows
 - `burst` mode — worker exits once the queue drains
 - `BaseWorker.push_exception_handler` / `pop_exception_handler` stack
-- `wrk` CLI — `worker`, `info`, `purge` sub-commands
+- `werk` CLI — `worker`, `info`, `purge` sub-commands
 - REST API (optional `litestar` extra) — job inspection and queue stats
 - Prometheus metrics exporter (optional `prometheus-client` extra)
-- `wrk info` dashboard using `rich` + `plotext` (optional `analytics` extra)
+- `werk info` dashboard using `rich` + `plotext` (optional `analytics` extra)

@@ -1,6 +1,6 @@
 # Dashboard
 
-`wrk` ships with an optional terminal dashboard that shows live queue depths, throughput, and worker activity.
+`werk` ships with an optional terminal dashboard that shows live queue depths, throughput, and worker activity.
 
 ## Install
 

@@ -1,6 +1,6 @@
 # Workers
 
-Workers dequeue jobs from Postgres and execute them. `wrk` ships with four worker types, all sharing the same base behaviour.
+Workers dequeue jobs from Postgres and execute them. `werk` ships with four worker types, all sharing the same base behaviour.
 
 ## Worker types
 

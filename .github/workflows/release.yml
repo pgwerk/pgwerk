@@ -34,7 +34,7 @@ jobs:
       - name: Build dashboard
         run: pnpm build
         working-directory: dashboard
-        # outputs to wrk/api/static/ via vite.config.ts outDir
+        # outputs to pgwerk/api/static/ via vite.config.ts outDir
 
       # ── Build and publish Python wheel ───────────────────────────────────
       - uses: astral-sh/setup-uv@v4

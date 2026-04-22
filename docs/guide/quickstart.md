@@ -35,7 +35,7 @@ async with app:
 
 ## Define handlers
 
-Handlers are plain async (or sync) functions. `wrk` records their dotted import path and imports them on the worker side when a job runs.
+Handlers are plain async (or sync) functions. `werk` records their dotted import path and imports them on the worker side when a job runs.
 
 ```python
 async def send_email(to: str, subject: str) -> None:
@@ -47,7 +47,7 @@ async def resize_image(path: str, width: int) -> str:
 
 ### Execution context
 
-Handlers can optionally receive an execution context as their first argument. `wrk` injects it automatically when the first parameter is named `ctx` or annotated as `Context`:
+Handlers can optionally receive an execution context as their first argument. `werk` injects it automatically when the first parameter is named `ctx` or annotated as `Context`:
 
 ```python
 from pgwerk import Context

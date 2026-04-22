@@ -11,8 +11,8 @@ setup: ## Install all dependencies and set up the dev environment
 	uv sync --extra dev
 	pnpm install --dir dashboard
 	@echo ""
-	@echo "Done. To run integration tests, export WRK_TEST_DSN:"
-	@echo "  export WRK_TEST_DSN=postgresql://wrk:wrk@localhost/wrk_test"
+	@echo "Done. To run integration tests, export PGWERK_TEST_DSN:"
+	@echo "  export PGWERK_TEST_DSN=postgresql://werk:wrk@localhost/wrk_test"
 
 # ── Code quality ──────────────────────────────────────────────────────────────
 
@@ -24,13 +24,13 @@ format: ## Format code
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
-test: ## Run all tests (requires WRK_TEST_DSN for integration)
+test: ## Run all tests (requires PGWERK_TEST_DSN for integration)
 	uv run pytest
 
 test-unit: ## Run unit tests only
 	uv run pytest tests/unit/
 
-test-integration: ## Run integration tests (requires WRK_TEST_DSN)
+test-integration: ## Run integration tests (requires PGWERK_TEST_DSN)
 	uv run pytest tests/integration/
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
