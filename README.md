@@ -1,8 +1,8 @@
 # PGWerk
 
 [![CI](https://github.com/pgwerk/pgwerk/actions/workflows/ci.yml/badge.svg)](https://github.com/pgwerk/pgwerk/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/pgwerk)](https://pypi.org/project/pgwerk/)
-[![Python](https://img.shields.io/pypi/pyversions/pgwerk)](https://pypi.org/project/pgwerk/)
+[![PyPI](https://img.shields.io/pypi/v/pgwerk?v=2)](https://pypi.org/project/pgwerk/)
+[![Python](https://img.shields.io/pypi/pyversions/pgwerk?v=2)](https://pypi.org/project/pgwerk/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-pgwerk.github.io/pgwerk-blue)](https://pgwerk.github.io/pgwerk)
 
