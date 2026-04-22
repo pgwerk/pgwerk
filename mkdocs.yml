@@ -1,8 +1,8 @@
-site_name: wrk
+site_name: pgwerk
 site_description: Postgres-backed job queue. Durable, visible, transactional.
-site_url: https://ccrvlh.github.io/wrk
-repo_url: https://github.com/ccrvlh/wrk
-repo_name: ccrvlh/wrk
+site_url: https://pgwerk.github.io/pgwerk
+repo_url: https://github.com/pgwerk/pgwerk
+repo_name: pgwerk/pgwerk
 
 theme:
   name: shadcn

@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Postgres-backed job queue. Durable, visible, transactional."
 readme = "README.md"
 license = { file = "LICENSE" }
+authors = [{ name = "pgwerk", email = "21188280+ccrvlh@users.noreply.github.com" }]
 requires-python = ">=3.11"
 keywords = [
     "postgres",

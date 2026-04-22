@@ -18,6 +18,8 @@ htmlcov/
 .pytest_cache/
 node_modules/
 dashboard/dist/
+*.tsbuildinfo
+dashboard/package-lock.json
 pgwerk/api/static/*
 !pgwerk/api/static/.gitkeep
 site/
