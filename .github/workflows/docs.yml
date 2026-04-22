@@ -3,6 +3,13 @@ name: Docs
 on:
   push:
     branches: [main]
+    paths:
+      - ".github/workflows/docs.yml"
+      - "docs/**"
+      - "mkdocs.yml"
+      - "README.md"
+      - "CHANGELOG.md"
+      - "docs/assets/**"
 
 permissions:
   contents: write
