@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from wrk.commons import JobStatus
+from pgwerk.commons import JobStatus
 
 from .tasks import add
 from .tasks import noop

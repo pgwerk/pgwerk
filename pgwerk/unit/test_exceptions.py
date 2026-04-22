@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock
 
-from wrk.exceptions import (
-    WrkError,
-    JobNotFound,
-    JobTimeout,
-    WorkerShutdown,
-    DependencyFailed,
-    JobError,
-)
+import pytest
+
+from pgwerk.exceptions import JobError
+from pgwerk.exceptions import WrkError
+from pgwerk.exceptions import JobTimeout
+from pgwerk.exceptions import JobNotFound
+from pgwerk.exceptions import WorkerShutdown
+from pgwerk.exceptions import DependencyFailed
 
 
 class TestWrkErrorHierarchy:

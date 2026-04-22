@@ -6,7 +6,9 @@ Set WRK_DSN to point at your Postgres database, e.g.:
 """
 
 import os
-from wrk import Wrk
+
+from pgwerk import Wrk
+
 
 DSN = os.environ.get("WRK_DSN", "postgresql://wrk:wrk@localhost/wrk")
 

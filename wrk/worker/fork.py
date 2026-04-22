@@ -5,10 +5,10 @@ import multiprocessing
 
 from typing import Any
 
-from ..schemas import Job
 from .base import BaseWorker
 from ..utils import import_fn
 from ..utils import wants_context
+from ..schemas import Job
 from ..schemas import Context
 
 
@@ -22,7 +22,7 @@ def _fork_target(
     import asyncio as _aio
 
     try:
-        from wrk.utils import import_fn
+        from pgwerk.utils import import_fn
 
         fn = import_fn(dotted)
         result = _aio.run(fn(*args, **kwargs)) if _aio.iscoroutinefunction(fn) else fn(*args, **kwargs)

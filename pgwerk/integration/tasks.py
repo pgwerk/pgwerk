@@ -6,8 +6,8 @@ Callbacks receive a Job object.
 
 from __future__ import annotations
 
-import asyncio
 import time
+import asyncio
 import threading
 import dataclasses
 
@@ -32,7 +32,7 @@ def fail_always(ctx):
 
 def fail_once(ctx):
     """Fails on the first attempt, succeeds on subsequent attempts."""
-    from wrk.schemas import Job
+    from pgwerk.schemas import Job
 
     job: Job = ctx.job
     if job.attempts <= 1:

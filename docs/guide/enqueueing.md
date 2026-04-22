@@ -45,7 +45,7 @@ await app.enqueue(my_func, _at=datetime(2025, 6, 1, 9, 0, tzinfo=timezone.utc))
 Pass an integer for a simple max-attempt count, or a `Retry` object for fine-grained control:
 
 ```python
-from wrk import Retry
+from pgwerk import Retry
 
 # Retry up to 3 times total (including the first attempt)
 await app.enqueue(my_func, _retry=3)
@@ -122,7 +122,7 @@ await app.enqueue(my_func, _failure_mode="delete")
 Register functions to be called when a job completes, fails, or is stopped:
 
 ```python
-from wrk import Callback
+from pgwerk import Callback
 
 async def on_done(ctx):
     print(f"Job {ctx.job.id} finished")
@@ -146,7 +146,7 @@ await app.enqueue(my_func, _on_success=Callback(func=on_done, timeout=10))
 Re-enqueue a job automatically after each successful run:
 
 ```python
-from wrk import Repeat
+from pgwerk import Repeat
 
 # Run 6 times total (first + 5 repeats), waiting 1 hour between each
 await app.enqueue(cleanup, _repeat=Repeat(times=5, interval=3600))
@@ -160,7 +160,7 @@ await app.enqueue(cleanup, _repeat=Repeat(times=3, intervals=[60, 300, 3600]))
 Jobs can wait for one or more upstream jobs before they become eligible:
 
 ```python
-from wrk import Dependency
+from pgwerk import Dependency
 
 job_a = await app.enqueue(step_one)
 job_b = await app.enqueue(step_two, _depends_on=job_a)
@@ -179,7 +179,7 @@ The dependent job enters `waiting` status and is promoted to `queued` once all i
 Insert multiple jobs in a single round-trip:
 
 ```python
-from wrk import EnqueueParams
+from pgwerk import EnqueueParams
 
 await app.enqueue_many([
     EnqueueParams(func=process, kwargs={"item_id": i}, queue="bulk")

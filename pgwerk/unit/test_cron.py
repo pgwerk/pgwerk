@@ -10,8 +10,8 @@ import pytest
 
 croniter = pytest.importorskip("croniter", reason="croniter not installed")
 
-from wrk.cron import CronJob
-from wrk.cron import CronScheduler
+from pgwerk.cron import CronJob
+from pgwerk.cron import CronScheduler
 
 
 class TestCronJobValidation:
@@ -107,7 +107,10 @@ class TestCronSchedulerRegister:
 
 class TestCronJobSecondsUntilNextCron:
     def test_cron_future_returns_positive(self):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime
+        from datetime import timezone
+        from datetime import timedelta
+
         cj = CronJob(func=lambda: None, cron="* * * * *")
         cj.next_run_at = datetime.now(timezone.utc) + timedelta(seconds=30)
         remaining = cj.seconds_until_next()
@@ -119,7 +122,10 @@ class TestCronJobSecondsUntilNextCron:
         assert cj.seconds_until_next() == 60.0
 
     def test_cron_overdue_returns_zero(self):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime
+        from datetime import timezone
+        from datetime import timedelta
+
         cj = CronJob(func=lambda: None, cron="* * * * *")
         cj.next_run_at = datetime.now(timezone.utc) - timedelta(seconds=30)
         assert cj.seconds_until_next() == 0.0
@@ -153,7 +159,9 @@ class TestCronSchedulerRegisterCronJobInstance:
         assert isinstance(result, CronJob)
 
     def test_sleep_seconds_uses_minimum(self):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime
+        from datetime import timezone
+
         app = MagicMock()
         app.prefix = "_wrk"
         scheduler = CronScheduler(app)
@@ -169,6 +177,7 @@ class TestCronSchedulerRegisterCronJobInstance:
 class TestCronSchedulerTick:
     async def test_tick_enqueues_due_job(self):
         from unittest.mock import AsyncMock
+
         app = MagicMock()
         app.prefix = "_wrk"
         app.enqueue = AsyncMock()
@@ -182,8 +191,10 @@ class TestCronSchedulerTick:
         assert cj.last_run_at is not None
 
     async def test_tick_skips_not_due_job(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
+        from datetime import timezone
         from unittest.mock import AsyncMock
+
         app = MagicMock()
         app.prefix = "_wrk"
         app.enqueue = AsyncMock()
@@ -198,6 +209,7 @@ class TestCronSchedulerTick:
 
     async def test_tick_handles_enqueue_error(self):
         from unittest.mock import AsyncMock
+
         app = MagicMock()
         app.prefix = "_wrk"
         app.enqueue = AsyncMock(side_effect=RuntimeError("db down"))
@@ -292,6 +304,7 @@ class TestCronSchedulerDynamicControl:
 
     async def test_tick_skips_paused_job(self):
         from unittest.mock import AsyncMock
+
         app = MagicMock()
         app.prefix = "_wrk"
         app.enqueue = AsyncMock()

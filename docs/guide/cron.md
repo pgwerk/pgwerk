@@ -5,7 +5,7 @@
 ## Basic usage
 
 ```python
-from wrk import Wrk, AsyncWorker, CronScheduler
+from pgwerk import Wrk, AsyncWorker, CronScheduler
 
 app = Wrk("postgresql://user:pass@localhost/mydb")
 
@@ -61,7 +61,7 @@ scheduler.register(my_func, cron="30 8 1 * *")     # 1st of each month at 08:30
 For more control, construct a `CronJob` directly:
 
 ```python
-from wrk import CronJob
+from pgwerk import CronJob
 
 job = CronJob(
     func=daily_report,

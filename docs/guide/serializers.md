@@ -7,7 +7,7 @@ Serializers control how job payloads, results, and metadata are encoded for stor
 The default serializer. Payloads are encoded as JSON, which is readable in the database and portable across processes and languages.
 
 ```python
-from wrk import Wrk
+from pgwerk import Wrk
 
 app = Wrk("postgresql://user:pass@localhost/mydb")
 # JSONSerializer is used automatically
@@ -20,7 +20,7 @@ JSON imposes the usual type constraints: values must be JSON-serialisable (strin
 Serializes payloads with `pickle` and encodes the bytes as base64. This lifts the JSON type restriction — you can pass arbitrary Python objects including dataclasses, numpy arrays, and custom classes.
 
 ```python
-from wrk import Wrk, PickleSerializer
+from pgwerk import Wrk, PickleSerializer
 
 app = Wrk("postgresql://user:pass@localhost/mydb", serializer=PickleSerializer())
 ```
@@ -33,7 +33,7 @@ app = Wrk("postgresql://user:pass@localhost/mydb", serializer=PickleSerializer()
 Any object that satisfies the `Serializer` protocol works:
 
 ```python
-from wrk import Wrk, Serializer
+from pgwerk import Wrk, Serializer
 import msgpack
 
 class MsgPackSerializer:

@@ -10,8 +10,8 @@ import pytest
 
 from psycopg.sql import SQL
 
-from wrk.commons import JobStatus
-from wrk.worker.aio import AsyncWorker
+from pgwerk.commons import JobStatus
+from pgwerk.worker.aio import AsyncWorker
 
 from .tasks import noop
 from .tasks import fail_once
@@ -84,7 +84,7 @@ class TestWorkerRetry:
         from datetime import datetime
         from datetime import timezone
 
-        from wrk.schemas import Retry
+        from pgwerk.schemas import Retry
 
         job = await app.enqueue(fail_always, _retry=Retry(max=2, intervals=[3600]))
         await make_worker(app).run()

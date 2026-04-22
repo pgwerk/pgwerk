@@ -8,8 +8,8 @@ import pytest
 
 from click.testing import CliRunner
 
-from wrk.cli import cli
-from wrk.cli.utils import load_app
+from pgwerk.cli import cli
+from pgwerk.cli.utils import load_app
 
 
 class TestLoadApp:

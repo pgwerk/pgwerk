@@ -15,7 +15,7 @@ from typing import Callable
 from datetime import datetime
 from datetime import timezone
 
-from wrk.schemas import CronJob
+from pgwerk.schemas import CronJob
 
 
 if TYPE_CHECKING:

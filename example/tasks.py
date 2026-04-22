@@ -5,11 +5,11 @@ Imported by the worker at runtime via their dotted paths.
 Can also be imported directly in the producer to pass to app.enqueue().
 """
 
+import random
 import asyncio
 import logging
-import random
 
-from wrk.schemas import Context
+from pgwerk.schemas import Context
 
 
 logger = logging.getLogger(__name__)
@@ -28,13 +28,17 @@ async def send_password_reset(ctx: Context, user_id: int, email: str, token: str
 
 
 async def send_invoice_email(ctx: Context, order_id: str, customer_email: str, amount_cents: int) -> dict:
-    logger.info("[job %s] Sending invoice for order %s ($%.2f) to %s", ctx.job.id, order_id, amount_cents / 100, customer_email)
+    logger.info(
+        "[job %s] Sending invoice for order %s ($%.2f) to %s", ctx.job.id, order_id, amount_cents / 100, customer_email
+    )
     await asyncio.sleep(random.uniform(0.1, 0.4))
     return {"status": "sent", "order_id": order_id}
 
 
 async def generate_thumbnail(ctx: Context, asset_id: str, source_url: str, width: int, height: int) -> dict:
-    logger.info("[job %s] Generating %dx%d thumbnail for asset %s from %s", ctx.job.id, width, height, asset_id, source_url)
+    logger.info(
+        "[job %s] Generating %dx%d thumbnail for asset %s from %s", ctx.job.id, width, height, asset_id, source_url
+    )
     await asyncio.sleep(random.uniform(0.5, 2.0))
     return {"asset_id": asset_id, "thumbnail_url": f"https://cdn.example.com/thumbs/{asset_id}_{width}x{height}.jpg"}
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from wrk.app import Wrk
+from pgwerk.app import Wrk
 
 from .tasks import clear_callback_log
 

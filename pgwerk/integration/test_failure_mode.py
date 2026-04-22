@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from wrk.commons import JobStatus
+from pgwerk.commons import JobStatus
 
 from .tasks import on_failure
 from .tasks import on_stopped

@@ -21,7 +21,7 @@ class JobNotFound(WrkError): ...
 Raised by `app.get_job()` when no job with the given ID exists in the database.
 
 ```python
-from wrk import JobNotFound
+from pgwerk import JobNotFound
 
 try:
     job = await app.get_job("nonexistent-id")
@@ -51,7 +51,7 @@ class JobError(WrkError):
 Raised by `app.apply()` and `app.map()` when a job reaches a failed or aborted terminal state. The `job` attribute holds the terminal `Job` object for inspection.
 
 ```python
-from wrk import JobError
+from pgwerk import JobError
 
 try:
     result = await app.apply(risky_func, timeout=30)

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from litestar.testing import AsyncTestClient
 
-from wrk.api.app import create_app
-from wrk.commons import JobStatus
+from pgwerk.api.app import create_app
+from pgwerk.commons import JobStatus
 
 from .tasks import noop
 

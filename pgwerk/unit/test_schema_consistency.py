@@ -1,11 +1,15 @@
 """Consistency checks between JOB_COLS, _INSERT_SQL, Job, and JobInsert."""
+
 from __future__ import annotations
 
 import re
 import dataclasses
 
-from wrk.repos import _INSERT_SQL, _INSERT_COLS
-from wrk.schemas import Job, JobInsert, JOB_COLS
+from pgwerk.repos import _INSERT_SQL
+from pgwerk.repos import _INSERT_COLS
+from pgwerk.schemas import JOB_COLS
+from pgwerk.schemas import Job
+from pgwerk.schemas import JobInsert
 
 
 # ---------------------------------------------------------------------------

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from wrk.worker import ThreadWorker
-from wrk.commons import JobStatus
+from pgwerk.worker import ThreadWorker
+from pgwerk.commons import JobStatus
 
 from .tasks import noop
 from .tasks import add_pure

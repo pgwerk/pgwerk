@@ -6,7 +6,7 @@ from psycopg import AsyncConnection
 from psycopg.sql import SQL
 from psycopg.sql import Identifier
 
-from wrk import utils
+from pgwerk import utils
 
 from .config import WrkConfig
 

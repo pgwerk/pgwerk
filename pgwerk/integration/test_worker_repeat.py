@@ -19,7 +19,7 @@ def _clear_callbacks():
 
 class TestWorkerRepeat:
     async def test_repeat_reenqueues_after_success(self, app):
-        from wrk.schemas import Repeat
+        from pgwerk.schemas import Repeat
 
         await app.enqueue(noop, _repeat=Repeat(times=2))
         await make_worker(app).run()
@@ -28,7 +28,7 @@ class TestWorkerRepeat:
         assert len(noop_jobs) == 3  # original + 2 repeats
 
     async def test_failed_job_does_not_repeat(self, app):
-        from wrk.schemas import Repeat
+        from pgwerk.schemas import Repeat
 
         await app.enqueue(fail_always, _repeat=Repeat(times=3))
         await make_worker(app).run()

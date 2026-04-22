@@ -13,7 +13,7 @@ pip install wrk
 ## Quickstart
 
 ```python
-from wrk import Wrk, AsyncWorker
+from pgwerk import Wrk, AsyncWorker
 
 app = Wrk("postgresql://user:pass@localhost/mydb")
 

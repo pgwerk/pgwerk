@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from wrk.commons import JobStatus
+from pgwerk.commons import JobStatus
 
 from .tasks import fail_always
 from .tasks import clear_callback_log

@@ -6,7 +6,7 @@ import uuid
 
 import pytest
 
-from wrk.exceptions import JobNotFound
+from pgwerk.exceptions import JobNotFound
 
 from .tasks import noop
 

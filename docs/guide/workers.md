@@ -9,7 +9,7 @@ Workers dequeue jobs from Postgres and execute them. `wrk` ships with four worke
 The default. Runs handlers as coroutines on a single asyncio event loop. Best for I/O-bound work (HTTP calls, database queries, file I/O).
 
 ```python
-from wrk import AsyncWorker
+from pgwerk import AsyncWorker
 
 worker = AsyncWorker(app=app, queues=["default"], concurrency=20)
 await worker.run()
@@ -20,7 +20,7 @@ await worker.run()
 Runs each handler in a thread-pool executor. Suitable for blocking libraries that are not async-aware.
 
 ```python
-from wrk import ThreadWorker
+from pgwerk import ThreadWorker
 
 worker = ThreadWorker(app=app, concurrency=8)
 await worker.run()
@@ -31,7 +31,7 @@ await worker.run()
 Runs handlers in a process-pool executor. Use this for CPU-bound work that benefits from true parallelism (bypasses the GIL).
 
 ```python
-from wrk import ProcessWorker
+from pgwerk import ProcessWorker
 
 worker = ProcessWorker(app=app, concurrency=4)
 await worker.run()
@@ -42,7 +42,7 @@ await worker.run()
 Forks a new process for each individual job. Provides maximum isolation — a crashing job cannot affect the worker process. A `SIGTERM` grace period allows the child process to finish before `SIGKILL` is sent.
 
 ```python
-from wrk import ForkWorker
+from pgwerk import ForkWorker
 
 worker = ForkWorker(app=app, concurrency=4)
 await worker.run()
@@ -72,7 +72,7 @@ All workers share these constructor parameters:
 Control how the worker picks jobs from multiple queues:
 
 ```python
-from wrk import AsyncWorker, DequeueStrategy
+from pgwerk import AsyncWorker, DequeueStrategy
 
 # Priority (default) — higher-priority jobs run first across all queues
 worker = AsyncWorker(app=app, queues=["high", "low"], dequeue_strategy=DequeueStrategy.Priority)
@@ -99,7 +99,7 @@ await worker.run()
 Run code before or after every job:
 
 ```python
-from wrk import Context
+from pgwerk import Context
 
 async def log_start(ctx: Context) -> None:
     print(f"Starting {ctx.job.function} [{ctx.job.id}]")
@@ -146,7 +146,7 @@ Workers can run in the same process as an ASGI/WSGI application using background
 
 ```python
 import asyncio
-from wrk import AsyncWorker
+from pgwerk import AsyncWorker
 
 async def main():
     async with app:

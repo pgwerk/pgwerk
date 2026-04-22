@@ -7,11 +7,11 @@ from unittest.mock import patch
 
 import pytest
 
-from wrk.worker.fork import ForkWorker
-from wrk.worker.fork import _fork_target
-from wrk.worker.thread import ThreadWorker
-from wrk.worker.process import ProcessWorker
-from wrk.worker.process import _run_in_subprocess
+from pgwerk.worker.fork import ForkWorker
+from pgwerk.worker.fork import _fork_target
+from pgwerk.worker.thread import ThreadWorker
+from pgwerk.worker.process import ProcessWorker
+from pgwerk.worker.process import _run_in_subprocess
 
 
 def make_app():

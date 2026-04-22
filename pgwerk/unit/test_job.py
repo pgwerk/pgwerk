@@ -5,14 +5,14 @@ from datetime import timezone
 
 import pytest
 
-from wrk.commons import JobStatus
-from wrk.commons import ExecutionStatus
-from wrk.schemas import Job
-from wrk.schemas import Retry
-from wrk.schemas import Repeat
-from wrk.schemas import Callback
-from wrk.schemas import Dependency
-from wrk.schemas import JobExecution
+from pgwerk.commons import JobStatus
+from pgwerk.commons import ExecutionStatus
+from pgwerk.schemas import Job
+from pgwerk.schemas import Retry
+from pgwerk.schemas import Repeat
+from pgwerk.schemas import Callback
+from pgwerk.schemas import Dependency
+from pgwerk.schemas import JobExecution
 
 
 # ---------------------------------------------------------------------------

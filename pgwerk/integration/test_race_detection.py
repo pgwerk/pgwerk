@@ -10,7 +10,7 @@ import pytest
 
 from psycopg.sql import SQL
 
-from wrk.worker.aio import AsyncWorker
+from pgwerk.worker.aio import AsyncWorker
 
 from .tasks import noop
 from .tasks import fail_always

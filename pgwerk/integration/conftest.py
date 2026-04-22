@@ -7,8 +7,8 @@ import pytest
 import psycopg
 import pytest_asyncio
 
-from wrk.app import Wrk
-from wrk.worker import AsyncWorker
+from pgwerk.app import Wrk
+from pgwerk.worker import AsyncWorker
 
 
 _TEST_PREFIX = "_wrk"

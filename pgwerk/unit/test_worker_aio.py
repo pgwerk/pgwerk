@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-import pytest
-from unittest.mock import MagicMock, patch
 
-from wrk.worker.aio import AsyncWorker
-from wrk.utils import import_fn
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
+import pytest
+
+from pgwerk.utils import import_fn
+from pgwerk.worker.aio import AsyncWorker
 
 
 def make_app():
@@ -31,11 +34,13 @@ def make_job(function, payload=None, timeout_secs=None, heartbeat_secs=None):
 class TestAsyncWorkerImport:
     def test_imports_function(self):
         import os
+
         fn = import_fn("os.getcwd")
         assert fn is os.getcwd
 
     def test_imports_class(self):
-        from wrk.schemas import Job
+        from pgwerk.schemas import Job
+
         cls = import_fn("wrk.schemas.Job")
         assert cls is Job
 

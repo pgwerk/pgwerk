@@ -6,10 +6,10 @@ from typing import Any
 from functools import partial
 from concurrent.futures import ProcessPoolExecutor
 
-from ..schemas import Job
 from .base import BaseWorker
 from ..utils import import_fn
 from ..utils import wants_context
+from ..schemas import Job
 from ..schemas import Context
 
 
@@ -17,7 +17,7 @@ def _run_in_subprocess(dotted: str, args: list, kwargs: dict) -> Any:
     """Entry point for pool workers. Must be top-level to be picklable."""
     import asyncio as _aio
 
-    from wrk.utils import import_fn
+    from pgwerk.utils import import_fn
 
     fn = import_fn(dotted)
     if _aio.iscoroutinefunction(fn):

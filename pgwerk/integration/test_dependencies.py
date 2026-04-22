@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from psycopg.sql import SQL
 
-from wrk.commons import JobStatus
-from wrk.schemas import Dependency
+from pgwerk.commons import JobStatus
+from pgwerk.schemas import Dependency
 
 from .tasks import noop
 from .tasks import fail_always

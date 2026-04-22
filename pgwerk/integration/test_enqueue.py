@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from wrk.commons import JobStatus
+from pgwerk.commons import JobStatus
 
 from .tasks import add
 from .tasks import noop
@@ -65,7 +65,7 @@ class TestEnqueue:
         assert fetched.max_attempts == 3
 
     async def test_retry_intervals_stored(self, app):
-        from wrk.schemas import Retry
+        from pgwerk.schemas import Retry
 
         job = await app.enqueue(noop, _retry=Retry(max=3, intervals=[5, 10]))
         fetched = await app.get_job(job.id)

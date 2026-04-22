@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from psycopg.sql import SQL
 
-from wrk.commons import JobStatus
+from pgwerk.commons import JobStatus
 
 from .tasks import noop
 from .tasks import add_pure

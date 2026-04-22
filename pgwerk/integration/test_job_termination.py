@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from wrk.commons import JobStatus
+from pgwerk.commons import JobStatus
 
 from .tasks import noop
 from .tasks import on_stopped

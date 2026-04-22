@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 
-from wrk import utils
-from wrk.schemas import CronJob
+from pgwerk.schemas import CronJob
+
+from pgwerk import utils
 
 
 if TYPE_CHECKING:

@@ -9,9 +9,9 @@ import os
 import asyncio
 import logging
 
-from wrk import Wrk
-from wrk import AsyncWorker
-from wrk import configure_logging
+from pgwerk import Wrk
+from pgwerk import AsyncWorker
+from pgwerk import configure_logging
 
 
 configure_logging(logger_name="")

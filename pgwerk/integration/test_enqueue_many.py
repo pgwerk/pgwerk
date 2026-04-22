@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from wrk.commons import JobStatus
-from wrk.schemas import EnqueueParams
+from pgwerk.commons import JobStatus
+from pgwerk.schemas import EnqueueParams
 
 from .tasks import add
 from .tasks import noop

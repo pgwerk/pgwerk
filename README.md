@@ -30,7 +30,7 @@ Requires Python 3.11+ and a Postgres 14+ database.
 Define your app and handlers:
 
 ```python
-from wrk import Wrk, Context
+from pgwerk import Wrk, Context
 
 app = Wrk("postgresql://user:pass@localhost/mydb")
 
@@ -55,7 +55,7 @@ Run a worker in a separate process:
 
 ```python
 import asyncio
-from wrk import AsyncWorker
+from pgwerk import AsyncWorker
 
 async def main():
     worker = AsyncWorker(app=app, queues=["default"], concurrency=10)
@@ -69,7 +69,7 @@ Handlers are identified by their dotted import path (`myapp.tasks.send_email`). 
 ### Enqueueing
 
 ```python
-from wrk import Retry, Repeat, Dependency
+from pgwerk import Retry, Repeat, Dependency
 from datetime import datetime, timezone, timedelta
 
 # Basic
@@ -102,7 +102,7 @@ await app.enqueue(step_two, _depends_on=job_a)          # waits for job_a
 await app.enqueue(step_two, _depends_on=Dependency(job_a, allow_failure=True))
 
 # Bulk enqueue in one round-trip
-from wrk import EnqueueSpec
+from pgwerk import EnqueueSpec
 await app.enqueue_many([
     EnqueueSpec(func=my_func, kwargs={"n": i}, queue="bulk") for i in range(100)
 ])
@@ -111,7 +111,7 @@ await app.enqueue_many([
 ### Workers
 
 ```python
-from wrk import AsyncWorker, ThreadWorker, ProcessWorker, ForkWorker
+from pgwerk import AsyncWorker, ThreadWorker, ProcessWorker, ForkWorker
 
 # Asyncio (default — best for I/O-bound work)
 worker = AsyncWorker(app=app, queues=["default", "high"], concurrency=20)
@@ -133,7 +133,7 @@ Workers register themselves in the database, send periodic heartbeats, auto-touc
 ### Cron
 
 ```python
-from wrk import CronScheduler, CronJob
+from pgwerk import CronScheduler, CronJob
 
 scheduler = CronScheduler(app)
 scheduler.register(CronJob(func=my_func, cron="*/15 * * * *"))  # every 15 min
@@ -148,7 +148,7 @@ async with app:
 ### Serializers
 
 ```python
-from wrk import Wrk, PickleSerializer
+from pgwerk import Wrk, PickleSerializer
 
 app = Wrk(dsn, serializer=PickleSerializer())  # default is JSONSerializer
 ```

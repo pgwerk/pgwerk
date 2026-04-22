@@ -16,8 +16,8 @@ import logging
 
 from typing import Callable
 
-from wrk import Wrk
-from wrk import Retry
+from pgwerk import Wrk
+from pgwerk import Retry
 from example.tasks import export_report
 from example.tasks import process_webhook
 from example.tasks import transcode_video

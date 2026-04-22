@@ -195,7 +195,7 @@ Remove a previously registered before-enqueue callback.
 Centralised configuration. Keyword arguments to `Wrk()` take precedence over values in a `WrkConfig` instance.
 
 ```python
-from wrk import Wrk, WrkConfig
+from pgwerk import Wrk, WrkConfig
 
 config = WrkConfig(
     prefix="_jobs",

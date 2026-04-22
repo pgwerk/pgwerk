@@ -17,7 +17,7 @@ pip install "wrk[cron]"
 Create a `Wrk` instance with your Postgres DSN. Call `connect()` once at startup and `disconnect()` at shutdown. The async context manager is shorthand for the same pair:
 
 ```python
-from wrk import Wrk
+from pgwerk import Wrk
 
 app = Wrk("postgresql://user:pass@localhost/mydb")
 
@@ -50,7 +50,7 @@ async def resize_image(path: str, width: int) -> str:
 Handlers can optionally receive an execution context as their first argument. `wrk` injects it automatically when the first parameter is named `ctx` or annotated as `Context`:
 
 ```python
-from wrk import Context
+from pgwerk import Context
 
 async def send_email(ctx: Context, to: str) -> None:
     print(f"Job {ctx.job.id} on worker {ctx.worker.name}")
@@ -75,7 +75,7 @@ Workers dequeue and execute jobs. Run one in a separate process or alongside you
 
 ```python
 import asyncio
-from wrk import AsyncWorker
+from pgwerk import AsyncWorker
 
 async def main():
     worker = AsyncWorker(app=app, queues=["default"], concurrency=10)
@@ -96,7 +96,7 @@ wrk worker myapp.tasks:app --queues default --concurrency 10
 
 ```python
 import asyncio
-from wrk import Wrk, AsyncWorker
+from pgwerk import Wrk, AsyncWorker
 
 app = Wrk("postgresql://user:pass@localhost/mydb")
 

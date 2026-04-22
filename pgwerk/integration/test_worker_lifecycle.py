@@ -6,10 +6,10 @@ import asyncio
 
 from psycopg.sql import SQL
 
-from wrk.worker import AsyncWorker
+from pgwerk.worker import AsyncWorker
 
-from .conftest import make_worker
 from .tasks import noop
+from .conftest import make_worker
 
 
 class TestWorkerLifecycle:

@@ -96,7 +96,7 @@ class ExecutionStatus(str, enum.Enum):
 Configure maximum attempts and back-off delays.
 
 ```python
-from wrk import Retry
+from pgwerk import Retry
 
 # 4 total attempts with custom per-attempt delays
 retry = Retry(max=4, intervals=[10, 60, 300])
@@ -117,7 +117,7 @@ retry = Retry(max=3, intervals=30)
 Re-enqueue a job after each successful run.
 
 ```python
-from wrk import Repeat
+from pgwerk import Repeat
 
 # Run 6 times total (first + 5 repeats), 1 hour apart
 repeat = Repeat(times=5, interval=3600)
@@ -139,7 +139,7 @@ repeat = Repeat(times=3, intervals=[60, 300, 3600])
 Declare that a job must wait for an upstream job.
 
 ```python
-from wrk import Dependency
+from pgwerk import Dependency
 
 job_a = await app.enqueue(step_one)
 await app.enqueue(step_two, _depends_on=Dependency(job_a, allow_failure=True))
@@ -157,7 +157,7 @@ await app.enqueue(step_two, _depends_on=Dependency(job_a, allow_failure=True))
 A callback function with an optional timeout.
 
 ```python
-from wrk import Callback
+from pgwerk import Callback
 
 await app.enqueue(my_func, _on_success=Callback(func=notify, timeout=10))
 ```
@@ -187,7 +187,7 @@ Execution context injected into handlers.
 Specification for a single job in `enqueue_many`.
 
 ```python
-from wrk import EnqueueParams
+from pgwerk import EnqueueParams
 
 await app.enqueue_many([
     EnqueueParams(func=process, kwargs={"id": i}, queue="bulk")

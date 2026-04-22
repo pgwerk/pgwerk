@@ -11,11 +11,11 @@ import psycopg
 
 from psycopg.sql import SQL
 
-from wrk.app import Wrk
-from wrk.cron import CronScheduler
-from wrk.worker import AsyncWorker
-from wrk.commons import JobStatus
-from wrk.schemas import Retry
+from pgwerk.app import Wrk
+from pgwerk.cron import CronScheduler
+from pgwerk.worker import AsyncWorker
+from pgwerk.commons import JobStatus
+from pgwerk.schemas import Retry
 
 from .tasks import noop
 from .tasks import slow_pure

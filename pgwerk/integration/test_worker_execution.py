@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from wrk.commons import JobStatus
-from wrk.serializers import PickleSerializer
+from pgwerk.commons import JobStatus
+from pgwerk.serializers import PickleSerializer
 
 from .tasks import Box
 from .tasks import add

@@ -31,7 +31,7 @@ class TestMap:
         assert results == [0, 2, 4, 6, 8]
 
     async def test_map_raises_on_first_failure(self, app):
-        from wrk.exceptions import JobError
+        from pgwerk.exceptions import JobError
 
         worker = make_worker(app, burst=True, poll_interval=0.05)
         kwargs_list = [{}, {}, {}]
@@ -42,7 +42,7 @@ class TestMap:
             )
 
     async def test_map_return_exceptions_collects_errors(self, app):
-        from wrk.exceptions import JobError
+        from pgwerk.exceptions import JobError
 
         worker = make_worker(app, burst=True, poll_interval=0.05)
         kwargs_list = [{}, {}, {}]

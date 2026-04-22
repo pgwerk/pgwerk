@@ -52,7 +52,7 @@ Remove and return the top exception handler. Raises `IndexError` if the stack is
 Runs handlers as coroutines on the asyncio event loop. Best for I/O-bound work.
 
 ```python
-from wrk import AsyncWorker
+from pgwerk import AsyncWorker
 
 worker = AsyncWorker(app=app, queues=["default", "high"], concurrency=20)
 await worker.run()
@@ -65,7 +65,7 @@ await worker.run()
 Runs each handler in a thread-pool executor. The event loop remains unblocked. Use for blocking code that cannot be made async.
 
 ```python
-from wrk import ThreadWorker
+from pgwerk import ThreadWorker
 
 worker = ThreadWorker(app=app, concurrency=8)
 await worker.run()
@@ -78,7 +78,7 @@ await worker.run()
 Runs handlers in a process-pool executor. Provides true CPU parallelism by bypassing the GIL.
 
 ```python
-from wrk import ProcessWorker
+from pgwerk import ProcessWorker
 
 worker = ProcessWorker(app=app, concurrency=4)
 await worker.run()
@@ -91,7 +91,7 @@ await worker.run()
 Forks a new process for each job. Provides maximum isolation — a crashing job cannot corrupt the worker process. A `SIGTERM` grace period (`sigterm_grace`) is applied before `SIGKILL`.
 
 ```python
-from wrk import ForkWorker
+from pgwerk import ForkWorker
 
 worker = ForkWorker(app=app, concurrency=4)
 await worker.run()
@@ -110,7 +110,7 @@ Controls how queues are ordered when selecting jobs.
 | `DequeueStrategy.Random` | Pick a queue at random each poll |
 
 ```python
-from wrk import AsyncWorker, DequeueStrategy
+from pgwerk import AsyncWorker, DequeueStrategy
 
 worker = AsyncWorker(
     app=app,

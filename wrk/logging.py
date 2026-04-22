@@ -9,7 +9,7 @@ import contextvars
 
 from typing import Any
 
-from wrk import utils
+from pgwerk import utils
 
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
