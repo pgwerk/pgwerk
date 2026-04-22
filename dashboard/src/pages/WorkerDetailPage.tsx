@@ -12,11 +12,11 @@ import type { JobResponse } from '@/types'
 import { useQuery } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
 import { ArrowLeft, Cpu, RefreshCw } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts'
 
-const MAX_POINTS = 30
+const THROUGHPUT_MINUTES = 30
 const ALIVE_THRESHOLD_MS = 90_000
 
 interface HeartbeatPoint { t: number; v: number }
@@ -39,8 +39,6 @@ function Field({ label, value, mono }: FieldProps) {
 
 export function WorkerDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const historyRef = useRef<HeartbeatPoint[]>([])
-  const [history, setHistory] = useState<HeartbeatPoint[]>([])
   const [selectedJob, setSelectedJob] = useState<JobResponse | null>(null)
 
   const { data: worker, isLoading, refetch, isFetching } = useQuery({
@@ -57,13 +55,12 @@ export function WorkerDetailPage() {
     enabled: !!id,
   })
 
-  useEffect(() => {
-    if (!worker) return
-    const v = isAlive(worker.heartbeat_at) ? 1 : 0
-    const updated = [...historyRef.current, { t: Date.now(), v }].slice(-MAX_POINTS)
-    historyRef.current = updated
-    setHistory(updated)
-  }, [worker])
+  const { data: throughputHistory } = useQuery({
+    queryKey: ['stats', 'throughput', 'worker-detail', id, THROUGHPUT_MINUTES],
+    queryFn: () => api.getThroughputHistory(THROUGHPUT_MINUTES),
+    refetchInterval: 10_000,
+    enabled: !!id,
+  })
 
   if (isLoading) {
     return (
@@ -89,6 +86,22 @@ export function WorkerDetailPage() {
   const uptime = worker.started_at
     ? formatDistanceToNow(new Date(worker.started_at), { addSuffix: false })
     : null
+  const history: HeartbeatPoint[] = (() => {
+    const points = throughputHistory ?? []
+    const times = [...new Set(points.map(point => point.time))]
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+
+    return times.map(time => {
+      const count = points
+        .filter(point => point.worker_id === worker.id && point.time === time)
+        .reduce((sum, point) => sum + point.count, 0)
+
+      return {
+        t: new Date(time).getTime(),
+        v: count,
+      }
+    })
+  })()
 
   return (
     <div className="flex flex-col gap-6 py-6">
