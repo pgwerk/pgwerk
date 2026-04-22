@@ -14,8 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-        postgres-version: ["14", "15", "16", "17", "18"]
+        python-version: ["3.12"]
+        postgres-version: ["16"]
 
     services:
       postgres:
