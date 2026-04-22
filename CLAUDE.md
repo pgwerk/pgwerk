@@ -11,8 +11,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Python
 
 ```bash
-cd python
-
 # Install (dev)
 uv sync --extra dev
 

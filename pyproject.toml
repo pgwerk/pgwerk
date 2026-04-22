@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "PGWerk"
+name = "pgwerk"
 version = "0.1.0"
 description = "Postgres-backed job queue. Durable, visible, transactional."
 readme = "README.md"
