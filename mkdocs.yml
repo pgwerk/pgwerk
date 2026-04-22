@@ -6,6 +6,8 @@ repo_name: ccrvlh/wrk
 
 theme:
   name: shadcn
+  icon: assets/logo.svg
+  favicon: assets/logo.svg
 
 nav:
   - Home: index.md
