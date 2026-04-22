@@ -8,18 +8,18 @@ You need Python 3.11+ and a Postgres instance for integration tests.
 
 ```bash
 # Clone
-git clone https://github.com/ccrvlh/wrk
-cd wrk
+git clone https://github.com/pgwerk/pgwerk
+cd pgwerk
 
 # Install with dev extras
 uv sync --extra dev
 
 # Start Postgres (Docker example)
 docker run -d \
-  --name wrk-postgres \
-  -e POSTGRES_USER=wrk \
-  -e POSTGRES_PASSWORD=wrk \
-  -e POSTGRES_DB=wrk_test \
+  --name pgwerk-postgres \
+  -e POSTGRES_USER=pgwerk \
+  -e POSTGRES_PASSWORD=pgwerk \
+  -e POSTGRES_DB=pgwerk_test \
   -p 5432:5432 \
   postgres:16
 ```
@@ -61,7 +61,7 @@ CI runs both on every push and pull request.
 
 ```
 pgwerk/              source package
-  app.py          Wrk app (connect, enqueue, inspect)
+  app.py          Werk app (connect, enqueue, inspect)
   worker/         BaseWorker + AsyncWorker / ThreadWorker / ProcessWorker / ForkWorker
   repos.py        Database repository layer (all SQL lives here)
   database.py     Migration runner

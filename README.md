@@ -1,10 +1,10 @@
 # wrk
 
-[![CI](https://github.com/ccrvlh/pgwerk/actions/workflows/ci.yml/badge.svg)](https://github.com/ccrvlh/pgwerk/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/wrk)](https://pypi.org/project/pgwerk/)
-[![Python](https://img.shields.io/pypi/pyversions/wrk)](https://pypi.org/project/pgwerk/)
+[![CI](https://github.com/pgwerk/pgwerk/actions/workflows/ci.yml/badge.svg)](https://github.com/pgwerk/pgwerk/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/pgwerk)](https://pypi.org/project/pgwerk/)
+[![Python](https://img.shields.io/pypi/pyversions/pgwerk)](https://pypi.org/project/pgwerk/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-ccrvlh.github.io/wrk-blue)](https://ccrvlh.github.io/wrk)
+[![Docs](https://img.shields.io/badge/docs-pgwerk.github.io/pgwerk-blue)](https://pgwerk.github.io/pgwerk)
 
 A Postgres-backed job queue. Durable, visible, transactional.
 
@@ -17,10 +17,10 @@ Jobs are rows. Workers poll with `SELECT … FOR UPDATE SKIP LOCKED`. No externa
 ### Install
 
 ```bash
-pip install wrk
+pip install pgwerk
 
 # Cron support (optional)
-pip install "wrk[cron]"
+pip install "pgwerk[cron]"
 ```
 
 Requires Python 3.11+ and a Postgres 14+ database.
@@ -30,9 +30,9 @@ Requires Python 3.11+ and a Postgres 14+ database.
 Define your app and handlers:
 
 ```python
-from pgwerk import Wrk, Context
+from pgwerk import Werk, Context
 
-app = Wrk("postgresql://user:pass@localhost/mydb")
+app = Werk("postgresql://user:pass@localhost/mydb")
 
 # Call connect() once at startup; disconnect() at shutdown.
 # async with app: is shorthand for the same pair.
@@ -102,9 +102,9 @@ await app.enqueue(step_two, _depends_on=job_a)          # waits for job_a
 await app.enqueue(step_two, _depends_on=Dependency(job_a, allow_failure=True))
 
 # Bulk enqueue in one round-trip
-from pgwerk import EnqueueSpec
+from pgwerk import EnqueueParams
 await app.enqueue_many([
-    EnqueueSpec(func=my_func, kwargs={"n": i}, queue="bulk") for i in range(100)
+    EnqueueParams(func=my_func, kwargs={"n": i}, queue="bulk") for i in range(100)
 ])
 ```
 
@@ -148,9 +148,9 @@ async with app:
 ### Serializers
 
 ```python
-from pgwerk import Wrk, PickleSerializer
+from pgwerk import Werk, PickleSerializer
 
-app = Wrk(dsn, serializer=PickleSerializer())  # default is JSONSerializer
+app = Werk(dsn, serializer=PickleSerializer())  # default is JSONSerializer
 ```
 
 The configured serializer is used for job payloads, job results, and execution results.
@@ -176,7 +176,7 @@ wrk info myapp.tasks:app
 wrk purge myapp.tasks:app --status complete,failed
 ```
 
-`APP` is a `module:attribute` path to a `Wrk` instance.
+`APP` is a `module:attribute` path to a `Werk` instance.
 
 ---
 

@@ -21,9 +21,9 @@ jobs:
       postgres:
         image: postgres:${{ matrix.postgres-version }}
         env:
-          POSTGRES_USER: wrk
-          POSTGRES_PASSWORD: wrk
-          POSTGRES_DB: wrk_test
+          POSTGRES_USER: pgwerk
+          POSTGRES_PASSWORD: pgwerk
+          POSTGRES_DB: pgwerk_test
         ports:
           - 5432:5432
         options: >-
@@ -50,5 +50,5 @@ jobs:
 
       - name: Integration tests
         env:
-          PGWERK_TEST_DSN: postgresql://werk:wrk@localhost/wrk_test
+          PGWERK_TEST_DSN: postgresql://pgwerk:pgwerk@localhost/pgwerk_test
         run: uv run pytest tests/integration/ -v --tb=short

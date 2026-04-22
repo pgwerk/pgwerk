@@ -23,7 +23,7 @@ uv run pytest
 uv run pytest tests/unit/test_job.py
 
 # Run integration tests (requires Postgres — see below)
-PGWERK_TEST_DSN="postgresql://pgwerk:pgwerk@localhost/pgwerk" uv run pytest tests/integration/
+PGWERK_TEST_DSN="postgresql://pgwerk:pgwerk@localhost/pgwerk_test" uv run pytest tests/integration/
 
 # Lint
 uv run ruff check .
@@ -33,7 +33,7 @@ uv run ruff format .
 
 ## Integration test database
 
-Integration tests expect a Postgres instance at `postgresql://pgwerk:pgwerk@localhost/pgwerk` (override with `PGWERK_TEST_DSN`). Tables are auto-created by `Wrk.connect()` / `app.connect()` and truncated between tests via the `app` fixture in `tests/integration/conftest.py`.
+Integration tests expect a Postgres instance at `postgresql://pgwerk:pgwerk@localhost/pgwerk_test` (override with `PGWERK_TEST_DSN`). Tables are auto-created by `Werk.connect()` / `app.connect()` and truncated between tests via the `app` fixture in `tests/integration/conftest.py`.
 
 ## Architecture
 
@@ -67,4 +67,4 @@ The Go implementation is a leaner subset: enqueue, get, cancel, and a single gor
 
 ### Configuration
 
-Both use an options/builder pattern. Python: `Wrk(dsn, prefix=..., schema=..., serializer=...)`. Go: `New(dsn, WithSchema(...), WithPrefix(...), WithPoolSize(...))`. Table names are constructed at init time and stored — never interpolated at query time except through the pre-built identifiers.
+Both use an options/builder pattern. Python: `Werk(dsn, prefix=..., schema=..., serializer=...)`. Go: `New(dsn, WithSchema(...), WithPrefix(...), WithPoolSize(...))`. Table names are constructed at init time and stored — never interpolated at query time except through the pre-built identifiers.

@@ -32,10 +32,10 @@ classifiers = [
 dependencies = ["psycopg[async]>=3.1", "psycopg-pool>=3.1", "click>=8.0"]
 
 [project.urls]
-Repository = "https://github.com/ccrvlh/pgwerk"
-Homepage = "https://ccrvlh.github.io/pgwerk"
-Documentation = "https://ccrvlh.github.io/pgwerk"
-"Bug Tracker" = "https://github.com/ccrvlh/pgwerk/issues"
+Repository = "https://github.com/pgwerk/pgwerk"
+Homepage = "https://pgwerk.github.io/pgwerk"
+Documentation = "https://pgwerk.github.io/pgwerk"
+"Bug Tracker" = "https://github.com/pgwerk/pgwerk/issues"
 
 [project.scripts]
 werk = "pgwerk.cli:main"
@@ -85,9 +85,9 @@ force-single-line = true
 from-first = false
 # default-section = "first-party"
 force-sort-within-sections = false
-forced-separate = ["tests", "wrk"]
-known-first-party = ["wrk"]
-known-local-folder = ["wrk"]
+forced-separate = ["tests", "pgwerk"]
+known-first-party = ["pgwerk"]
+known-local-folder = ["pgwerk"]
 known-third-party = ["litestar"]
 length-sort = true
 length-sort-straight = true
@@ -107,5 +107,4 @@ section-order = [
 asyncio_mode = "auto"
 
 [tool.hatch.build.targets.wheel]
-packages = ["wrk"]
-include = ["pgwerk/py.typed"]
+packages = ["pgwerk"]
