@@ -1,9 +1,6 @@
-import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { Header } from '@/components/layout/Header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -13,7 +10,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { api } from '@/lib/api'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Ban, Clock, Database, RefreshCw, RotateCcw, Trash2, Wrench } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 const TERMINAL_STATUSES = ['complete', 'failed', 'aborted'] as const
 type TerminalStatus = (typeof TERMINAL_STATUSES)[number]
@@ -116,7 +116,7 @@ export function MaintenancePage() {
   return (
     <div className="flex flex-col">
       <Header title="Maintenance" />
-      <div className="p-6 space-y-6">
+      <div className="py-6 space-y-6">
 
         {/* Database info */}
         <div>

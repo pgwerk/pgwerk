@@ -23,7 +23,7 @@ export function CronPage() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex h-12 items-center justify-between  px-6">
+      <div className="flex h-12 items-center justify-between">
         <h1 className="text-sm font-semibold">Cron Jobs</h1>
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
@@ -32,7 +32,7 @@ export function CronPage() {
 
       <TriggerCronDialog job={triggerJob} onOpenChange={open => { if (!open) setTriggerJob(null) }} />
 
-      <div className="p-6">
+      <div className="py-6">
         {isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}

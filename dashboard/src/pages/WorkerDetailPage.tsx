@@ -1,20 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { formatDistanceToNow } from 'date-fns'
-import { ArrowLeft, Cpu, RefreshCw } from 'lucide-react'
-import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts'
+import { StatusBadge } from '@/components/StatusBadge'
+import { JobDetail } from '@/components/jobs/JobDetail'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { StatusBadge } from '@/components/StatusBadge'
-import { JobDetail } from '@/components/jobs/JobDetail'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { api } from '@/lib/api'
-import { cn, truncateId, formatTimestamp, relativeTime, formatDuration, shortFn } from '@/lib/utils'
+import { cn, formatDuration, formatTimestamp, relativeTime, shortFn, truncateId } from '@/lib/utils'
 import type { JobResponse } from '@/types'
+import { useQuery } from '@tanstack/react-query'
+import { formatDistanceToNow } from 'date-fns'
+import { ArrowLeft, Cpu, RefreshCw } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 const MAX_POINTS = 30
 const ALIVE_THRESHOLD_MS = 90_000
@@ -67,7 +67,7 @@ export function WorkerDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <div className="flex flex-col gap-6 py-6">
         <div className="h-8 w-48 animate-pulse rounded bg-muted" />
         <div className="h-32 w-full animate-pulse rounded bg-muted" />
       </div>
@@ -76,7 +76,7 @@ export function WorkerDetailPage() {
 
   if (!worker) {
     return (
-      <div className="flex flex-col gap-4 p-6">
+      <div className="flex flex-col gap-4 py-6">
         <Link to="/workers" className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" /> Workers
         </Link>

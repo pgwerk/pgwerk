@@ -3,13 +3,12 @@ import { QueueDepthChart, QueueDepthChartSkeleton } from '@/components/overview/
 import { QueueTable, QueueTableSkeleton } from '@/components/overview/QueueTable'
 import { StatCards, StatCardsSkeleton } from '@/components/overview/StatCards'
 import { ThroughputChart, ThroughputChartSkeleton } from '@/components/overview/ThroughputChart'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
 import type { QueueStats, WorkerResponse } from '@/types'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, Clock, Cpu, RefreshCw, XCircle } from 'lucide-react'
+import { CheckCircle2, Clock, Cpu, XCircle } from 'lucide-react'
 import { useState } from 'react'
 
 import { formatDistanceToNow } from 'date-fns'
@@ -132,28 +131,12 @@ export function OverviewPage() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex h-12 items-center justify-between px-6">
+      <div className="flex h-12 items-center justify-between px-0">
         <div className="flex items-baseline gap-2">
           <h1 className="text-sm font-semibold">Overview</h1>
           <span className="text-xs text-muted-foreground">auto-refreshes every 5s</span>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { refetch(); refetchThroughput(); refetchQueueDepth() }} disabled={isFetching}>
-          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-        </Button>
-      </div>
-
-      <div className="flex-1 space-y-6 p-6">
-        {/* Stat cards */}
-        {statsLoading || !stats ? <StatCardsSkeleton /> : <StatCards data={stats} />}
-
-        {/* Job status summary strip */}
-        {statsLoading || !stats
-          ? <Skeleton className="h-20 w-full" />
-          : <SummaryBar queues={stats.queues} />}
-
-        {/* Area charts row */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-end">
+                  <div className="flex items-center justify-end">
             <div className="flex rounded-md border border-border bg-muted/40 p-0.5 gap-0.5">
               {RANGE_OPTIONS.map(opt => (
                 <button
@@ -170,6 +153,17 @@ export function OverviewPage() {
               ))}
             </div>
           </div>
+
+        
+      </div>
+
+      <div className="flex-1 space-y-6 p-0">
+        {/* Stat cards */}
+        {statsLoading || !stats ? <StatCardsSkeleton /> : <StatCards data={stats} />}
+
+        {/* Area charts row */}
+        <div className="space-y-3">
+
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader className="pb-2">

@@ -10,7 +10,7 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, onRefresh, isRefreshing }: HeaderProps) {
   return (
-    <header className="flex h-14 items-center justify-between px-6">
+    <header className="flex h-14 items-center justify-between">
       <div className="flex items-baseline gap-3">
         <h1 className="text-sm font-semibold text-foreground">{title}</h1>
         {subtitle && (

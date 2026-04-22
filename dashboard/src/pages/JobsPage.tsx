@@ -71,7 +71,7 @@ export function JobsPage() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex h-12 items-center justify-between px-6">
+      <div className="flex h-12 items-center justify-between">
         <h1 className="text-sm font-semibold">Jobs</h1>
         <div className="flex items-center gap-1">
           <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setSendDialogOpen(true)}>
@@ -91,7 +91,7 @@ export function JobsPage() {
       />
 
       {/* Status tabs */}
-      <div className="flex items-center gap-0.5 border-b border-border px-6 pt-4">
+      <div className="flex items-center gap-0.5  pt-4">
         {STATUS_TABS.map(tab => {
           const count = stats ? sumStatus(stats.queues, tab.value) : null
           const isActive = filters.status === tab.value
@@ -120,7 +120,7 @@ export function JobsPage() {
         })}
       </div>
 
-      <div className="flex-1 space-y-4 p-6">
+      <div className="flex-1 space-y-4 py-6">
         <JobFilters filters={filters} queues={queues} onChange={handleFilterChange} />
         <Card className="overflow-hidden">
           <JobsTable
