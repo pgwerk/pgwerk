@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from pgwerk.exceptions import JobError
-from pgwerk.exceptions import WrkError
+from pgwerk.exceptions import WerkError
 from pgwerk.exceptions import JobTimeout
 from pgwerk.exceptions import JobNotFound
 from pgwerk.exceptions import WorkerShutdown
@@ -14,24 +14,24 @@ from pgwerk.exceptions import DependencyFailed
 
 class TestWrkErrorHierarchy:
     def test_pgwerk_error_is_exception(self):
-        e = WrkError("base")
+        e = WerkError("base")
         assert isinstance(e, Exception)
 
     def test_job_not_found_is_pgwerk_error(self):
         e = JobNotFound("not found")
-        assert isinstance(e, WrkError)
+        assert isinstance(e, WerkError)
 
     def test_job_timeout_is_pgwerk_error(self):
         e = JobTimeout("timeout")
-        assert isinstance(e, WrkError)
+        assert isinstance(e, WerkError)
 
     def test_worker_shutdown_is_pgwerk_error(self):
         e = WorkerShutdown("shutdown")
-        assert isinstance(e, WrkError)
+        assert isinstance(e, WerkError)
 
     def test_dependency_failed_is_pgwerk_error(self):
         e = DependencyFailed("dep failed")
-        assert isinstance(e, WrkError)
+        assert isinstance(e, WerkError)
 
     def test_job_error_is_pgwerk_error(self):
         job = MagicMock()
@@ -39,7 +39,7 @@ class TestWrkErrorHierarchy:
         job.status = "failed"
         job.error = "some error"
         e = JobError(job)
-        assert isinstance(e, WrkError)
+        assert isinstance(e, WerkError)
 
 
 class TestJobError:

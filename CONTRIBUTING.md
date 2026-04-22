@@ -31,10 +31,10 @@ docker run -d \
 uv run pytest tests/unit/
 
 # Integration tests
-PGWERK_TEST_DSN="postgresql://werk:wrk@localhost/wrk_test" uv run pytest tests/integration/
+PGWERK_TEST_DSN="postgresql://pgwerk:pgwerk@localhost/pgwerk_test" uv run pytest tests/integration/
 
 # All tests
-PGWERK_TEST_DSN="postgresql://werk:wrk@localhost/wrk_test" uv run pytest
+PGWERK_TEST_DSN="postgresql://pgwerk:pgwerk@localhost/pgwerk_test" uv run pytest
 
 # Single file
 uv run pytest tests/unit/test_job.py -v

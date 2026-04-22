@@ -146,7 +146,7 @@ class TestInvokeCallback:
             called.append(job)
 
         job = MagicMock()
-        with patch("wrk.utils.importlib.import_module") as m:
+        with patch("pgwerk.utils.importlib.import_module") as m:
             m.return_value.cb = cb
             await invoke_callback("myapp.cb", job)
         assert job in called
@@ -158,7 +158,7 @@ class TestInvokeCallback:
             called.append(job)
 
         job = MagicMock()
-        with patch("wrk.utils.importlib.import_module") as m:
+        with patch("pgwerk.utils.importlib.import_module") as m:
             m.return_value.cb = cb
             await invoke_callback("myapp.cb", job)
         assert job in called
@@ -170,7 +170,7 @@ class TestInvokeCallback:
             called.append(job)
 
         job = MagicMock()
-        with patch("wrk.utils.importlib.import_module") as m:
+        with patch("pgwerk.utils.importlib.import_module") as m:
             m.return_value.cb = cb
             await invoke_callback("myapp.cb", job, timeout=5)
         assert job in called
@@ -181,7 +181,7 @@ class TestInvokeCallback:
 
         job = MagicMock()
         job.id = "j1"
-        with patch("wrk.utils.importlib.import_module") as m:
+        with patch("pgwerk.utils.importlib.import_module") as m:
             m.return_value.slow_cb = slow_cb
             await invoke_callback("myapp.slow_cb", job, timeout=0.01)
 
@@ -196,6 +196,6 @@ class TestInvokeCallback:
 
         job = MagicMock()
         job.id = "j1"
-        with patch("wrk.utils.importlib.import_module") as m:
+        with patch("pgwerk.utils.importlib.import_module") as m:
             m.return_value.bad_cb = bad_cb
             await invoke_callback("myapp.bad_cb", job)

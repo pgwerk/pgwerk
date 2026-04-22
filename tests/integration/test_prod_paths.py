@@ -11,7 +11,7 @@ import psycopg
 
 from psycopg.sql import SQL
 
-from pgwerk.app import Wrk
+from pgwerk.app import Werk
 from pgwerk.cron import CronScheduler
 from pgwerk.worker import AsyncWorker
 from pgwerk.commons import JobStatus
@@ -83,7 +83,7 @@ class TestProdPaths:
                     {"id": job.id},
                 )
 
-            with caplog.at_level(logging.WARNING, logger="wrk.worker.base"):
+            with caplog.at_level(logging.WARNING, logger="pgwerk.worker.base"):
                 await worker_b._setup_executor()
                 await worker_b._register()
                 try:
@@ -184,7 +184,7 @@ class TestProdPaths:
         assert done.attempts == 2
 
     async def test_worker_makes_progress_with_tight_connection_pool(self):
-        app = Wrk(_TEST_DSN, prefix=_unique_prefix("pool"), min_pool_size=1, max_pool_size=2)
+        app = Werk(_TEST_DSN, prefix=_unique_prefix("pool"), min_pool_size=1, max_pool_size=2)
         await app.connect()
         try:
             for _ in range(8):
@@ -210,14 +210,14 @@ class TestProdPaths:
 
     async def test_cron_failover_deduplicates_same_tick(self):
         prefix = _unique_prefix("cron")
-        app_a = Wrk(
+        app_a = Werk(
             _TEST_DSN,
             prefix=prefix,
             config={"prefix": prefix, "cron_standby_retry_interval": 0.05},
             min_pool_size=1,
             max_pool_size=2,
         )
-        app_b = Wrk(
+        app_b = Werk(
             _TEST_DSN,
             prefix=prefix,
             config={"prefix": prefix, "cron_standby_retry_interval": 0.05},

@@ -1,10 +1,10 @@
-"""Integration tests for Wrk initialization."""
+"""Integration tests for Werk initialization."""
 
 from __future__ import annotations
 
 import pytest
 
-from pgwerk.app import Wrk
+from pgwerk.app import Werk
 
 from .tasks import clear_callback_log
 
@@ -18,13 +18,13 @@ def _clear_cbs():
 
 class TestWrkInit:
     def test_config_as_dict(self):
-        app = Wrk("postgresql://x/y", config={"prefix": "_test"})
+        app = Werk("postgresql://x/y", config={"prefix": "_test"})
         assert app.prefix == "_test"
 
     def test_log_level_configures_logging(self):
-        Wrk("postgresql://x/y", log_level="WARNING")
+        Werk("postgresql://x/y", log_level="WARNING")
 
     def test_pool_or_raise_when_not_connected(self):
-        app = Wrk("postgresql://x/y")
+        app = Werk("postgresql://x/y")
         with pytest.raises(RuntimeError, match="Not connected"):
             app._pool_or_raise()

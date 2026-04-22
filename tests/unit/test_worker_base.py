@@ -276,7 +276,7 @@ class TestSweepLoop:
             call_count += 1
             w._running = False
 
-        with patch("wrk.worker.base.asyncio.sleep", fast_sleep):
+        with patch("pgwerk.worker.base.asyncio.sleep", fast_sleep):
             await w._sweep_loop()
 
         w.app.sweep.assert_called_once()
@@ -293,5 +293,5 @@ class TestSweepLoop:
             call_count += 1
             w._running = False
 
-        with patch("wrk.worker.base.asyncio.sleep", fast_sleep):
+        with patch("pgwerk.worker.base.asyncio.sleep", fast_sleep):
             await w._sweep_loop()

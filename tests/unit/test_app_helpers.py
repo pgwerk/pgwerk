@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pgwerk.app import Wrk
+from pgwerk.app import Werk
 from pgwerk.utils import fn_path
 from pgwerk.utils import import_fn
 from pgwerk.utils import normalize_retry
@@ -285,18 +285,18 @@ class TestImportFn:
     def test_imports_class(self):
         from pgwerk.schemas import Job
 
-        cls = import_fn("wrk.schemas.Job")
+        cls = import_fn("pgwerk.schemas.Job")
         assert cls is Job
 
 
 # ---------------------------------------------------------------------------
-# Wrk init and pool
+# Werk init and pool
 # ---------------------------------------------------------------------------
 
 
 class TestWrkInit:
     def test_basic_init(self):
-        wrk = Wrk("postgresql://localhost/test")
+        wrk = Werk("postgresql://localhost/test")
         assert wrk.dsn == "postgresql://localhost/test"
         assert wrk.prefix == "_pgwerk"
         assert wrk.schema is None
@@ -304,20 +304,20 @@ class TestWrkInit:
         assert wrk._pool is None
 
     def test_custom_prefix(self):
-        wrk = Wrk("postgresql://localhost/test", prefix="myapp")
+        wrk = Werk("postgresql://localhost/test", prefix="myapp")
         assert wrk.prefix == "myapp"
 
     def test_custom_schema(self):
-        wrk = Wrk("postgresql://localhost/test", schema="myschema")
+        wrk = Werk("postgresql://localhost/test", schema="myschema")
         assert wrk.schema == "myschema"
 
     def test_pool_or_raise_not_connected(self):
-        wrk = Wrk("postgresql://localhost/test")
+        wrk = Werk("postgresql://localhost/test")
         with pytest.raises(RuntimeError, match="connect"):
             wrk._pool_or_raise()
 
     def test_register_before_enqueue(self):
-        wrk = Wrk("postgresql://localhost/test")
+        wrk = Werk("postgresql://localhost/test")
 
         def cb(job):
             pass
@@ -326,7 +326,7 @@ class TestWrkInit:
         assert id(cb) in wrk._before_enqueues
 
     def test_unregister_before_enqueue(self):
-        wrk = Wrk("postgresql://localhost/test")
+        wrk = Werk("postgresql://localhost/test")
 
         def cb(job):
             pass
@@ -336,7 +336,7 @@ class TestWrkInit:
         assert id(cb) not in wrk._before_enqueues
 
     def test_unregister_nonexistent_is_noop(self):
-        wrk = Wrk("postgresql://localhost/test")
+        wrk = Werk("postgresql://localhost/test")
 
         def cb(job):
             pass
@@ -344,7 +344,7 @@ class TestWrkInit:
         wrk.unregister_before_enqueue(cb)
 
     async def test_run_before_enqueue_sync(self):
-        wrk = Wrk("postgresql://localhost/test")
+        wrk = Werk("postgresql://localhost/test")
         called = []
 
         def cb(job):
@@ -356,7 +356,7 @@ class TestWrkInit:
         assert called == [job]
 
     async def test_run_before_enqueue_async(self):
-        wrk = Wrk("postgresql://localhost/test")
+        wrk = Werk("postgresql://localhost/test")
         called = []
 
         async def cb(job):
@@ -368,7 +368,7 @@ class TestWrkInit:
         assert called == [job]
 
     async def test_run_before_enqueue_no_hooks(self):
-        wrk = Wrk("postgresql://localhost/test")
+        wrk = Werk("postgresql://localhost/test")
         job = MagicMock()
         await wrk._run_before_enqueue(job)
 

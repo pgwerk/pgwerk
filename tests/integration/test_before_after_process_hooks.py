@@ -65,7 +65,7 @@ class TestBeforeAfterProcessHooks:
         job = await app.enqueue(noop)
         worker = make_worker(app)
         worker.add_before_process(bad_hook)
-        with caplog.at_level(logging.ERROR, logger="wrk.worker.base"):
+        with caplog.at_level(logging.ERROR, logger="pgwerk.worker.base"):
             await worker.run()
         # Job should still complete despite hook error
         done = await app.get_job(job.id)
@@ -79,7 +79,7 @@ class TestBeforeAfterProcessHooks:
         job = await app.enqueue(noop)
         worker = make_worker(app)
         worker.add_after_process(bad_hook)
-        with caplog.at_level(logging.ERROR, logger="wrk.worker.base"):
+        with caplog.at_level(logging.ERROR, logger="pgwerk.worker.base"):
             await worker.run()
         done = await app.get_job(job.id)
         assert done.status == JobStatus.Complete

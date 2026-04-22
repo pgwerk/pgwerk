@@ -33,7 +33,7 @@ from pgwerk import Werk
 from pgwerk import Retry
 
 
-app = Werk(os.environ.get("PGWERK_DSN", "postgresql://werk:wrk@localhost/wrk"))
+app = Werk(os.environ.get("PGWERK_DSN", "postgresql://pgwerk:pgwerk@localhost/pgwerk"))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)

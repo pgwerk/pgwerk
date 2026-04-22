@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from psycopg.sql import Identifier
 
-from pgwerk.config import WrkConfig
+from pgwerk.config import WerkConfig
 from pgwerk.database import DatabaseManager
 
 
@@ -40,4 +40,4 @@ class TestDatabaseManagerDDL:
         assert isinstance(migrations, list)
 
     def test_schema_version_positive(self):
-        assert WrkConfig.schema_version > 0
+        assert WerkConfig.schema_version > 0

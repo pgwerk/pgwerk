@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from pgwerk.app import Wrk
+from pgwerk.app import Werk
 
 from .tasks import clear_callback_log
 from .conftest import _TEST_DSN
@@ -21,7 +21,7 @@ def _clear_cbs():
 class TestLifecycleHooks:
     async def test_on_startup_called_on_connect(self):
         calls = []
-        a = Wrk(_TEST_DSN, prefix=_TEST_PREFIX + "_hooks")
+        a = Werk(_TEST_DSN, prefix=_TEST_PREFIX + "_hooks")
         a.on_startup(lambda: calls.append("startup"))
         await a.connect()
         try:
@@ -31,7 +31,7 @@ class TestLifecycleHooks:
 
     async def test_on_shutdown_called_on_disconnect(self):
         calls = []
-        a = Wrk(_TEST_DSN, prefix=_TEST_PREFIX + "_hooks")
+        a = Werk(_TEST_DSN, prefix=_TEST_PREFIX + "_hooks")
         a.on_shutdown(lambda: calls.append("shutdown"))
         await a.connect()
         await a.disconnect()
@@ -43,7 +43,7 @@ class TestLifecycleHooks:
         async def hook():
             calls.append("async_startup")
 
-        a = Wrk(_TEST_DSN, prefix=_TEST_PREFIX + "_hooks")
+        a = Werk(_TEST_DSN, prefix=_TEST_PREFIX + "_hooks")
         a.on_startup(hook)
         await a.connect()
         try:
@@ -53,7 +53,7 @@ class TestLifecycleHooks:
 
     async def test_context_manager_connect_disconnect(self):
         calls = []
-        a = Wrk(_TEST_DSN, prefix=_TEST_PREFIX + "_ctx")
+        a = Werk(_TEST_DSN, prefix=_TEST_PREFIX + "_ctx")
         a.on_startup(lambda: calls.append("up"))
         a.on_shutdown(lambda: calls.append("down"))
         async with a:
@@ -61,7 +61,7 @@ class TestLifecycleHooks:
         assert "down" in calls
 
     async def test_double_connect_is_idempotent(self):
-        a = Wrk(_TEST_DSN, prefix=_TEST_PREFIX + "_dbl")
+        a = Werk(_TEST_DSN, prefix=_TEST_PREFIX + "_dbl")
         await a.connect()
         pool1 = a._pool
         await a.connect()

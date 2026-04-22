@@ -43,7 +43,7 @@ class TestRaceDetection:
             await original_ack(self, job, result)
 
         with patch.object(AsyncWorker, "_ack", ack_with_stolen_ownership):
-            with caplog.at_level(logging.WARNING, logger="wrk.worker.base"):
+            with caplog.at_level(logging.WARNING, logger="pgwerk.worker.base"):
                 await make_worker(app).run()
 
         assert any("ack race" in r.message.lower() for r in caplog.records)
@@ -91,7 +91,7 @@ class TestRaceDetection:
             await original_nack(self, j, error, **kwargs)
 
         with patch.object(AsyncWorker, "_nack", nack_after_steal):
-            with caplog.at_level(logging.WARNING, logger="wrk.worker.base"):
+            with caplog.at_level(logging.WARNING, logger="pgwerk.worker.base"):
                 await make_worker(app).run()
 
         assert any("nack race" in r.message.lower() for r in caplog.records)

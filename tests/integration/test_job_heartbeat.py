@@ -83,7 +83,7 @@ class TestJobHeartbeat:
 
         app.touch_job = flaky_touch
 
-        with caplog.at_level(logging.WARNING, logger="wrk.worker.base"):
+        with caplog.at_level(logging.WARNING, logger="pgwerk.worker.base"):
             await make_worker(app).run()
 
         app.touch_job = original

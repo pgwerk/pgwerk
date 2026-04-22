@@ -94,7 +94,7 @@ class TestProcessWorkerContextRejection:
         job = make_job("os.getcwd")
         ctx = MagicMock()
 
-        with patch("wrk.worker.process.wants_context", return_value=True):
+        with patch("pgwerk.worker.process.wants_context", return_value=True):
             with pytest.raises(RuntimeError, match="Context"):
                 await w._execute(job, ctx)
 
@@ -125,7 +125,7 @@ class TestForkWorkerContextRejection:
         job = make_job("os.getcwd")
         ctx = MagicMock()
 
-        with patch("wrk.worker.fork.wants_context", return_value=True):
+        with patch("pgwerk.worker.fork.wants_context", return_value=True):
             with pytest.raises(RuntimeError, match="Context"):
                 await w._execute(job, ctx)
 

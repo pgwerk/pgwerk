@@ -24,7 +24,7 @@ async def _fast_ack_with_retry(worker, job, result, max_attempts=5):
     """_ack_with_retry without sleep delays — for testing the retry logic only."""
     import psycopg
 
-    _logger = logging.getLogger("wrk.worker.base")
+    _logger = logging.getLogger("pgwerk.worker.base")
     for attempt in range(1, max_attempts + 1):
         try:
             await worker._ack(job, result)
@@ -111,7 +111,7 @@ class TestWorkerRetry:
             with patch.object(
                 AsyncWorker, "_ack_with_retry", lambda self, job, result, **_kw: _fast_ack_with_retry(self, job, result)
             ):
-                with caplog.at_level(logging.WARNING, logger="wrk.worker.base"):
+                with caplog.at_level(logging.WARNING, logger="pgwerk.worker.base"):
                     await make_worker(app).run()
 
         assert call_count == 2
@@ -130,7 +130,7 @@ class TestWorkerRetry:
             with patch.object(
                 AsyncWorker, "_ack_with_retry", lambda self, job, result, **_kw: _fast_ack_with_retry(self, job, result)
             ):
-                with caplog.at_level(logging.CRITICAL, logger="wrk.worker.base"):
+                with caplog.at_level(logging.CRITICAL, logger="pgwerk.worker.base"):
                     await make_worker(app).run()
 
         assert any("ack failed after" in r.message.lower() for r in caplog.records)

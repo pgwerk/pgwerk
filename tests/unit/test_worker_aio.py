@@ -41,7 +41,7 @@ class TestAsyncWorkerImport:
     def test_imports_class(self):
         from pgwerk.schemas import Job
 
-        cls = import_fn("wrk.schemas.Job")
+        cls = import_fn("pgwerk.schemas.Job")
         assert cls is Job
 
     def test_import_missing_module_raises(self):
@@ -62,7 +62,7 @@ class TestAsyncWorkerExecute:
 
         job = make_job("mymodule.sync_fn")
         ctx = MagicMock()
-        with patch("wrk.worker.aio.import_fn", return_value=sync_fn):
+        with patch("pgwerk.worker.aio.import_fn", return_value=sync_fn):
             result = await w._execute(job, ctx)
         assert result == 42
 
@@ -74,7 +74,7 @@ class TestAsyncWorkerExecute:
 
         job = make_job("mymodule.async_fn")
         ctx = MagicMock()
-        with patch("wrk.worker.aio.import_fn", return_value=async_fn):
+        with patch("pgwerk.worker.aio.import_fn", return_value=async_fn):
             result = await w._execute(job, ctx)
         assert result == 43
 
@@ -86,7 +86,7 @@ class TestAsyncWorkerExecute:
 
         job = make_job("mymodule.fn", payload={"args": [1, 2], "kwargs": {}})
         ctx = MagicMock()
-        with patch("wrk.worker.aio.import_fn", return_value=fn_with_args):
+        with patch("pgwerk.worker.aio.import_fn", return_value=fn_with_args):
             result = await w._execute(job, ctx)
         assert result == 3
 
@@ -98,7 +98,7 @@ class TestAsyncWorkerExecute:
 
         job = make_job("mymodule.fn", payload={"args": [], "kwargs": {"x": 3, "y": 4}})
         ctx = MagicMock()
-        with patch("wrk.worker.aio.import_fn", return_value=fn_with_kwargs):
+        with patch("pgwerk.worker.aio.import_fn", return_value=fn_with_kwargs):
             result = await w._execute(job, ctx)
         assert result == 12
 
@@ -110,7 +110,7 @@ class TestAsyncWorkerExecute:
 
         job = make_job("mymodule.fn")
         ctx = MagicMock()
-        with patch("wrk.worker.aio.import_fn", return_value=fn_with_ctx):
+        with patch("pgwerk.worker.aio.import_fn", return_value=fn_with_ctx):
             result = await w._execute(job, ctx)
         assert result is ctx
 
@@ -122,7 +122,7 @@ class TestAsyncWorkerExecute:
 
         job = make_job("mymodule.fn")
         ctx = MagicMock()
-        with patch("wrk.worker.aio.import_fn", return_value=async_fn_with_ctx):
+        with patch("pgwerk.worker.aio.import_fn", return_value=async_fn_with_ctx):
             result = await w._execute(job, ctx)
         assert result is ctx
 
@@ -134,7 +134,7 @@ class TestAsyncWorkerExecute:
 
         job = make_job("mymodule.fn", timeout_secs=0.01)
         ctx = MagicMock()
-        with patch("wrk.worker.aio.import_fn", return_value=slow_fn):
+        with patch("pgwerk.worker.aio.import_fn", return_value=slow_fn):
             with pytest.raises(asyncio.TimeoutError):
                 await w._execute(job, ctx)
 
@@ -146,6 +146,6 @@ class TestAsyncWorkerExecute:
 
         job = make_job("mymodule.fn", payload=None)
         ctx = MagicMock()
-        with patch("wrk.worker.aio.import_fn", return_value=fn):
+        with patch("pgwerk.worker.aio.import_fn", return_value=fn):
             result = await w._execute(job, ctx)
         assert result == "ok"

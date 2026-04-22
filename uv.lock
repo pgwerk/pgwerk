@@ -708,15 +708,11 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "rich" },
+    { name = "types-croniter" },
     { name = "uvicorn" },
 ]
 exporter = [
     { name = "prometheus-client" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "types-croniter" },
 ]
 
 [package.metadata]
@@ -738,13 +734,11 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
     { name = "rich", marker = "extra == 'analytics'", specifier = ">=13.0" },
     { name = "rich", marker = "extra == 'dev'", specifier = ">=13.0" },
+    { name = "types-croniter", marker = "extra == 'dev'", specifier = ">=6.2.2.20260408" },
     { name = "uvicorn", marker = "extra == 'api'", specifier = ">=0.30" },
     { name = "uvicorn", marker = "extra == 'dev'", specifier = ">=0.30" },
 ]
 provides-extras = ["api", "cron", "exporter", "analytics", "dev"]
-
-[package.metadata.requires-dev]
-dev = [{ name = "types-croniter", specifier = ">=6.2.2.20260408" }]
 
 [[package]]
 name = "platformdirs"

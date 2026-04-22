@@ -10,6 +10,6 @@ import os
 from pgwerk import Werk
 
 
-DSN = os.environ.get("PGWERK_DSN", "postgresql://werk:wrk@localhost/wrk")
+DSN = os.environ.get("PGWERK_DSN", "postgresql://pgwerk:pgwerk@localhost/pgwerk")
 
 app = Werk(DSN)

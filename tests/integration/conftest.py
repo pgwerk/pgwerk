@@ -7,12 +7,12 @@ import pytest
 import psycopg
 import pytest_asyncio
 
-from pgwerk.app import Wrk
+from pgwerk.app import Werk
 from pgwerk.worker import AsyncWorker
 
 
 _TEST_PREFIX = "_pgwerk"
-_TEST_DSN = os.environ.get("PGWERK_TEST_DSN", "postgresql://werk:wrk@localhost/wrk_test")
+_TEST_DSN = os.environ.get("PGWERK_TEST_DSN", "postgresql://pgwerk:pgwerk@localhost/pgwerk_test")
 
 _TABLES = ["job_deps", "worker_jobs", "jobs_executions", "jobs", "worker"]
 _DROP_TABLES = [*_TABLES, "versions"]
@@ -42,7 +42,7 @@ def _reset_pgwerk_logger_propagation():
 
 @pytest_asyncio.fixture
 async def app():
-    a = Wrk(_TEST_DSN, prefix=_TEST_PREFIX, min_pool_size=1, max_pool_size=5)
+    a = Werk(_TEST_DSN, prefix=_TEST_PREFIX, min_pool_size=1, max_pool_size=5)
     await a.connect()
 
     pool = a._pool_or_raise()
@@ -54,7 +54,7 @@ async def app():
     await a.disconnect()
 
 
-def make_worker(app: Wrk, queues: list[str] | None = None, **kwargs) -> AsyncWorker:
+def make_worker(app: Werk, queues: list[str] | None = None, **kwargs) -> AsyncWorker:
     """Return a burst-mode AsyncWorker with test-friendly defaults."""
     options = {
         "concurrency": 10,

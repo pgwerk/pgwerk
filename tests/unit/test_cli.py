@@ -15,7 +15,7 @@ from pgwerk.cli.utils import load_app
 class TestLoadApp:
     def test_valid_path(self):
         mock_app = MagicMock()
-        with patch("wrk.cli.utils.importlib.import_module") as mock_import:
+        with patch("pgwerk.cli.utils.importlib.import_module") as mock_import:
             mock_module = MagicMock()
             mock_module.app = mock_app
             mock_import.return_value = mock_module
@@ -27,12 +27,12 @@ class TestLoadApp:
             load_app("no_colon_here")
 
     def test_import_error_raises_click_exception(self):
-        with patch("wrk.cli.utils.importlib.import_module", side_effect=ImportError("no module")):
+        with patch("pgwerk.cli.utils.importlib.import_module", side_effect=ImportError("no module")):
             with pytest.raises(click.ClickException, match="Cannot import"):
                 load_app("bad_module:app")
 
     def test_missing_attribute_raises_click_exception(self):
-        with patch("wrk.cli.utils.importlib.import_module") as mock_import:
+        with patch("pgwerk.cli.utils.importlib.import_module") as mock_import:
             mock_module = MagicMock(spec=[])
             mock_import.return_value = mock_module
             with pytest.raises(click.ClickException, match="no attribute"):
