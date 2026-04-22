@@ -548,6 +548,22 @@ class JobRepository:
             for jid in batch:
                 await cur.execute(
                     SQL("""
+                        SELECT j.id::text
+                        FROM {deps} d
+                        JOIN {jobs} j ON j.id = d.job_id
+                        WHERE d.depends_on = %(jid)s
+                          AND j.status = 'waiting'
+                        FOR UPDATE OF j
+                    """).format(deps=self._t["deps"], jobs=self._t["jobs"]),
+                    {"jid": jid},
+                )
+                candidate_rows = await cur.fetchall()
+                candidate_ids = [r["id"] if isinstance(r, dict) else r[0] for r in candidate_rows]
+                if not candidate_ids:
+                    continue
+
+                await cur.execute(
+                    SQL("""
                         WITH settled AS (
                             SELECT j.id,
                                    j.queue,
@@ -559,15 +575,13 @@ class JobRepository:
                                          AND jd3.status IN ('failed', 'aborted')
                                          AND NOT d3.allow_failure
                                    ) AS must_fail
-                            FROM {deps} d
-                            JOIN {jobs} j ON j.id = d.job_id
-                            WHERE d.depends_on = %(jid)s
-                              AND j.status = 'waiting'
+                            FROM {jobs} j
+                            WHERE j.id = ANY(%(candidate_ids)s::uuid[])
                               AND NOT EXISTS (
                                   SELECT 1
                                   FROM {deps} d2
                                   JOIN {jobs} jd ON jd.id = d2.depends_on
-                                  WHERE d2.job_id = d.job_id
+                                  WHERE d2.job_id = j.id
                                     AND jd.status NOT IN ('complete', 'failed', 'aborted')
                               )
                         )
@@ -580,7 +594,7 @@ class JobRepository:
                         WHERE j.id = s.id
                         RETURNING j.id::text, j.queue, j.status
                     """).format(deps=self._t["deps"], jobs=self._t["jobs"]),
-                    {"jid": jid},
+                    {"candidate_ids": candidate_ids},
                 )
                 rows = await cur.fetchall()
                 for r in rows:

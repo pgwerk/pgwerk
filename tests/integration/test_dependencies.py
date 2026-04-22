@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+
+from unittest.mock import patch
+
 from psycopg.sql import SQL
 
 from pgwerk.commons import JobStatus
@@ -110,6 +114,40 @@ class TestDependencies:
 
         await make_worker(app).run()
 
+        assert (await app.get_job(child.id)).status == JobStatus.Complete
+
+    async def test_mixed_allow_failure_survives_concurrent_parent_settlement(self, app):
+        p_fail = await app.enqueue(fail_always)
+        p_ok = await app.enqueue(noop)
+        child = await app.enqueue(
+            noop,
+            _depends_on=[
+                Dependency(job=p_fail, allow_failure=True),
+                Dependency(job=p_ok, allow_failure=False),
+            ],
+        )
+
+        original_settle = app._job_repo.settle_dependents
+        gate = asyncio.Event()
+        calls = 0
+        calls_lock = asyncio.Lock()
+
+        async def coordinated_settle(cur, settled_job_id):
+            nonlocal calls
+            async with calls_lock:
+                calls += 1
+                should_wait = calls <= 2
+                if calls == 2:
+                    gate.set()
+            if should_wait:
+                await asyncio.wait_for(gate.wait(), timeout=1.0)
+            return await original_settle(cur, settled_job_id)
+
+        with patch.object(app._job_repo, "settle_dependents", coordinated_settle):
+            await make_worker(app, concurrency=2).run()
+
+        assert (await app.get_job(p_fail.id)).status == JobStatus.Failed
+        assert (await app.get_job(p_ok.id)).status == JobStatus.Complete
         assert (await app.get_job(child.id)).status == JobStatus.Complete
 
     async def test_sweep_failure_settles_waiting_dependents(self, app):

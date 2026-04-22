@@ -277,32 +277,31 @@ class BaseWorker(abc.ABC):
     # ------------------------------------------------------------------
 
     async def _listen_loop(self) -> None:
-        pool = self.app._pool_or_raise()
         backoff = 1.0
         while self._running:
+            conn: psycopg.AsyncConnection | None = None
             try:
-                async with pool.connection() as conn:
-                    for queue in self.queues:
-                        await conn.execute(SQL("LISTEN {ch}").format(ch=Identifier(f"{self.app.prefix}:{queue}")))
-                    backoff = 1.0
+                conn = await psycopg.AsyncConnection.connect(self.app.dsn, autocommit=True)
+                for queue in self.queues:
+                    await conn.execute(SQL("LISTEN {ch}").format(ch=Identifier(f"{self.app.prefix}:{queue}")))
+                backoff = 1.0
+                self._wakeup.set()
+                async for _ in conn.notifies():
+                    if not self._running:
+                        return
                     self._wakeup.set()
-                    notifies_gen = conn.notifies()
-                    try:
-                        async for _ in notifies_gen:
-                            if not self._running:
-                                return
-                            self._wakeup.set()
-                    finally:
-                        try:
-                            await notifies_gen.aclose()
-                        except Exception:
-                            pass
             except Exception as exc:
                 if not self._running:
                     return
                 logger.warning("Worker %s: listen loop error, reconnecting in %.1fs: %s", self.name, backoff, exc)
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 30.0)
+            finally:
+                if conn is not None:
+                    try:
+                        await conn.close()
+                    except Exception:
+                        pass
 
     # ------------------------------------------------------------------
     # Abort loop
