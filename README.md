@@ -1,4 +1,4 @@
-# wrk
+# PGWerk
 
 [![CI](https://github.com/pgwerk/pgwerk/actions/workflows/ci.yml/badge.svg)](https://github.com/pgwerk/pgwerk/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/pgwerk)](https://pypi.org/project/pgwerk/)
@@ -167,13 +167,13 @@ await app.cancel_job(job_id)
 
 ```bash
 # Start a worker
-wrk worker myapp.tasks:app --queues default,high --concurrency 10 --worker-type async
+werk worker myapp.tasks:app --queues default,high --concurrency 10 --worker-type async
 
 # Show queue statistics and active workers
-wrk info myapp.tasks:app
+werk info myapp.tasks:app
 
 # Delete finished jobs
-wrk purge myapp.tasks:app --status complete,failed
+werk purge myapp.tasks:app --status complete,failed
 ```
 
 `APP` is a `module:attribute` path to a `Werk` instance.
