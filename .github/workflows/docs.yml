@@ -17,8 +17,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install docs dependencies
-        run: uv pip install --system mkdocs-shadcn
+      - name: Install dependencies
+        run: uv sync --extra dev
 
       - name: Deploy
-        run: mkdocs gh-deploy --force
+        run: uv run mkdocs gh-deploy --force
