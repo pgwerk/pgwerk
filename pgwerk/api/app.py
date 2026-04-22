@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import logging
 import pathlib
+import mimetypes
 
 from typing import TYPE_CHECKING
 
@@ -11,17 +12,39 @@ from litestar import Litestar
 from litestar import Response
 from litestar import get
 from litestar.di import Provide
-from litestar.static_files import StaticFilesConfig
+from litestar.response import File
+from litestar.exceptions import NotFoundException
 from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
 
 
 _STATIC_DIR = pathlib.Path(__file__).parent / "static"
+_STATIC_RESERVED_PREFIXES = {"api", "metrics"}
 
 
-def _static_config() -> list[StaticFilesConfig]:
-    if (_STATIC_DIR / "index.html").exists():
-        return [StaticFilesConfig(directories=[_STATIC_DIR], path="/", html_mode=True)]
-    return []
+def _create_spa_handlers() -> list:
+    if not (_STATIC_DIR / "index.html").exists():
+        return []
+
+    def _serve_path(path: str | None = None) -> File:
+        normalized = path.strip("/") if path else ""
+        if normalized.split("/", 1)[0] in _STATIC_RESERVED_PREFIXES:
+            raise NotFoundException()
+
+        target = (_STATIC_DIR / normalized) if normalized else (_STATIC_DIR / "index.html")
+        if target.is_file():
+            media_type, _ = mimetypes.guess_type(str(target))
+            return File(path=target, media_type=media_type, content_disposition_type="inline")
+        return File(path=_STATIC_DIR / "index.html", media_type="text/html", content_disposition_type="inline")
+
+    @get("/")
+    async def spa_index() -> File:
+        return _serve_path()
+
+    @get("/{path:path}")
+    async def spa_fallback(path: str) -> File:
+        return _serve_path(path)
+
+    return [spa_index, spa_fallback]
 
 
 from ..app import Werk  # noqa: E402
@@ -116,8 +139,7 @@ def create_app(
                 return Response(content=body, media_type=content_type)
 
             return Litestar(
-                route_handlers=[router, _metrics_from_state],
-                static_files_config=_static_config(),
+                route_handlers=[router, _metrics_from_state, *_create_spa_handlers()],
                 dependencies=dependencies,
                 on_startup=on_startup,
                 on_shutdown=on_shutdown,
@@ -139,8 +161,7 @@ def create_app(
         on_shutdown.append(_exporter.stop)
 
     return Litestar(
-        route_handlers=route_handlers,
-        static_files_config=_static_config(),
+        route_handlers=[*route_handlers, *_create_spa_handlers()],
         dependencies=dependencies,
         on_startup=on_startup,
         on_shutdown=on_shutdown,

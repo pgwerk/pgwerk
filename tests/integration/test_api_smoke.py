@@ -6,6 +6,7 @@ from pgwerk.api.app import create_app
 from pgwerk.commons import JobStatus
 
 from .tasks import noop
+from .conftest import make_worker
 
 
 class TestApiSmoke:
@@ -36,11 +37,23 @@ class TestApiSmoke:
 
     async def test_stats_workers_cron_and_sweep_endpoints(self, app):
         cron_seed = await app.enqueue(noop, _cron_name="nightly.noop")
+        test_worker = make_worker(app)
+        await test_worker._register()
 
         api = create_app(app)
         async with AsyncTestClient(app=api) as client:
             workers = await client.get("/api/workers")
             assert workers.status_code == 200
+            worker_rows = workers.json()
+            assert worker_rows
+            worker_id = worker_rows[0]["id"]
+
+            worker_detail = await client.get(f"/api/workers/{worker_id}")
+            assert worker_detail.status_code == 200
+            assert worker_detail.json()["id"] == worker_id
+
+            worker_jobs = await client.get(f"/api/workers/{worker_id}/jobs")
+            assert worker_jobs.status_code == 200
 
             stats = await client.get("/api/stats")
             assert stats.status_code == 200
@@ -61,6 +74,8 @@ class TestApiSmoke:
             server = await client.get("/api/server")
             assert server.status_code == 200
             assert server.json()["tables"]
+
+        await test_worker._deregister()
 
         original = await app.get_job(cron_seed.id)
         assert original.status == JobStatus.Queued
