@@ -24,8 +24,8 @@ def _static_config() -> list[StaticFilesConfig]:
     return []
 
 
-from ..app import Werk
-from .routes import router
+from ..app import Werk  # noqa: E402
+from .routes import router  # noqa: E402
 
 
 if TYPE_CHECKING:

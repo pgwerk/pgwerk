@@ -121,7 +121,7 @@ class TestWorkerRetry:
     async def test_ack_with_retry_gives_up_after_max_attempts(self, app, caplog):
         import psycopg
 
-        job = await app.enqueue(noop)
+        await app.enqueue(noop)
 
         async def always_fail_ack(_self, _j, _result=None):
             raise psycopg.OperationalError("persistent connection error")

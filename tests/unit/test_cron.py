@@ -10,8 +10,8 @@ import pytest
 
 croniter = pytest.importorskip("croniter", reason="croniter not installed")
 
-from pgwerk.cron import CronJob
-from pgwerk.cron import CronScheduler
+from pgwerk.cron import CronJob  # noqa: E402
+from pgwerk.cron import CronScheduler  # noqa: E402
 
 
 class TestCronJobValidation:
