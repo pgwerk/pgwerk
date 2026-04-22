@@ -18,6 +18,16 @@ class DatabaseManager:
     """Owns table naming and schema lifecycle for a wrk installation."""
 
     def __init__(self, schema: str | None, prefix: str, ephemeral_tables: bool = False) -> None:
+        """Initialise the manager with naming configuration.
+
+        Args:
+            schema: Postgres schema to qualify table names with; ``None`` or
+                ``"public"`` uses the default search path.
+            prefix: Table name prefix (e.g. ``"_wrk"`` yields ``_wrk_jobs``).
+            ephemeral_tables: When ``True``, worker and worker_jobs tables are
+                created as ``UNLOGGED`` for higher throughput at the cost of
+                durability across a crash.
+        """
         self.schema = schema
         self.prefix = prefix
         self.ephemeral_tables = ephemeral_tables
@@ -200,6 +210,15 @@ class DatabaseManager:
         ]
 
     async def migrate(self, conn: AsyncConnection) -> None:
+        """Create or migrate wrk tables to the current schema version.
+
+        Uses a PostgreSQL advisory transaction lock to serialise concurrent
+        startups; the second entrant becomes a no-op once the first migration
+        commits.
+
+        Args:
+            conn: An open async psycopg connection (must support transactions).
+        """
         versions_tbl = self.table("versions")
 
         if self.schema and self.schema != "public":

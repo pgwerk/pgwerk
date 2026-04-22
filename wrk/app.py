@@ -768,15 +768,46 @@ class Wrk:
         return swept
 
     async def delete_job(self, job_id: str) -> None:
+        """Permanently delete a single job row by ID.
+
+        Args:
+            job_id: UUID of the job to delete.
+        """
         await self._job_repo.delete(job_id)
 
     async def bulk_requeue_jobs(self, queue: str | None = None, function_name: str | None = None) -> int:
+        """Requeue all matching failed/aborted jobs back to ``queued`` status.
+
+        Args:
+            queue: Limit requeue to this queue; ``None`` targets all queues.
+            function_name: Limit requeue to jobs with this function name.
+
+        Returns:
+            Number of jobs requeued.
+        """
         return await self._job_repo.bulk_requeue(queue=queue, function_name=function_name)
 
     async def bulk_cancel_jobs(self, queue: str | None = None) -> int:
+        """Cancel all pending jobs, optionally filtered by queue.
+
+        Args:
+            queue: Limit cancellation to this queue; ``None`` targets all queues.
+
+        Returns:
+            Number of jobs cancelled.
+        """
         return await self._job_repo.bulk_cancel(queue=queue)
 
     async def purge_jobs(self, statuses: list[str], older_than_days: int) -> int:
+        """Permanently delete terminal jobs matching the given criteria.
+
+        Args:
+            statuses: Job status values to delete (e.g. ``["failed", "complete"]``).
+            older_than_days: Only delete jobs completed more than this many days ago.
+
+        Returns:
+            Number of job rows deleted.
+        """
         return await self._job_repo.purge(statuses=statuses, older_than_days=older_than_days)
 
     # ------------------------------------------------------------------
@@ -784,12 +815,31 @@ class Wrk:
     # ------------------------------------------------------------------
 
     async def list_cron_stats(self) -> list[dict[str, Any]]:
+        """Return per-cron-job statistics from the database.
+
+        Returns:
+            List of dicts with keys ``name``, ``last_enqueued_at``, and
+            ``total_enqueued``.
+        """
         return await self._job_repo.list_cron_stats()
 
     async def trigger_cron_job(self, name: str) -> Job | None:
+        """Immediately enqueue a cron job, bypassing its schedule.
+
+        Args:
+            name: The registered cron-job name (``module.qualname`` by default).
+
+        Returns:
+            The newly created Job, or ``None`` if deduplication prevented enqueue.
+        """
         return await self._job_repo.trigger_cron(name)
 
     async def reschedule_stuck(self) -> int:
+        """Move scheduled jobs whose ``scheduled_at`` has passed back to ``queued``.
+
+        Returns:
+            Number of jobs rescheduled.
+        """
         return await self._job_repo.reschedule_stuck()
 
     # ------------------------------------------------------------------
@@ -797,12 +847,35 @@ class Wrk:
     # ------------------------------------------------------------------
 
     async def list_workers(self) -> list[dict[str, Any]]:
+        """Return all registered worker rows.
+
+        Returns:
+            List of worker dicts with id, name, status, queues, and heartbeat info.
+        """
         return await self._worker_repo.list()
 
     async def get_worker(self, worker_id: str) -> dict[str, Any] | None:
+        """Return a single worker row by ID.
+
+        Args:
+            worker_id: UUID of the worker to look up.
+
+        Returns:
+            Worker dict, or ``None`` if not found.
+        """
         return await self._worker_repo.get(worker_id)
 
     async def list_worker_jobs(self, worker_id: str, limit: int = 50, offset: int = 0) -> list[Job]:
+        """Return jobs currently claimed by a worker.
+
+        Args:
+            worker_id: UUID of the worker.
+            limit: Maximum number of jobs to return.
+            offset: Number of jobs to skip for pagination.
+
+        Returns:
+            List of Job objects claimed by the worker.
+        """
         return await self._worker_repo.list_jobs(worker_id=worker_id, limit=limit, offset=offset)
 
     # ------------------------------------------------------------------
@@ -810,15 +883,43 @@ class Wrk:
     # ------------------------------------------------------------------
 
     async def get_queue_stats(self) -> tuple[list[dict[str, Any]], int, int]:
+        """Return per-queue job counts and aggregate totals.
+
+        Returns:
+            A tuple of ``(queue_rows, total_jobs, active_workers)`` where
+            ``queue_rows`` is a list of dicts keyed by queue name and status counts.
+        """
         return await self._stats_repo.get_queue_stats()
 
     async def get_throughput_history(self, minutes: int) -> list[dict[str, Any]]:
+        """Return per-minute job throughput over a sliding window.
+
+        Args:
+            minutes: How many minutes of history to return.
+
+        Returns:
+            List of dicts with ``minute`` (timestamp) and ``completed`` count.
+        """
         return await self._stats_repo.get_throughput_history(minutes)
 
     async def get_queue_depth_history(self, minutes: int) -> list[dict[str, Any]]:
+        """Return per-minute queue depth snapshots over a sliding window.
+
+        Args:
+            minutes: How many minutes of history to return.
+
+        Returns:
+            List of dicts with ``minute`` (timestamp) and ``depth`` count.
+        """
         return await self._stats_repo.get_queue_depth_history(minutes)
 
     async def get_server_info(self) -> tuple[str, int, list[dict[str, Any]]]:
+        """Return Postgres version, connection pool size, and table metadata.
+
+        Returns:
+            A tuple of ``(pg_version, pool_size, table_rows)`` where
+            ``table_rows`` contains size and row-count info for each wrk table.
+        """
         return await self._stats_repo.get_server_info(self.prefix)
 
     # ------------------------------------------------------------------
@@ -826,6 +927,7 @@ class Wrk:
     # ------------------------------------------------------------------
 
     async def vacuum(self) -> None:
+        """Run ``VACUUM ANALYZE`` on all wrk tables outside of a transaction."""
         pool = self._pool_or_raise()
         conn = await pool.getconn()
         try:
@@ -836,6 +938,12 @@ class Wrk:
             await pool.putconn(conn)
 
     async def truncate(self) -> None:
+        """Truncate all wrk tables and restart their identity sequences.
+
+        Warning:
+            This is a destructive, irreversible operation. All jobs, workers,
+            executions, and dependency records will be permanently deleted.
+        """
         pool = self._pool_or_raise()
         async with pool.connection() as conn:
             await conn.execute(

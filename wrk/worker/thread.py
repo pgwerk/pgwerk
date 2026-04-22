@@ -23,6 +23,12 @@ class ThreadWorker(BaseWorker):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialise the worker and allocate a placeholder for the thread pool.
+
+        Args:
+            *args: Forwarded to :class:`~wrk.worker.base.BaseWorker`.
+            **kwargs: Forwarded to :class:`~wrk.worker.base.BaseWorker`.
+        """
         super().__init__(*args, **kwargs)
         self._thread_pool: ThreadPoolExecutor | None = None
 
@@ -34,6 +40,21 @@ class ThreadWorker(BaseWorker):
             self._thread_pool.shutdown(wait=True)
 
     async def _execute(self, job: Job, ctx: Context) -> Any:
+        """Execute a job inside the dedicated thread pool.
+
+        Coroutines are wrapped in ``asyncio.run`` so each runs in its own event
+        loop within the thread, isolated from the worker's main loop.
+
+        Args:
+            job: The job to execute.
+            ctx: Execution context injected when the handler accepts it.
+
+        Returns:
+            The return value of the job handler.
+
+        Raises:
+            Exception: Any exception raised by the handler propagates to the caller.
+        """
         import inspect
 
         args: list = (job.payload or {}).get("args", [])

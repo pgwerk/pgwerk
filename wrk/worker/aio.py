@@ -30,6 +30,12 @@ class AsyncWorker(BaseWorker):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialise the worker and allocate a placeholder for the thread pool.
+
+        Args:
+            *args: Forwarded to :class:`~wrk.worker.base.BaseWorker`.
+            **kwargs: Forwarded to :class:`~wrk.worker.base.BaseWorker`.
+        """
         super().__init__(*args, **kwargs)
         self._thread_pool: ThreadPoolExecutor | None = None
 
@@ -41,6 +47,18 @@ class AsyncWorker(BaseWorker):
             self._thread_pool.shutdown(wait=True)
 
     async def _execute(self, job: Job, ctx: Context) -> Any:
+        """Execute a job, dispatching coroutines natively and sync functions via the thread pool.
+
+        Args:
+            job: The job to execute.
+            ctx: Execution context injected when the handler accepts it.
+
+        Returns:
+            The return value of the job handler.
+
+        Raises:
+            Exception: Any exception raised by the handler propagates to the caller.
+        """
         fn = import_fn(job.function)
         args: list = (job.payload or {}).get("args", [])
         kwargs: dict = (job.payload or {}).get("kwargs", {})

@@ -29,11 +29,31 @@ logger = logging.getLogger(__name__)
 
 
 def tty_supports_color(stream: Any = None) -> bool:
+    """Return True if *stream* is a TTY that likely supports ANSI colour codes.
+
+    Args:
+        stream: File-like object to test; defaults to ``sys.stderr``.
+
+    Returns:
+        ``True`` if the stream has ``isatty()`` and it returns a truthy value.
+    """
     stream = stream or sys.stderr
     return hasattr(stream, "isatty") and stream.isatty()
 
 
 def tick_dedupe_key(cjob: CronJob) -> str:
+    """Return a deduplication key for a single cron tick.
+
+    The key is stable within the current scheduling bucket so that concurrent
+    scheduler instances produce the same key and the database deduplication
+    logic silently drops the duplicate enqueue.
+
+    Args:
+        cjob: The CronJob being enqueued.
+
+    Returns:
+        A unique string key scoped to this cron job and scheduling bucket.
+    """
     if cjob.interval:
         bucket = int(datetime.now(timezone.utc).timestamp() // cjob.interval)
         return f"_wrk_cron:{cjob.name}:interval:{bucket}"
@@ -86,6 +106,12 @@ def wants_context(fn: Callable) -> bool:
 
 
 async def call_hook(hook: Callable, ctx: "Context") -> None:
+    """Call *hook* with *ctx*, awaiting it if it returns a coroutine.
+
+    Args:
+        hook: A sync or async callable that accepts a single Context argument.
+        ctx: The execution context to pass to the hook.
+    """
     result = hook(ctx)
     if asyncio.iscoroutine(result):
         await result
@@ -120,6 +146,18 @@ def import_fn(dotted: str) -> Callable:
 
 
 def fn_path(func: Callable) -> str:
+    """Return the dotted module path for *func*.
+
+    Args:
+        func: A module-level callable.
+
+    Returns:
+        ``module.qualname`` string suitable for dynamic import.
+
+    Raises:
+        ValueError: If *func* is a local function or lambda that cannot be
+            imported by dotted path.
+    """
     qualname = func.__qualname__
     if "<locals>" in qualname or "<lambda>" in qualname:
         raise ValueError(
@@ -129,6 +167,16 @@ def fn_path(func: Callable) -> str:
 
 
 def normalize_retry(retry: "Retry | int | None") -> tuple[int, list[int] | None]:
+    """Normalise a ``retry`` argument to ``(max_attempts, intervals_or_None)``.
+
+    Args:
+        retry: A :class:`~wrk.schemas.Retry` object, a plain integer (max
+            attempts with no delay), or ``None`` (use library defaults).
+
+    Returns:
+        A tuple of ``(max_attempts, retry_intervals)`` where ``retry_intervals``
+        is a list of per-attempt delays in seconds, or ``None`` for immediate retry.
+    """
     if retry is None:
         return 3, None  # default: 3 attempts, saner than 1 for transient failures
     if retry == 0:
@@ -145,6 +193,16 @@ def normalize_retry(retry: "Retry | int | None") -> tuple[int, list[int] | None]
 def normalize_callback(
     cb: "Callback | Callable | str | None",
 ) -> tuple[str | None, int | None]:
+    """Normalise a callback argument to ``(dotted_path, timeout_or_None)``.
+
+    Args:
+        cb: A :class:`~wrk.schemas.Callback` object, a callable, a dotted
+            import path string, or ``None``.
+
+    Returns:
+        A tuple of ``(dotted_path, timeout_secs)`` or ``(None, None)`` if *cb*
+        is ``None``.
+    """
     if cb is None:
         return None, None
     from .schemas import Callback as _Callback
@@ -159,6 +217,16 @@ def normalize_callback(
 def normalize_depends_on(
     depends_on: "list[Dependency | str | Job] | Dependency | str | Job | None",
 ) -> list[tuple[str, bool]]:
+    """Normalise a ``depends_on`` argument to a list of ``(job_id, allow_failure)`` tuples.
+
+    Args:
+        depends_on: A single dependency or a list of dependencies expressed as
+            :class:`~wrk.schemas.Dependency` objects, :class:`~wrk.schemas.Job`
+            objects, or raw UUID strings.
+
+    Returns:
+        A list of ``(job_id_str, allow_failure)`` tuples ready for DB insertion.
+    """
     if depends_on is None:
         return []
     if not isinstance(depends_on, list):

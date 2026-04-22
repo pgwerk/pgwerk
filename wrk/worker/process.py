@@ -34,6 +34,12 @@ class ProcessWorker(BaseWorker):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialise the worker and allocate a placeholder for the process pool.
+
+        Args:
+            *args: Forwarded to :class:`~wrk.worker.base.BaseWorker`.
+            **kwargs: Forwarded to :class:`~wrk.worker.base.BaseWorker`.
+        """
         super().__init__(*args, **kwargs)
         self._process_pool: ProcessPoolExecutor | None = None
 
@@ -45,6 +51,20 @@ class ProcessWorker(BaseWorker):
             self._process_pool.shutdown(wait=False)
 
     async def _execute(self, job: Job, ctx: Context) -> Any:
+        """Execute a job in the shared process pool.
+
+        Args:
+            job: The job to execute.
+            ctx: Unused — ``Context`` is not picklable and cannot cross the
+                process boundary.
+
+        Returns:
+            The return value of the job handler.
+
+        Raises:
+            RuntimeError: If the handler requests a Context argument.
+            Exception: Any exception raised by the subprocess handler.
+        """
         _fn = import_fn(job.function)
         if wants_context(_fn):
             raise RuntimeError(

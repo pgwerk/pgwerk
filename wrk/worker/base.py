@@ -59,6 +59,27 @@ class BaseWorker(abc.ABC):
         abort_interval: float | None = None,
         shutdown_timeout: float | None = None,
     ) -> None:
+        """Initialise the worker with scheduling and concurrency settings.
+
+        Args:
+            app: Connected :class:`~wrk.app.Wrk` application instance.
+            queues: Queue names to consume; defaults to ``["default"]``.
+            concurrency: Maximum number of jobs executed simultaneously.
+            heartbeat_interval: Seconds between worker heartbeat updates;
+                falls back to ``app.config.heartbeat_interval``.
+            poll_interval: Seconds between dequeue polls when idle;
+                falls back to ``app.config.poll_interval``.
+            dequeue_strategy: Order in which queues are polled.
+            burst: When ``True``, shut down once all queues are empty.
+            before_process: Hooks called before each job is executed.
+            after_process: Hooks called after each job finishes (success or failure).
+            sweep_interval: Seconds between stuck-job sweep runs;
+                falls back to ``app.config.sweep_interval``.
+            abort_interval: Seconds between abort-request polls;
+                falls back to ``app.config.abort_interval``.
+            shutdown_timeout: Seconds to wait for active jobs to drain on shutdown;
+                falls back to ``app.config.shutdown_timeout``.
+        """
         self.app = app
         self.queues = queues or ["default"]
         self.concurrency = concurrency
@@ -98,9 +119,23 @@ class BaseWorker(abc.ABC):
     # ------------------------------------------------------------------
 
     def add_before_process(self, hook: Callable) -> None:
+        """Register a hook to be called before each job is executed.
+
+        Args:
+            hook: Sync or async callable that accepts a single
+                :class:`~wrk.schemas.Context` argument.
+        """
         self._before_process.append(hook)
 
     def add_after_process(self, hook: Callable) -> None:
+        """Register a hook to be called after each job finishes.
+
+        The hook is called regardless of whether the job succeeded or failed.
+
+        Args:
+            hook: Sync or async callable that accepts a single
+                :class:`~wrk.schemas.Context` argument.
+        """
         self._after_process.append(hook)
 
     # ------------------------------------------------------------------
@@ -108,9 +143,26 @@ class BaseWorker(abc.ABC):
     # ------------------------------------------------------------------
 
     def push_exception_handler(self, handler: Callable) -> None:
+        """Push an exception handler onto the handler stack.
+
+        Handlers are called in LIFO order when a job raises an unhandled
+        exception. Each handler receives the ``(job, exception)`` pair.
+
+        Args:
+            handler: Sync or async callable with signature
+                ``(job: Job, exc: Exception) -> None``.
+        """
         self._exception_handlers.append(handler)
 
     def pop_exception_handler(self) -> Callable:
+        """Remove and return the most recently pushed exception handler.
+
+        Returns:
+            The callable that was on top of the exception handler stack.
+
+        Raises:
+            IndexError: If the exception handler stack is empty.
+        """
         if not self._exception_handlers:
             raise IndexError("No exception handlers on stack")
         return self._exception_handlers.pop()
@@ -129,6 +181,13 @@ class BaseWorker(abc.ABC):
     # ------------------------------------------------------------------
 
     async def run(self) -> None:
+        """Start the worker and block until shutdown.
+
+        Connects to the database if not already connected, registers the worker,
+        and runs the main polling loop alongside heartbeat, LISTEN/NOTIFY, abort,
+        and sweep side-loops. Installs SIGTERM/SIGINT handlers to trigger a
+        graceful drain before exit.
+        """
         loop = asyncio.get_running_loop()
         self._running = True
         self._wakeup.clear()

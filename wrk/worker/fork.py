@@ -40,11 +40,34 @@ class ForkWorker(BaseWorker):
     """
 
     def __init__(self, *args: Any, sigterm_grace: int | None = None, **kwargs: Any) -> None:
+        """Initialise the worker with an optional SIGTERM grace period.
+
+        Args:
+            *args: Forwarded to :class:`~wrk.worker.base.BaseWorker`.
+            sigterm_grace: Seconds between SIGTERM and SIGKILL when terminating
+                a timed-out subprocess; falls back to ``app.config.sigterm_grace``.
+            **kwargs: Forwarded to :class:`~wrk.worker.base.BaseWorker`.
+        """
         super().__init__(*args, **kwargs)
         self.sigterm_grace = sigterm_grace if sigterm_grace is not None else self.app.config.sigterm_grace
         self._mp_ctx = multiprocessing.get_context("spawn")
 
     async def _execute(self, job: Job, ctx: Context) -> Any:  # noqa: ARG002
+        """Execute a job in a freshly spawned subprocess.
+
+        Args:
+            job: The job to execute.
+            ctx: Unused — ``Context`` is not picklable and cannot cross the
+                process boundary.
+
+        Returns:
+            The return value of the job handler passed back via a result queue.
+
+        Raises:
+            RuntimeError: If the handler requests a Context argument, the
+                subprocess exits non-zero, or the result queue is empty.
+            TimeoutError: If the job exceeds ``timeout_secs``.
+        """
         _fn = import_fn(job.function)
         if wants_context(_fn):
             raise RuntimeError(
@@ -92,6 +115,15 @@ class ForkWorker(BaseWorker):
         return value
 
     async def _terminate(self, proc: Any, loop: asyncio.AbstractEventLoop) -> None:
+        """Terminate a subprocess gracefully, escalating to SIGKILL if needed.
+
+        Sends SIGTERM and waits up to ``sigterm_grace`` seconds. If the process
+        is still alive after the grace period, sends SIGKILL.
+
+        Args:
+            proc: The ``multiprocessing.Process`` to terminate.
+            loop: The running event loop used to join the process off-thread.
+        """
         if not proc.is_alive():
             return
         proc.terminate()

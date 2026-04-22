@@ -68,6 +68,26 @@ class CronScheduler:
 
         If *name* is omitted it defaults to ``module.qualname`` of the function.
         Registering under an existing name replaces the previous job.
+
+        Args:
+            func_or_cronjob: The function to schedule, or a pre-built
+                :class:`~wrk.schemas.CronJob` instance.
+            queue: Queue to enqueue the job into.
+            name: Override for the job name; defaults to ``module.qualname``.
+            args: Positional arguments forwarded to the function on each run.
+            kwargs: Keyword arguments forwarded to the function on each run.
+            interval: Seconds between runs (mutually exclusive with ``cron``).
+            cron: Cron expression (e.g. ``"0 9 * * *"``); requires ``croniter``.
+            timeout: Per-run timeout in seconds.
+            result_ttl: Seconds to retain successful job rows.
+            failure_ttl: Seconds to retain failed job rows.
+            meta: Arbitrary metadata attached to each enqueued job.
+
+        Returns:
+            The registered :class:`~wrk.schemas.CronJob` instance.
+
+        Raises:
+            ValueError: If both ``interval`` and ``cron`` are set, or neither.
         """
         if isinstance(func_or_cronjob, CronJob):
             key = func_or_cronjob.name or name
@@ -222,4 +242,5 @@ class CronScheduler:
                 await asyncio.sleep(self.app.config.cron_standby_retry_interval)
 
     def stop(self) -> None:
+        """Signal the scheduler loop to stop after the current tick completes."""
         self._running = False

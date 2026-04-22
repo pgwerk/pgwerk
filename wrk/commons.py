@@ -6,6 +6,8 @@ import enum
 
 
 class JobStatus(str, enum.Enum):
+    """Lifecycle states a job row can occupy."""
+
     Scheduled = "scheduled"
     Queued = "queued"
     Waiting = "waiting"
@@ -17,6 +19,8 @@ class JobStatus(str, enum.Enum):
 
 
 class ExecutionStatus(str, enum.Enum):
+    """Terminal or in-progress state for a single execution attempt."""
+
     Running = "running"
     Complete = "complete"
     Failed = "failed"
@@ -24,6 +28,8 @@ class ExecutionStatus(str, enum.Enum):
 
 
 class DequeueStrategy(str, enum.Enum):
+    """Controls the order in which queues are polled during dequeue."""
+
     Priority = "priority"
     RoundRobin = "round_robin"
     Random = "random"
