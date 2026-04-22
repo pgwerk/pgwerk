@@ -696,7 +696,7 @@ class Werk:
         Returns:
             List of matching :class:`Job` objects.
         """
-        return await self._job_repo.list(
+        return await self._job_repo.list_jobs(
             queue=queue, status=status, worker_id=worker_id, search=search, limit=limit, offset=offset
         )
 
@@ -852,7 +852,7 @@ class Werk:
         Returns:
             List of worker dicts with id, name, status, queues, and heartbeat info.
         """
-        return await self._worker_repo.list()
+        return await self._worker_repo.fetch()
 
     async def get_worker(self, worker_id: str) -> dict[str, Any] | None:
         """Return a single worker row by ID.

@@ -9,7 +9,7 @@ from typing import Callable
 
 from pgwerk.schemas import CronJob
 
-from tests import utils
+from . import utils
 
 
 if TYPE_CHECKING:

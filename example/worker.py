@@ -9,9 +9,9 @@ import os
 import asyncio
 import logging
 
-from tests import Wrk
-from tests import AsyncWorker
-from tests import configure_logging
+from pgwerk import Werk
+from pgwerk import AsyncWorker
+from pgwerk import configure_logging
 
 
 configure_logging(logger_name="")
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 CONCURRENCY = 10
 QUEUES = ["default", "email", "media", "billing"]
 
-app = Wrk(
+app = Werk(
     os.environ.get("PGWERK_DSN", "postgresql://werk:wrk@localhost/wrk"),
     max_pool_size=CONCURRENCY + 5,  # listen loop holds 1 conn permanently; leave headroom for concurrent acks
 )

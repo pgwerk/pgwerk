@@ -8,7 +8,7 @@ from psycopg.sql import Identifier
 
 from .config import WerkConfig
 
-from tests import utils
+from . import utils
 
 
 logger = logging.getLogger(__name__)

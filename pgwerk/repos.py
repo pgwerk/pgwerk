@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import dataclasses
 import logging
+import dataclasses
 
 from typing import Any
 from typing import Callable
@@ -19,10 +19,10 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from .commons import DequeueStrategy
-from .schemas import Job
-from .schemas import JobExecution
-from .schemas import JobInsert
 from .schemas import JOB_COLS
+from .schemas import Job
+from .schemas import JobInsert
+from .schemas import JobExecution
 from .serializers import Serializer
 from .serializers import encode
 
@@ -35,16 +35,12 @@ _INSERT_SQL: LiteralString = cast(
     "INSERT INTO {jobs} (\n    "
     + ",\n    ".join(_INSERT_COLS)
     + "\n) VALUES (\n    "
-    + ",\n    ".join(
-        f"COALESCE(%({col})s, NOW())" if col == "scheduled_at" else f"%({col})s"
-        for col in _INSERT_COLS
-    )
+    + ",\n    ".join(f"COALESCE(%({col})s, NOW())" if col == "scheduled_at" else f"%({col})s" for col in _INSERT_COLS)
     + "\n) ON CONFLICT (key) DO NOTHING RETURNING",
 )
 
 
 class JobRepository:
-
     def __init__(
         self,
         pool: AsyncConnectionPool,
@@ -154,7 +150,7 @@ class JobRepository:
             raise JobNotFound(f"Job {job_id!r} not found")
         return Job.from_row(row, self._serializer)
 
-    async def list(
+    async def list_jobs(
         self,
         queue: str | None = None,
         status: str | None = None,
@@ -951,7 +947,7 @@ class WorkerRepository:
         async with self._pool.connection() as conn:
             await conn.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{queue}")))
 
-    async def list(self) -> list[dict[str, Any]]:
+    async def fetch(self) -> list[dict[str, Any]]:
         async with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""

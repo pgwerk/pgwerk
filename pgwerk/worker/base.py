@@ -354,7 +354,7 @@ class BaseWorker(abc.ABC):
                         task.add_done_callback(self._active.discard)
                         task.add_done_callback(lambda _: self._wakeup.set())
                         self._active_jobs[job.id] = task
-                        task.add_done_callback(lambda _, jid=job.id: self._active_jobs.pop(jid, None))
+                        task.add_done_callback(lambda _, jid=job.id: self._active_jobs.pop(jid, None))  # type: ignore[misc]
 
                 try:
                     jittered = self.poll_interval * (1 + random.uniform(-0.2, 0.2))

@@ -9,7 +9,7 @@ import contextvars
 
 from typing import Any
 
-from tests import utils
+from . import utils
 
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())

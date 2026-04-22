@@ -7,9 +7,9 @@ Set PGWERK_DSN to point at your Postgres database, e.g.:
 
 import os
 
-from tests import Wrk
+from pgwerk import Werk
 
 
 DSN = os.environ.get("PGWERK_DSN", "postgresql://werk:wrk@localhost/wrk")
 
-app = Wrk(DSN)
+app = Werk(DSN)

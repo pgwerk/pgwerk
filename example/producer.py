@@ -29,11 +29,11 @@ from example.tasks import refresh_search_index
 from example.tasks import send_push_notification
 from example.tasks import cleanup_expired_sessions
 
-from tests import Wrk
-from tests import Retry
+from pgwerk import Werk
+from pgwerk import Retry
 
 
-app = Wrk(os.environ.get("PGWERK_DSN", "postgresql://werk:wrk@localhost/wrk"))
+app = Werk(os.environ.get("PGWERK_DSN", "postgresql://werk:wrk@localhost/wrk"))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
