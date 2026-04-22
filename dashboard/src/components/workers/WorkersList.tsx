@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WorkerCard } from './WorkerCard'
 import type { WorkerResponse } from '@/types'
-import type { HeartbeatPoint } from '@/hooks/useWorkerHistory'
+import type { WorkerSparklinePoint } from './WorkerCard'
 
 function isAlive(heartbeat: string | undefined): boolean {
   if (!heartbeat) return false
@@ -13,7 +13,7 @@ function isAlive(heartbeat: string | undefined): boolean {
 interface WorkersListProps {
   workers: WorkerResponse[]
   isLoading?: boolean
-  getHistory?: (workerId: string) => HeartbeatPoint[]
+  getHistory?: (workerId: string) => WorkerSparklinePoint[]
 }
 
 export function WorkersList({ workers, isLoading, getHistory }: WorkersListProps) {

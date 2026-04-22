@@ -5,7 +5,11 @@ import { Cpu } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn, truncateId } from '@/lib/utils'
 import type { WorkerResponse } from '@/types'
-import type { HeartbeatPoint } from '@/hooks/useWorkerHistory'
+
+export interface WorkerSparklinePoint {
+  t: number
+  v: number
+}
 
 function isAlive(heartbeat: string | undefined): boolean {
   if (!heartbeat) return false
@@ -14,7 +18,7 @@ function isAlive(heartbeat: string | undefined): boolean {
 
 interface WorkerCardProps {
   worker: WorkerResponse
-  history?: HeartbeatPoint[]
+  history?: WorkerSparklinePoint[]
 }
 
 export function WorkerCard({ worker, history = [] }: WorkerCardProps) {
