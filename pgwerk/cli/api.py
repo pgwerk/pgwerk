@@ -56,7 +56,7 @@ def api(
         if app:
             raise click.ClickException("--reload cannot be used with a custom APP instance.")
         uvicorn.run(
-            "wrk.api.app:create_app",
+            "pgwerk.api.app:create_app",
             factory=True,
             host=host,
             port=port,
@@ -66,7 +66,7 @@ def api(
     else:
         wrk_instance = load_app(app) if app else None
         litestar_app = create_app(
-            wrk=wrk_instance,
+            werk=wrk_instance,
             exporter_interval=metrics_interval if metrics else None,
         )
         uvicorn.run(

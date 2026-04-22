@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from psycopg.sql import SQL
 
+from pgwerk.commons import JobStatus
+
 from .tasks import noop
 from .tasks import track_conc
 from .tasks import _conc_state
 from .tasks import reset_conc_tracker
 from .conftest import make_worker
-
-from tests.commons import JobStatus
 
 
 class TestGroupKey:

@@ -6,19 +6,19 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tests.app import Wrk
-from tests.utils import fn_path
-from tests.utils import import_fn
-from tests.utils import normalize_retry
-from tests.utils import normalize_callback
-from tests.utils import normalize_depends_on
-from tests.commons import JobStatus
-from tests.schemas import Job
-from tests.schemas import Retry
-from tests.schemas import Callback
-from tests.schemas import Dependency
-from tests.schemas import JobExecution
-from tests.serializers import get_default
+from pgwerk.app import Wrk
+from pgwerk.utils import fn_path
+from pgwerk.utils import import_fn
+from pgwerk.utils import normalize_retry
+from pgwerk.utils import normalize_callback
+from pgwerk.utils import normalize_depends_on
+from pgwerk.commons import JobStatus
+from pgwerk.schemas import Job
+from pgwerk.schemas import Retry
+from pgwerk.schemas import Callback
+from pgwerk.schemas import Dependency
+from pgwerk.schemas import JobExecution
+from pgwerk.serializers import get_default
 
 
 # ---------------------------------------------------------------------------
@@ -283,7 +283,7 @@ class TestImportFn:
         assert fn is os.getcwd
 
     def test_imports_class(self):
-        from tests.schemas import Job
+        from pgwerk.schemas import Job
 
         cls = import_fn("wrk.schemas.Job")
         assert cls is Job

@@ -4,12 +4,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tests.exceptions import JobError
-from tests.exceptions import WrkError
-from tests.exceptions import JobTimeout
-from tests.exceptions import JobNotFound
-from tests.exceptions import WorkerShutdown
-from tests.exceptions import DependencyFailed
+from pgwerk.exceptions import JobError
+from pgwerk.exceptions import WrkError
+from pgwerk.exceptions import JobTimeout
+from pgwerk.exceptions import JobNotFound
+from pgwerk.exceptions import WorkerShutdown
+from pgwerk.exceptions import DependencyFailed
 
 
 class TestWrkErrorHierarchy:

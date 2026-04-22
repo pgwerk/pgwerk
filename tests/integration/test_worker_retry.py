@@ -10,14 +10,14 @@ import pytest
 
 from psycopg.sql import SQL
 
+from pgwerk.commons import JobStatus
+from pgwerk.worker.aio import AsyncWorker
+
 from .tasks import noop
 from .tasks import fail_once
 from .tasks import fail_always
 from .tasks import clear_callback_log
 from .conftest import make_worker
-
-from tests.commons import JobStatus
-from tests.worker.aio import AsyncWorker
 
 
 async def _fast_ack_with_retry(worker, job, result, max_attempts=5):
@@ -84,7 +84,7 @@ class TestWorkerRetry:
         from datetime import datetime
         from datetime import timezone
 
-        from tests.schemas import Retry
+        from pgwerk.schemas import Retry
 
         job = await app.enqueue(fail_always, _retry=Retry(max=2, intervals=[3600]))
         await make_worker(app).run()

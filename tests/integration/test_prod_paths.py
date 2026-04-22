@@ -11,6 +11,12 @@ import psycopg
 
 from psycopg.sql import SQL
 
+from pgwerk.app import Wrk
+from pgwerk.cron import CronScheduler
+from pgwerk.worker import AsyncWorker
+from pgwerk.commons import JobStatus
+from pgwerk.schemas import Retry
+
 from .tasks import noop
 from .tasks import slow_pure
 from .tasks import async_slow
@@ -21,12 +27,6 @@ from .tasks import record_execution
 from .tasks import reset_blocking_state
 from .conftest import _TEST_DSN
 from .conftest import make_worker
-
-from tests.app import Wrk
-from tests.cron import CronScheduler
-from tests.worker import AsyncWorker
-from tests.commons import JobStatus
-from tests.schemas import Retry
 
 
 @pytest.fixture(autouse=True)

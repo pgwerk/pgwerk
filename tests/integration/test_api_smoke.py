@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from litestar.testing import AsyncTestClient
 
-from .tasks import noop
+from pgwerk.api.app import create_app
+from pgwerk.commons import JobStatus
 
-from tests.api.app import create_app
-from tests.commons import JobStatus
+from .tasks import noop
 
 
 class TestApiSmoke:

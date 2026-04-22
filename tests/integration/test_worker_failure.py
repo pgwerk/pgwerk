@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
+from pgwerk.commons import JobStatus
+
 from .tasks import fail_always
 from .tasks import clear_callback_log
 from .conftest import make_worker
-
-from tests.commons import JobStatus
 
 
 @pytest.fixture(autouse=True)

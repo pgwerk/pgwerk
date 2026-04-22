@@ -6,7 +6,7 @@ from psycopg import AsyncConnection
 from psycopg.sql import SQL
 from psycopg.sql import Identifier
 
-from .config import WrkConfig
+from .config import WerkConfig
 
 from tests import utils
 
@@ -239,10 +239,10 @@ class DatabaseManager:
                 row = await cur.fetchone()
                 current = row[0] if row else 0
 
-                if current >= WrkConfig.schema_version:
+                if current >= WerkConfig.schema_version:
                     return
 
-                logger.info("werk: migrating schema from version %d to %d", current, WrkConfig.schema_version)
+                logger.info("werk: migrating schema from version %d to %d", current, WerkConfig.schema_version)
 
                 if current == 0:
                     for stmt in self._ddl():
@@ -256,15 +256,15 @@ class DatabaseManager:
                 if current == 0:
                     await cur.execute(
                         SQL("INSERT INTO {v} (version) VALUES (%s)").format(v=versions_tbl),
-                        (WrkConfig.schema_version,),
+                        (WerkConfig.schema_version,),
                     )
                 else:
                     await cur.execute(
                         SQL("UPDATE {v} SET version = %s").format(v=versions_tbl),
-                        (WrkConfig.schema_version,),
+                        (WerkConfig.schema_version,),
                     )
 
-        logger.info("werk: schema up to date (version %d)", WrkConfig.schema_version)
+        logger.info("werk: schema up to date (version %d)", WerkConfig.schema_version)
 
     async def alter_ephemeral_tables(self, conn: AsyncConnection) -> None:
         """ALTER worker/worker_jobs tables to UNLOGGED if they are currently permanent."""

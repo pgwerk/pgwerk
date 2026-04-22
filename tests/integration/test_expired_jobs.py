@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from psycopg.sql import SQL
 
+from pgwerk.commons import JobStatus
+
 from .tasks import noop
 from .tasks import fail_always
 from .conftest import make_worker
-
-from tests.commons import JobStatus
 
 
 class TestExpiredJobs:

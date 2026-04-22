@@ -6,10 +6,10 @@ import pytest
 
 from psycopg.sql import SQL
 
+from pgwerk.commons import JobStatus
+
 from .tasks import noop
 from .tasks import clear_callback_log
-
-from tests.commons import JobStatus
 
 
 @pytest.fixture(autouse=True)

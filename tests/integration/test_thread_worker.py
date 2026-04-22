@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+from pgwerk.worker import ThreadWorker
+from pgwerk.commons import JobStatus
+
 from .tasks import noop
 from .tasks import add_pure
 from .tasks import fail_pure
 from .tasks import slow_pure
 from .tasks import async_add_pure
-
-from tests.worker import ThreadWorker
-from tests.commons import JobStatus
 
 
 def _thread_worker(app, **kwargs):

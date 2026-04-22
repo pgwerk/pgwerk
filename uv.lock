@@ -677,6 +677,68 @@ wheels = [
 ]
 
 [[package]]
+name = "pgwerk"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "click" },
+    { name = "psycopg" },
+    { name = "psycopg-pool" },
+]
+
+[package.optional-dependencies]
+analytics = [
+    { name = "plotext" },
+    { name = "rich" },
+]
+api = [
+    { name = "litestar" },
+    { name = "uvicorn" },
+]
+cron = [
+    { name = "croniter" },
+]
+dev = [
+    { name = "croniter" },
+    { name = "litestar" },
+    { name = "mkdocs-shadcn" },
+    { name = "plotext" },
+    { name = "prometheus-client" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "rich" },
+    { name = "uvicorn" },
+]
+exporter = [
+    { name = "prometheus-client" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.0" },
+    { name = "croniter", marker = "extra == 'cron'", specifier = ">=2.0" },
+    { name = "croniter", marker = "extra == 'dev'", specifier = ">=2.0" },
+    { name = "litestar", marker = "extra == 'api'", specifier = ">=2.0" },
+    { name = "litestar", marker = "extra == 'dev'", specifier = ">=2.0" },
+    { name = "mkdocs-shadcn", marker = "extra == 'dev'", specifier = ">=0.10" },
+    { name = "plotext", marker = "extra == 'analytics'", specifier = ">=5.0" },
+    { name = "plotext", marker = "extra == 'dev'", specifier = ">=5.0" },
+    { name = "prometheus-client", marker = "extra == 'dev'", specifier = ">=0.8" },
+    { name = "prometheus-client", marker = "extra == 'exporter'", specifier = ">=0.8" },
+    { name = "psycopg", extras = ["async"], specifier = ">=3.1" },
+    { name = "psycopg-pool", specifier = ">=3.1" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
+    { name = "rich", marker = "extra == 'analytics'", specifier = ">=13.0" },
+    { name = "rich", marker = "extra == 'dev'", specifier = ">=13.0" },
+    { name = "uvicorn", marker = "extra == 'api'", specifier = ">=0.30" },
+    { name = "uvicorn", marker = "extra == 'dev'", specifier = ">=0.30" },
+]
+provides-extras = ["api", "cron", "exporter", "analytics", "dev"]
+
+[[package]]
 name = "platformdirs"
 version = "4.9.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1059,65 +1121,3 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/db/d9/c495884c6e548fce18a8f40568ff120bc3a4b7b99813081c8ac0c936fa64/watchdog-6.0.0-py3-none-win_amd64.whl", hash = "sha256:cbafb470cf848d93b5d013e2ecb245d4aa1c8fd0504e863ccefa32445359d680", size = 79070, upload-time = "2024-11-01T14:07:10.686Z" },
     { url = "https://files.pythonhosted.org/packages/33/e8/e40370e6d74ddba47f002a32919d91310d6074130fe4e17dabcafc15cbf1/watchdog-6.0.0-py3-none-win_ia64.whl", hash = "sha256:a1914259fa9e1454315171103c6a30961236f508b9b623eae470268bbcc6a22f", size = 79067, upload-time = "2024-11-01T14:07:11.845Z" },
 ]
-
-[[package]]
-name = "wrk"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "click" },
-    { name = "psycopg" },
-    { name = "psycopg-pool" },
-]
-
-[package.optional-dependencies]
-analytics = [
-    { name = "plotext" },
-    { name = "rich" },
-]
-api = [
-    { name = "litestar" },
-    { name = "uvicorn" },
-]
-cron = [
-    { name = "croniter" },
-]
-dev = [
-    { name = "croniter" },
-    { name = "litestar" },
-    { name = "mkdocs-shadcn" },
-    { name = "plotext" },
-    { name = "prometheus-client" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "rich" },
-    { name = "uvicorn" },
-]
-exporter = [
-    { name = "prometheus-client" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8.0" },
-    { name = "croniter", marker = "extra == 'cron'", specifier = ">=2.0" },
-    { name = "croniter", marker = "extra == 'dev'", specifier = ">=2.0" },
-    { name = "litestar", marker = "extra == 'api'", specifier = ">=2.0" },
-    { name = "litestar", marker = "extra == 'dev'", specifier = ">=2.0" },
-    { name = "mkdocs-shadcn", marker = "extra == 'dev'", specifier = ">=0.10" },
-    { name = "plotext", marker = "extra == 'analytics'", specifier = ">=5.0" },
-    { name = "plotext", marker = "extra == 'dev'", specifier = ">=5.0" },
-    { name = "prometheus-client", marker = "extra == 'dev'", specifier = ">=0.8" },
-    { name = "prometheus-client", marker = "extra == 'exporter'", specifier = ">=0.8" },
-    { name = "psycopg", extras = ["async"], specifier = ">=3.1" },
-    { name = "psycopg-pool", specifier = ">=3.1" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
-    { name = "rich", marker = "extra == 'analytics'", specifier = ">=13.0" },
-    { name = "rich", marker = "extra == 'dev'", specifier = ">=13.0" },
-    { name = "uvicorn", marker = "extra == 'api'", specifier = ">=0.30" },
-    { name = "uvicorn", marker = "extra == 'dev'", specifier = ">=0.30" },
-]
-provides-extras = ["api", "cron", "exporter", "analytics", "dev"]

@@ -23,7 +23,7 @@ from .serializers import decode
 
 
 if TYPE_CHECKING:
-    from .app import Wrk
+    from .app import Werk
     from .worker.base import BaseWorker
 
 
@@ -327,7 +327,7 @@ class CronJob:
 class Context:
     """Execution context injected as the first argument to job handlers."""
 
-    app: "Wrk"
+    app: "Werk"
     worker: "BaseWorker"
     job: "Job"
     exception: Optional[Exception] = None

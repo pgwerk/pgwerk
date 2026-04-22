@@ -1,24 +1,24 @@
-class WrkError(Exception):
-    """Base error for wrk."""
+class WerkError(Exception):
+    """Base error for pgwerk."""
 
 
-class JobNotFound(WrkError):
+class JobNotFound(WerkError):
     """Job ID does not exist in the database."""
 
 
-class JobTimeout(WrkError):
+class JobTimeout(WerkError):
     """Job exceeded its configured timeout."""
 
 
-class WorkerShutdown(WrkError):
+class WorkerShutdown(WerkError):
     """Worker received a shutdown signal."""
 
 
-class DependencyFailed(WrkError):
+class DependencyFailed(WerkError):
     """A job dependency failed, blocking this job from running."""
 
 
-class JobError(WrkError):
+class JobError(WerkError):
     """Raised by apply/map when a job fails or is aborted."""
 
     def __init__(self, job: object) -> None:

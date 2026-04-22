@@ -32,7 +32,7 @@ def fail_always(ctx):
 
 def fail_once(ctx):
     """Fails on the first attempt, succeeds on subsequent attempts."""
-    from tests.schemas import Job
+    from pgwerk.schemas import Job
 
     job: Job = ctx.job
     if job.attempts <= 1:

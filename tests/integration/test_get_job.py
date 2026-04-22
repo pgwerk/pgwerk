@@ -6,9 +6,9 @@ import uuid
 
 import pytest
 
-from .tasks import noop
+from pgwerk.exceptions import JobNotFound
 
-from tests.exceptions import JobNotFound
+from .tasks import noop
 
 
 class TestGetJob:

@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+from pgwerk.worker import ForkWorker
+from pgwerk.commons import JobStatus
+
 from .tasks import noop
 from .tasks import add_pure
 from .tasks import fail_pure
 from .tasks import slow_pure
 from .tasks import crash_process
 from .tasks import async_slow_pure
-
-from tests.worker import ForkWorker
-from tests.commons import JobStatus
 
 
 def _fork_worker(app, **kwargs):

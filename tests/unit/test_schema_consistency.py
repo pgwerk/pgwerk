@@ -5,11 +5,11 @@ from __future__ import annotations
 import re
 import dataclasses
 
-from tests.repos import _INSERT_SQL
-from tests.repos import _INSERT_COLS
-from tests.schemas import JOB_COLS
-from tests.schemas import Job
-from tests.schemas import JobInsert
+from pgwerk.repos import _INSERT_SQL
+from pgwerk.repos import _INSERT_COLS
+from pgwerk.schemas import JOB_COLS
+from pgwerk.schemas import Job
+from pgwerk.schemas import JobInsert
 
 
 # ---------------------------------------------------------------------------

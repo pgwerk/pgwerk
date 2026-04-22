@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import pytest
 
+from pgwerk.commons import JobStatus
+from pgwerk.serializers import PickleSerializer
+
 from .tasks import Box
 from .tasks import add
 from .tasks import echo
@@ -12,9 +15,6 @@ from .tasks import async_add
 from .tasks import async_slow
 from .tasks import clear_callback_log
 from .conftest import make_worker
-
-from tests.commons import JobStatus
-from tests.serializers import PickleSerializer
 
 
 @pytest.fixture(autouse=True)

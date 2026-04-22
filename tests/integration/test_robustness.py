@@ -5,10 +5,10 @@ from __future__ import annotations
 from psycopg.sql import SQL
 from psycopg.sql import Identifier
 
+from pgwerk.commons import JobStatus
+
 from .tasks import noop
 from .conftest import make_worker
-
-from tests.commons import JobStatus
 
 
 class TestMissingFunction:

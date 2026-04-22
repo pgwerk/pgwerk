@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from tests.serializers import Serializer
-from tests.serializers import JSONSerializer
-from tests.serializers import PickleSerializer
-from tests.serializers import get_default
+from pgwerk.serializers import Serializer
+from pgwerk.serializers import JSONSerializer
+from pgwerk.serializers import PickleSerializer
+from pgwerk.serializers import get_default
 
 
 class TestJSONSerializer:
@@ -60,14 +60,14 @@ class TestGetDefault:
 
 class TestEncodeDecodeHelpers:
     def test_encode_none_returns_none(self):
-        from tests.serializers import encode
+        from pgwerk.serializers import encode
 
         assert encode(JSONSerializer(), None) is None
 
     def test_encode_dict(self):
         import json
 
-        from tests.serializers import encode
+        from pgwerk.serializers import encode
 
         result = encode(JSONSerializer(), {"key": "val"})
         assert json.loads(json.loads(result)) == {"key": "val"}
@@ -75,37 +75,37 @@ class TestEncodeDecodeHelpers:
     def test_encode_list(self):
         import json
 
-        from tests.serializers import encode
+        from pgwerk.serializers import encode
 
         result = encode(JSONSerializer(), [1, 2, 3])
         assert json.loads(json.loads(result)) == [1, 2, 3]
 
     def test_decode_none_returns_none(self):
-        from tests.serializers import decode
+        from pgwerk.serializers import decode
 
         assert decode(JSONSerializer(), None) is None
 
     def test_decode_bytes(self):
         import json
 
-        from tests.serializers import decode
+        from pgwerk.serializers import decode
 
         raw = json.dumps(json.dumps(42)).encode()
         assert decode(JSONSerializer(), raw) == 42
 
     def test_decode_dict_passthrough(self):
-        from tests.serializers import decode
+        from pgwerk.serializers import decode
 
         assert decode(JSONSerializer(), {"x": 1}) == {"x": 1}
 
     def test_decode_json_int_string_returns_int(self):
-        from tests.serializers import decode
+        from pgwerk.serializers import decode
 
         result = decode(JSONSerializer(), "42")
         assert result == 42
 
     def test_decode_non_json_string_returns_original(self):
-        from tests.serializers import decode
+        from pgwerk.serializers import decode
 
         result = decode(JSONSerializer(), "not json {{")
         assert result == "not json {{"
@@ -113,7 +113,7 @@ class TestEncodeDecodeHelpers:
     def test_decode_nested_json_string_inner_string_deserializes(self):
         import json
 
-        from tests.serializers import decode
+        from pgwerk.serializers import decode
 
         inner = json.dumps("hello")
         outer = json.dumps(inner)
@@ -123,8 +123,8 @@ class TestEncodeDecodeHelpers:
     def test_decode_nested_string_fallback_on_serializer_failure(self):
         import json
 
-        from tests.serializers import PickleSerializer
-        from tests.serializers import decode
+        from pgwerk.serializers import PickleSerializer
+        from pgwerk.serializers import decode
 
         s = PickleSerializer()
         outer = json.dumps("hello")

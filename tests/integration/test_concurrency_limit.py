@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pgwerk.worker import ThreadWorker
+
 from .tasks import track_conc
 from .tasks import _conc_state
 from .tasks import track_sync_conc
@@ -9,8 +11,6 @@ from .tasks import _sync_conc_state
 from .tasks import reset_conc_tracker
 from .tasks import reset_sync_conc_tracker
 from .conftest import make_worker
-
-from tests.worker import ThreadWorker
 
 
 def _thread_worker(app, **kwargs):

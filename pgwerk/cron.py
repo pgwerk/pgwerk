@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 
-from tests.schemas import CronJob
+from pgwerk.schemas import CronJob
 
 from tests import utils
 
 
 if TYPE_CHECKING:
-    from .app import Wrk
+    from .app import Werk
 
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class CronScheduler:
             await asyncio.gather(worker.run(), scheduler.run())
     """
 
-    def __init__(self, app: "Wrk") -> None:
+    def __init__(self, app: "Werk") -> None:
         self.app = app
         self._jobs: dict[str, CronJob] = {}
         self._running = False

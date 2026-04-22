@@ -10,12 +10,12 @@ import pytest
 
 from psycopg.sql import SQL
 
+from pgwerk.worker.aio import AsyncWorker
+
 from .tasks import noop
 from .tasks import fail_always
 from .tasks import clear_callback_log
 from .conftest import make_worker
-
-from tests.worker.aio import AsyncWorker
 
 
 @pytest.fixture(autouse=True)

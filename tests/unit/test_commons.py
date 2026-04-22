@@ -5,13 +5,13 @@ import asyncio
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from tests.utils import call_hook
-from tests.utils import wants_context
-from tests.utils import invoke_callback
-from tests.commons import JobStatus
-from tests.commons import DequeueStrategy
-from tests.commons import ExecutionStatus
-from tests.schemas import Context
+from pgwerk.utils import call_hook
+from pgwerk.utils import wants_context
+from pgwerk.utils import invoke_callback
+from pgwerk.commons import JobStatus
+from pgwerk.commons import DequeueStrategy
+from pgwerk.commons import ExecutionStatus
+from pgwerk.schemas import Context
 
 
 class TestJobStatusEnum:

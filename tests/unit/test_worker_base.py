@@ -8,8 +8,8 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.commons import DequeueStrategy
-from tests.worker.base import BaseWorker
+from pgwerk.commons import DequeueStrategy
+from pgwerk.worker.base import BaseWorker
 
 
 class ConcreteWorker(BaseWorker):

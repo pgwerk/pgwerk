@@ -1,7 +1,7 @@
-from .app import Wrk
+from .app import Werk
 from .cron import CronJob
 from .cron import CronScheduler
-from .config import WrkConfig
+from .config import WerkConfig
 from .worker import BaseWorker
 from .worker import ForkWorker
 from .worker import AsyncWorker
@@ -21,7 +21,7 @@ from .schemas import Dependency
 from .schemas import JobExecution
 from .schemas import EnqueueParams
 from .exceptions import JobError
-from .exceptions import WrkError
+from .exceptions import WerkError
 from .exceptions import JobTimeout
 from .exceptions import JobNotFound
 from .exceptions import DependencyFailed
@@ -32,8 +32,8 @@ from .serializers import PickleSerializer
 
 __all__ = [
     # App
-    "Wrk",
-    "WrkConfig",
+    "Werk",
+    "WerkConfig",
     "EnqueueParams",
     # Job types
     "Job",
@@ -62,7 +62,7 @@ __all__ = [
     # Logging
     "configure_logging",
     # Exceptions
-    "WrkError",
+    "WerkError",
     "JobNotFound",
     "JobTimeout",
     "JobError",

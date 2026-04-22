@@ -4,14 +4,14 @@ import asyncio
 
 import pytest
 
+from pgwerk.commons import JobStatus
+
 from .tasks import noop
 from .tasks import on_stopped
 from .tasks import slow_async
 from .tasks import _callback_log
 from .tasks import clear_callback_log
 from .conftest import make_worker
-
-from tests.commons import JobStatus
 
 
 @pytest.fixture(autouse=True)

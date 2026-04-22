@@ -33,7 +33,7 @@ from ..serializers import encode
 
 
 if TYPE_CHECKING:
-    from ..app import Wrk
+    from ..app import Werk
 
 
 _TRANSIENT_DB_ERRORS = (psycopg.OperationalError, psycopg.InterfaceError)
@@ -46,7 +46,7 @@ class BaseWorker(abc.ABC):
 
     def __init__(
         self,
-        app: "Wrk",
+        app: "Werk",
         queues: list[str] | None = None,
         concurrency: int = 10,
         heartbeat_interval: int | None = None,
@@ -62,7 +62,7 @@ class BaseWorker(abc.ABC):
         """Initialise the worker with scheduling and concurrency settings.
 
         Args:
-            app: Connected :class:`~wrk.app.Wrk` application instance.
+            app: Connected :class:`~wrk.app.Werk` application instance.
             queues: Queue names to consume; defaults to ``["default"]``.
             concurrency: Maximum number of jobs executed simultaneously.
             heartbeat_interval: Seconds between worker heartbeat updates;

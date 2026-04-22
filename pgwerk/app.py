@@ -22,7 +22,7 @@ from .utils import fn_path
 from .utils import normalize_retry
 from .utils import normalize_callback
 from .utils import normalize_depends_on
-from .config import WrkConfig
+from .config import WerkConfig
 from .commons import JobStatus
 from .logging import configure_logging
 from .schemas import Job
@@ -42,12 +42,12 @@ from .serializers import get_default
 logger = logging.getLogger(__name__)
 
 
-class Wrk:
+class Werk:
     def __init__(
         self,
         dsn: str,
         *,
-        config: WrkConfig | dict | None = None,
+        config: WerkConfig | dict | None = None,
         schema: str | None = None,
         prefix: str | None = None,
         min_pool_size: int | None = None,
@@ -59,11 +59,11 @@ class Wrk:
         log_color: bool | None = None,
         log_fmt: str | None = None,
     ) -> None:
-        """Initialize Wrk with a Postgres DSN and optional configuration.
+        """Initialize Werk with a Postgres DSN and optional configuration.
 
         Args:
             dsn: Postgres connection string.
-            config: A WrkConfig instance or dict; keyword overrides take
+            config: A WerkConfig instance or dict; keyword overrides take
                 precedence over values in the config object.
             schema: Postgres schema to place wrk tables in.
             prefix: Table-name prefix (default ``_pgwerk_``).
@@ -78,8 +78,8 @@ class Wrk:
             log_fmt: Custom log format string.
         """
         if isinstance(config, dict):
-            config = WrkConfig(**config)
-        self.config: WrkConfig = config or WrkConfig()
+            config = WerkConfig(**config)
+        self.config: WerkConfig = config or WerkConfig()
 
         self.dsn = dsn
         self.schema = schema if schema is not None else self.config.schema
@@ -1044,11 +1044,11 @@ class Wrk:
         self.__worker_repo = None
         self.__stats_repo = None
 
-    async def __aenter__(self) -> Wrk:
+    async def __aenter__(self) -> Werk:
         """Connect on entering the async context manager.
 
         Returns:
-            This :class:`Wrk` instance.
+            This :class:`Werk` instance.
         """
         await self.connect()
         return self

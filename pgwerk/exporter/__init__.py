@@ -10,14 +10,14 @@ from typing import Any
 if TYPE_CHECKING:
     from prometheus_client import CollectorRegistry
 
-    from ..app import Wrk
+    from ..app import Werk
 
 logger = logging.getLogger(__name__)
 
 _STATUSES = ("scheduled", "queued", "active", "waiting", "failed", "complete", "aborted", "aborting")
 
 
-class WrkExporter:
+class WerkExporter:
     """Prometheus metrics exporter for wrk.
 
     Runs a background asyncio task that polls the database every *interval*
@@ -28,7 +28,7 @@ class WrkExporter:
 
     Usage::
 
-        exporter = WrkExporter(wrk, interval=15)
+        exporter = WerkExporter(wrk, interval=15)
         await exporter.start()          # begin background collection
         app = exporter.asgi_app()       # mount at /metrics in your ASGI app
         # or
@@ -41,7 +41,7 @@ class WrkExporter:
 
     def __init__(
         self,
-        werk: "Wrk",
+        werk: "Werk",
         interval: float = 15.0,
         registry: "CollectorRegistry | None" = None,
         namespace: str = "wrk",
@@ -52,10 +52,10 @@ class WrkExporter:
             from prometheus_client import CollectorRegistry as _Registry
         except ImportError as exc:
             raise ImportError(
-                "prometheus-client is required for WrkExporter. Install it with: pip install prometheus-client"
+                "prometheus-client is required for WerkExporter. Install it with: pip install prometheus-client"
             ) from exc
 
-        self._pgwerk = wrk
+        self._pgwerk = werk
         self._interval = interval
         self._latency_window = latency_window_secs
         self._task: asyncio.Task[None] | None = None
@@ -112,7 +112,7 @@ class WrkExporter:
         self._task = None
         logger.info("wrk exporter: stopped")
 
-    async def __aenter__(self) -> "WrkExporter":
+    async def __aenter__(self) -> "WerkExporter":
         await self.start()
         return self
 

@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import pytest
 
+from pgwerk.commons import JobStatus
+from pgwerk.schemas import EnqueueParams
+
 from .tasks import add
 from .tasks import noop
 from .tasks import fail_always
 from .tasks import clear_callback_log
 from .conftest import make_worker
-
-from tests.commons import JobStatus
-from tests.schemas import EnqueueParams
 
 
 @pytest.fixture(autouse=True)

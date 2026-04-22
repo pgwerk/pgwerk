@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 
+from pgwerk.commons import JobStatus
+
 from .tasks import add
 from .tasks import noop
 from .tasks import fail_always
 from .conftest import make_worker
-
-from tests.commons import JobStatus
 
 
 class TestMultipleAsyncWorkers:

@@ -24,15 +24,15 @@ def _static_config() -> list[StaticFilesConfig]:
     return []
 
 
-from ..app import Wrk
+from ..app import Werk
 from .routes import router
 
 
 if TYPE_CHECKING:
-    from ..exporter import WrkExporter
+    from ..exporter import WerkExporter
 
 
-logger = logging.getLogger("wrk.api")
+logger = logging.getLogger("pgwerk.api")
 
 
 def _server_error_handler(request: Request, exc: Exception) -> Response:
@@ -43,64 +43,64 @@ def _server_error_handler(request: Request, exc: Exception) -> Response:
     )
 
 
-async def _create_pgwerk() -> Wrk:
+async def _create_pgwerk() -> Werk:
     dsn = os.environ["PGWERK_DSN"]
-    app = Wrk(dsn)
+    app = Werk(dsn)
     await app.connect()
     return app
 
 
-async def _close_pgwerk(werk: Wrk) -> None:
-    await wrk.disconnect()
+async def _close_pgwerk(werk: Werk) -> None:
+    await werk.disconnect()
 
 
 def create_app(
-    werk: Wrk | None = None,
-    exporter: "WrkExporter | None" = None,
+    werk: Werk | None = None,
+    exporter: "WerkExporter | None" = None,
     exporter_interval: float | None = None,
 ) -> Litestar:
     """Create the Litestar observability app.
 
-    Pass an already-connected ``Wrk`` instance, or set ``PGWERK_DSN`` in the
+    Pass an already-connected ``Werk`` instance, or set ``PGWERK_DSN`` in the
     environment and one will be created on startup.
 
     To serve Prometheus metrics at ``GET /metrics`` on the same server:
-    - pass a pre-built ``WrkExporter`` via *exporter*, or
+    - pass a pre-built ``WerkExporter`` via *exporter*, or
     - pass *exporter_interval* (seconds) and one will be created automatically.
     """
     dependencies: dict = {}
     on_startup = []
     on_shutdown = []
 
-    if wrk is not None:
-        dependencies["wrk"] = Provide(lambda: wrk, use_cache=True, sync_to_thread=False)
+    if werk is not None:
+        dependencies["werk"] = Provide(lambda: werk, use_cache=True, sync_to_thread=False)
 
-        # Exporter needs the Wrk instance — create it now if only interval was given.
+        # Exporter needs the Werk instance — create it now if only interval was given.
         if exporter is None and exporter_interval is not None:
-            from ..exporter import WrkExporter
+            from ..exporter import WerkExporter
 
-            exporter = WrkExporter(wrk, interval=exporter_interval)
+            exporter = WerkExporter(werk, interval=exporter_interval)
     else:
         _state: dict = {}
 
         async def _startup() -> None:
-            _state["wrk"] = await _create_pgwerk()
+            _state["werk"] = await _create_pgwerk()
             if exporter_interval is not None and "exporter" not in _state:
-                from ..exporter import WrkExporter
+                from ..exporter import WerkExporter
 
-                _state["exporter"] = WrkExporter(_state["wrk"], interval=exporter_interval)
+                _state["exporter"] = WerkExporter(_state["werk"], interval=exporter_interval)
                 await _state["exporter"].start()
 
         async def _shutdown() -> None:
             if "exporter" in _state:
                 await _state["exporter"].stop()
-            if "wrk" in _state:
-                await _close_pgwerk(_state["wrk"])
+            if "werk" in _state:
+                await _close_pgwerk(_state["werk"])
 
-        async def _get_pgwerk() -> Wrk:
-            return _state["wrk"]
+        async def _get_pgwerk() -> Werk:
+            return _state["werk"]
 
-        dependencies["wrk"] = Provide(_get_pgwerk, use_cache=True, sync_to_thread=False)
+        dependencies["werk"] = Provide(_get_pgwerk, use_cache=True, sync_to_thread=False)
         on_startup.append(_startup)
         on_shutdown.append(_shutdown)
 

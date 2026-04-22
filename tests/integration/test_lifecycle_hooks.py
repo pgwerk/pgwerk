@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
+from pgwerk.app import Wrk
+
 from .tasks import clear_callback_log
 from .conftest import _TEST_DSN
 from .conftest import _TEST_PREFIX
-
-from tests.app import Wrk
 
 
 @pytest.fixture(autouse=True)

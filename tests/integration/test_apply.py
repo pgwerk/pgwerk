@@ -29,7 +29,7 @@ class TestApply:
         assert result == 7
 
     async def test_apply_raises_on_failure(self, app):
-        from tests.exceptions import JobError
+        from pgwerk.exceptions import JobError
 
         worker = make_worker(app, burst=True, poll_interval=0.05)
         with pytest.raises(JobError):

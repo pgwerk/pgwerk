@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class WrkConfig:
+class WerkConfig:
     """Configuration for a wrk worker or scheduler.
 
     Attributes:

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from psycopg.sql import SQL
 
+from pgwerk.commons import JobStatus
+
 from .tasks import noop
 from .tasks import add_pure
-
-from tests.commons import JobStatus
 
 
 class TestListJobs:

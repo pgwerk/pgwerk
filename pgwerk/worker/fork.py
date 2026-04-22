@@ -22,7 +22,7 @@ def _fork_target(
     import asyncio as _aio
 
     try:
-        from tests.utils import import_fn
+        from pgwerk.utils import import_fn
 
         fn = import_fn(dotted)
         result = _aio.run(fn(*args, **kwargs)) if _aio.iscoroutinefunction(fn) else fn(*args, **kwargs)

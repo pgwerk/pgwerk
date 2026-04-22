@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from psycopg.sql import Identifier
 
-from tests.config import WrkConfig
-from tests.database import DatabaseManager
+from pgwerk.config import WrkConfig
+from pgwerk.database import DatabaseManager
 
 
 class TestDatabaseManagerTable:

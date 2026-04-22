@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from .tasks import clear_callback_log
+from pgwerk.app import Wrk
 
-from tests.app import Wrk
+from .tasks import clear_callback_log
 
 
 @pytest.fixture(autouse=True)

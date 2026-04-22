@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.utils import import_fn
-from tests.worker.aio import AsyncWorker
+from pgwerk.utils import import_fn
+from pgwerk.worker.aio import AsyncWorker
 
 
 def make_app():
@@ -39,7 +39,7 @@ class TestAsyncWorkerImport:
         assert fn is os.getcwd
 
     def test_imports_class(self):
-        from tests.schemas import Job
+        from pgwerk.schemas import Job
 
         cls = import_fn("wrk.schemas.Job")
         assert cls is Job
