@@ -54,7 +54,7 @@ All workers share these constructor parameters:
 
 | Parameter | Default | Description |
 |---|---|---|
-| `app` | required | Connected `Wrk` instance |
+| `app` | required | Connected `Werk` instance |
 | `queues` | `["default"]` | Queue names to consume |
 | `concurrency` | `10` | Max jobs processed simultaneously |
 | `heartbeat_interval` | `10` | Seconds between worker heartbeats |

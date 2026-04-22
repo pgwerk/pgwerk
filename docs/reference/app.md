@@ -1,16 +1,16 @@
 # App
 
-## Wrk
+## Werk
 
 The central object. Holds the connection pool and exposes all job management operations.
 
 ### Constructor
 
 ```python
-Wrk(
+Werk(
     dsn: str,
     *,
-    config: WrkConfig | dict | None = None,
+    config: WerkConfig | dict | None = None,
     schema: str | None = None,
     prefix: str | None = None,
     min_pool_size: int | None = None,
@@ -27,7 +27,7 @@ Wrk(
 | Parameter | Default | Description |
 |---|---|---|
 | `dsn` | required | Postgres connection string |
-| `config` | `WrkConfig()` | Base configuration; keyword arguments take precedence |
+| `config` | `WerkConfig()` | Base configuration; keyword arguments take precedence |
 | `schema` | `None` | Postgres schema to qualify all table names |
 | `prefix` | `"_pgwerk"` | Prefix applied to every table name |
 | `min_pool_size` | `2` | Minimum pooled connections |
@@ -172,11 +172,11 @@ Delete job rows by status and age.
 
 #### `vacuum() → None`
 
-Run `VACUUM ANALYZE` on all wrk tables.
+Run `VACUUM ANALYZE` on all werk tables.
 
 #### `truncate() → None`
 
-Truncate all wrk tables. Useful in tests.
+Truncate all werk tables. Useful in tests.
 
 ### Lifecycle hooks
 
@@ -190,19 +190,19 @@ Remove a previously registered before-enqueue callback.
 
 ---
 
-## WrkConfig
+## WerkConfig
 
-Centralised configuration. Keyword arguments to `Wrk()` take precedence over values in a `WrkConfig` instance.
+Centralised configuration. Keyword arguments to `Werk()` take precedence over values in a `WerkConfig` instance.
 
 ```python
-from pgwerk import Wrk, WrkConfig
+from pgwerk import Werk, WerkConfig
 
-config = WrkConfig(
+config = WerkConfig(
     prefix="_jobs",
     max_pool_size=20,
     sweep_interval=30.0,
 )
-app = Wrk(dsn, config=config)
+app = Werk(dsn, config=config)
 ```
 
 | Attribute | Default | Description |

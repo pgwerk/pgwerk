@@ -1,4 +1,4 @@
-# wrk
+# werk
 
 A Postgres-backed job queue. Durable, visible, transactional.
 
@@ -7,15 +7,15 @@ Jobs are rows. Workers poll with `SELECT … FOR UPDATE SKIP LOCKED`. No externa
 ## Install
 
 ```bash
-pip install wrk
+pip install pgwerk
 ```
 
 ## Quickstart
 
 ```python
-from pgwerk import Wrk, AsyncWorker
+from pgwerk import Werk, AsyncWorker
 
-app = Wrk("postgresql://user:pass@localhost/mydb")
+app = Werk("postgresql://user:pass@localhost/mydb")
 
 async def send_email(to: str):
     ...

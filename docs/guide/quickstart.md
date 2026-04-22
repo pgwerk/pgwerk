@@ -3,23 +3,23 @@
 ## Install
 
 ```bash
-pip install wrk
+pip install werk
 ```
 
 Requires Python 3.11+ and Postgres 14+. For cron expression support, add the optional extra:
 
 ```bash
-pip install "wrk[cron]"
+pip install "pgwerk[cron]"
 ```
 
 ## Connect
 
-Create a `Wrk` instance with your Postgres DSN. Call `connect()` once at startup and `disconnect()` at shutdown. The async context manager is shorthand for the same pair:
+Create a `Werk` instance with your Postgres DSN. Call `connect()` once at startup and `disconnect()` at shutdown. The async context manager is shorthand for the same pair:
 
 ```python
-from pgwerk import Wrk
+from pgwerk import Werk
 
-app = Wrk("postgresql://user:pass@localhost/mydb")
+app = Werk("postgresql://user:pass@localhost/mydb")
 
 # Explicit lifecycle
 await app.connect()
@@ -87,18 +87,18 @@ asyncio.run(main())
 Or start one from the CLI:
 
 ```bash
-wrk worker myapp.tasks:app --queues default --concurrency 10
+werkworker myapp.tasks:app --queues default --concurrency 10
 ```
 
-`APP` is a `module:attribute` path to your `Wrk` instance.
+`APP` is a `module:attribute` path to your `Werk` instance.
 
 ## Minimal end-to-end example
 
 ```python
 import asyncio
-from pgwerk import Wrk, AsyncWorker
+from pgwerk import Werk, AsyncWorker
 
-app = Wrk("postgresql://user:pass@localhost/mydb")
+app = Werk("postgresql://user:pass@localhost/mydb")
 
 async def greet(name: str) -> str:
     return f"Hello, {name}!"

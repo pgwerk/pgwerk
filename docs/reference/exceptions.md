@@ -1,21 +1,21 @@
 # Exceptions
 
-All `werk` exceptions inherit from `WrkError`.
+All `werk` exceptions inherit from `WerkError`.
 
-## WrkError
+## WerkError
 
 ```python
-class WrkError(Exception): ...
+class WerkError(Exception): ...
 ```
 
-Base exception for all wrk errors.
+Base exception for all werk errors.
 
 ---
 
 ## JobNotFound
 
 ```python
-class JobNotFound(WrkError): ...
+class JobNotFound(WerkError): ...
 ```
 
 Raised by `app.get_job()` when no job with the given ID exists in the database.
@@ -34,7 +34,7 @@ except JobNotFound:
 ## JobTimeout
 
 ```python
-class JobTimeout(WrkError): ...
+class JobTimeout(WerkError): ...
 ```
 
 Raised inside a job handler when the job exceeds its configured `_timeout`.
@@ -44,7 +44,7 @@ Raised inside a job handler when the job exceeds its configured `_timeout`.
 ## JobError
 
 ```python
-class JobError(WrkError):
+class JobError(WerkError):
     job: Job
 ```
 
@@ -64,7 +64,7 @@ except JobError as exc:
 ## DependencyFailed
 
 ```python
-class DependencyFailed(WrkError): ...
+class DependencyFailed(WerkError): ...
 ```
 
 Raised when a job cannot start because one of its dependencies failed and `allow_failure` was not set on the `Dependency`.
@@ -74,7 +74,7 @@ Raised when a job cannot start because one of its dependencies failed and `allow
 ## WorkerShutdown
 
 ```python
-class WorkerShutdown(WrkError): ...
+class WorkerShutdown(WerkError): ...
 ```
 
 Internal exception signalling that the worker received a shutdown signal. Not normally raised to application code.

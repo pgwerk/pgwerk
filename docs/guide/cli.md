@@ -4,14 +4,14 @@ The `werk` command-line tool lets you start workers, inspect queues, and manage 
 
 ## APP argument
 
-Most commands take an `APP` argument — a `module:attribute` path to a `Wrk` instance:
+Most commands take an `APP` argument — a `module:attribute` path to a `Werk` instance:
 
 ```bash
-wrk worker myapp.tasks:app
-wrk info myapp.tasks:app
+werkworker myapp.tasks:app
+werkinfo myapp.tasks:app
 ```
 
-The module is imported at runtime, so the `Wrk` instance is initialised exactly as it would be in your application.
+The module is imported at runtime, so the `Werk` instance is initialised exactly as it would be in your application.
 
 ## Commands
 
@@ -20,7 +20,7 @@ The module is imported at runtime, so the `Wrk` instance is initialised exactly 
 Start a worker process.
 
 ```bash
-wrk worker APP [OPTIONS]
+werkworker APP [OPTIONS]
 ```
 
 | Option | Default | Description |
@@ -34,13 +34,13 @@ wrk worker APP [OPTIONS]
 
 ```bash
 # Async worker on two queues
-wrk worker myapp.tasks:app --queues default,high --concurrency 20
+werkworker myapp.tasks:app --queues default,high --concurrency 20
 
 # Thread worker with JSON logging
-wrk worker myapp.tasks:app --worker-type thread --log-format json
+werkworker myapp.tasks:app --worker-type thread --log-format json
 
 # Process worker for CPU-bound work
-wrk worker myapp.tasks:app --worker-type process --concurrency 4
+werkworker myapp.tasks:app --worker-type process --concurrency 4
 ```
 
 ### `werk info`
@@ -48,7 +48,7 @@ wrk worker myapp.tasks:app --worker-type process --concurrency 4
 Print queue statistics, active workers, and server information.
 
 ```bash
-wrk info APP
+werkinfo APP
 ```
 
 ### `werk jobs`
@@ -56,7 +56,7 @@ wrk info APP
 List recent jobs in a formatted table.
 
 ```bash
-wrk jobs APP [OPTIONS]
+werkjobs APP [OPTIONS]
 ```
 
 | Option | Default | Description |
@@ -68,10 +68,10 @@ wrk jobs APP [OPTIONS]
 
 ```bash
 # Show failed jobs in the high queue
-wrk jobs myapp.tasks:app --queue high --status failed
+werkjobs myapp.tasks:app --queue high --status failed
 
 # Paginate
-wrk jobs myapp.tasks:app --limit 50 --offset 50
+werkjobs myapp.tasks:app --limit 50 --offset 50
 ```
 
 ### `werk stats`
@@ -79,7 +79,7 @@ wrk jobs myapp.tasks:app --limit 50 --offset 50
 Show queue depth and throughput statistics.
 
 ```bash
-wrk stats APP
+werkstats APP
 ```
 
 ### `werk throughput`
@@ -87,7 +87,7 @@ wrk stats APP
 Display a throughput chart over the last N minutes.
 
 ```bash
-wrk throughput APP
+werkthroughput APP
 ```
 
 ### `werk slowest`
@@ -95,7 +95,7 @@ wrk throughput APP
 List the slowest jobs by execution duration.
 
 ```bash
-wrk slowest APP
+werkslowest APP
 ```
 
 ### `werk cron`
@@ -103,7 +103,7 @@ wrk slowest APP
 Show registered cron jobs and their next scheduled run time.
 
 ```bash
-wrk cron APP
+werkcron APP
 ```
 
 ### `werk purge`
@@ -111,7 +111,7 @@ wrk cron APP
 Delete jobs by status, optionally filtered to jobs older than N days.
 
 ```bash
-wrk purge APP [OPTIONS]
+werkpurge APP [OPTIONS]
 ```
 
 | Option | Description |
@@ -121,10 +121,10 @@ wrk purge APP [OPTIONS]
 
 ```bash
 # Delete all completed jobs
-wrk purge myapp.tasks:app --status complete
+werkpurge myapp.tasks:app --status complete
 
 # Delete failed jobs older than 7 days
-wrk purge myapp.tasks:app --status failed --older-than 7
+werkpurge myapp.tasks:app --status failed --older-than 7
 ```
 
 ### `werk dashboard`
@@ -132,8 +132,8 @@ wrk purge myapp.tasks:app --status failed --older-than 7
 Open an interactive terminal dashboard showing live queue and worker metrics (requires the `analytics` optional extra).
 
 ```bash
-pip install "wrk[analytics]"
-wrk dashboard myapp.tasks:app
+pip install "pgwerk[analytics]"
+werkdashboard myapp.tasks:app
 ```
 
 ### `werk api`
@@ -141,6 +141,6 @@ wrk dashboard myapp.tasks:app
 Start the REST API server (requires the `litestar` optional extra).
 
 ```bash
-pip install "wrk[api]"
-wrk api myapp.tasks:app
+pip install "pgwerk[api]"
+werkapi myapp.tasks:app
 ```

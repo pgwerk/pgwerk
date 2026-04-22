@@ -6,40 +6,40 @@
 
 ### Overview
 
-![Dashboard overview](../assets/01-ss-home.png)
+[![Dashboard overview](../assets/01-ss-home.png){ .doc-screenshot }](../assets/01-ss-home.png)
 
 ### Jobs
 
-![Jobs view](../assets/02-ss-jobs.png)
+[![Jobs view](../assets/02-ss-jobs.png){ .doc-screenshot }](../assets/02-ss-jobs.png)
 
 ### Workers
 
-![Workers view](../assets/03-workers.png)
+[![Workers view](../assets/03-workers.png){ .doc-screenshot }](../assets/03-workers.png)
 
 ### Worker details
 
-![Worker details view](../assets/04-workers-details.png)
+[![Worker details view](../assets/04-workers-details.png){ .doc-screenshot }](../assets/04-workers-details.png)
 
 ### Maintenance
 
-![Maintenance view](../assets/05-maintenance.png)
+[![Maintenance view](../assets/05-maintenance.png){ .doc-screenshot }](../assets/05-maintenance.png)
 
 ## Install
 
 The dashboard requires the `analytics` optional extra:
 
 ```bash
-pip install "wrk[analytics]"
+pip install "pgwerk[analytics]"
 ```
 
 This installs `rich` and `plotext` as additional dependencies.
 
 ## Start
 
-Pass your `Wrk` instance using the standard `module:attribute` format:
+Pass your `Werk` instance using the standard `module:attribute` format:
 
 ```bash
-wrk dashboard myapp.tasks:app
+werk dashboard myapp.tasks:app
 ```
 
 ## What it shows
@@ -57,8 +57,8 @@ The dashboard refreshes automatically and displays:
 For programmatic access to queue and worker metrics, the optional REST API provides JSON endpoints:
 
 ```bash
-pip install "wrk[api]"
-wrk api myapp.tasks:app
+pip install "pgwerk[api]"
+werk api myapp.tasks:app
 ```
 
 The API is built with [Litestar](https://litestar.dev) and exposes endpoints for listing jobs, queue statistics, worker status, and job management (cancel, requeue, purge).

@@ -175,7 +175,7 @@ Execution context injected into handlers.
 
 | Field | Type | Description |
 |---|---|---|
-| `app` | `Wrk` | The connected app instance |
+| `app` | `Werk` | The connected app instance |
 | `worker` | `BaseWorker` | The worker processing this job |
 | `job` | `Job` | The job being executed |
 | `exception` | `Exception \| None` | Set in `after_process` hooks when the job raised |

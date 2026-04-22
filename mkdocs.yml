@@ -27,6 +27,7 @@ nav:
   - Changelog: changelog.md
 
 markdown_extensions:
+  - attr_list
   - admonition
   - footnotes
   - fenced_code
@@ -34,3 +35,9 @@ markdown_extensions:
       alternate_style: true
   - pymdownx.details
   - pymdownx.superfences
+
+extra_css:
+  - assets/lightbox.css
+
+extra_javascript:
+  - assets/lightbox.js

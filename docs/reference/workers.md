@@ -8,7 +8,7 @@ Abstract base class shared by all worker implementations. Provides the polling l
 
 ```python
 BaseWorker(
-    app: Wrk,
+    app: Werk,
     queues: list[str] | None = None,
     concurrency: int = 10,
     heartbeat_interval: int | None = None,

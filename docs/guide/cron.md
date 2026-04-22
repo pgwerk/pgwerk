@@ -5,9 +5,9 @@
 ## Basic usage
 
 ```python
-from pgwerk import Wrk, AsyncWorker, CronScheduler
+from pgwerk import Werk, AsyncWorker, CronScheduler
 
-app = Wrk("postgresql://user:pass@localhost/mydb")
+app = Werk("postgresql://user:pass@localhost/mydb")
 
 async def daily_report():
     ...
@@ -33,7 +33,7 @@ async with app:
 Cron expressions require the `croniter` package:
 
 ```bash
-pip install "wrk[cron]"
+pip install "pgwerk[cron]"
 # or
 pip install croniter
 ```

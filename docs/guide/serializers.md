@@ -7,9 +7,9 @@ Serializers control how job payloads, results, and metadata are encoded for stor
 The default serializer. Payloads are encoded as JSON, which is readable in the database and portable across processes and languages.
 
 ```python
-from pgwerk import Wrk
+from pgwerk import Werk
 
-app = Wrk("postgresql://user:pass@localhost/mydb")
+app = Werk("postgresql://user:pass@localhost/mydb")
 # JSONSerializer is used automatically
 ```
 
@@ -20,9 +20,9 @@ JSON imposes the usual type constraints: values must be JSON-serialisable (strin
 Serializes payloads with `pickle` and encodes the bytes as base64. This lifts the JSON type restriction — you can pass arbitrary Python objects including dataclasses, numpy arrays, and custom classes.
 
 ```python
-from pgwerk import Wrk, PickleSerializer
+from pgwerk import Werk, PickleSerializer
 
-app = Wrk("postgresql://user:pass@localhost/mydb", serializer=PickleSerializer())
+app = Werk("postgresql://user:pass@localhost/mydb", serializer=PickleSerializer())
 ```
 
 !!! warning
@@ -33,7 +33,7 @@ app = Wrk("postgresql://user:pass@localhost/mydb", serializer=PickleSerializer()
 Any object that satisfies the `Serializer` protocol works:
 
 ```python
-from pgwerk import Wrk, Serializer
+from pgwerk import Werk, Serializer
 import msgpack
 
 class MsgPackSerializer:
@@ -45,7 +45,7 @@ class MsgPackSerializer:
         data = bytes.fromhex(s) if isinstance(s, str) else s
         return msgpack.unpackb(data)
 
-app = Wrk(dsn, serializer=MsgPackSerializer())
+app = Werk(dsn, serializer=MsgPackSerializer())
 ```
 
 The `Serializer` protocol requires two methods:
@@ -65,4 +65,4 @@ The configured serializer is used for:
 - Job metadata (`_meta`)
 - Retry intervals and repeat intervals stored on the job row
 
-All workers connected to the same `Wrk` instance share its serializer. If you mix serializers across processes, payloads from one serializer cannot be decoded by another.
+All workers connected to the same `Werk` instance share its serializer. If you mix serializers across processes, payloads from one serializer cannot be decoded by another.
