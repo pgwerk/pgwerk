@@ -21,3 +21,4 @@ dashboard/dist/
 wrk/api/static/*
 !wrk/api/static/.gitkeep
 site/
+.DS_Store
