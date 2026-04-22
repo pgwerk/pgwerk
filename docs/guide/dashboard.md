@@ -2,6 +2,28 @@
 
 `werk` ships with an optional terminal dashboard that shows live queue depths, throughput, and worker activity.
 
+## Screenshots
+
+### Overview
+
+![Dashboard overview](../assets/01-ss-home.png)
+
+### Jobs
+
+![Jobs view](../assets/02-ss-jobs.png)
+
+### Workers
+
+![Workers view](../assets/03-workers.png)
+
+### Worker details
+
+![Worker details view](../assets/04-workers-details.png)
+
+### Maintenance
+
+![Maintenance view](../assets/05-maintenance.png)
+
 ## Install
 
 The dashboard requires the `analytics` optional extra:

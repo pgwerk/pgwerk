@@ -10,6 +10,8 @@ A Postgres-backed job queue. Durable, visible, transactional.
 
 Jobs are rows. Workers poll with `SELECT … FOR UPDATE SKIP LOCKED`. No external broker, no sidecar, just your existing Postgres instance. The schema is created automatically on first connect.
 
+![PGWerk dashboard overview](docs/assets/01-ss-home.png)
+
 ---
 
 ## Python
