@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/hooks/useTheme'
 import { api } from '@/lib/api'
+import { Logo } from '@/components/layout/Logo'
 
 const nav = [
   { to: '/', label: 'Overview', end: true },
@@ -48,8 +49,8 @@ export function TopNav() {
     <header className="sticky top-0 z-40 flex h-12 items-center border-b border-border bg-background/95 backdrop-blur-sm">
       <div className="mx-auto flex w-full max-w-6xl items-center px-6">
         {/* Logo */}
-        <div className="mr-8 flex items-baseline gap-1.5 shrink-0">
-          <span className="font-mono text-sm font-semibold tracking-widest text-foreground">wrk</span>
+        <div className="mr-8 shrink-0">
+          <Logo theme={theme} size={28} />
         </div>
 
         {/* Nav links */}
