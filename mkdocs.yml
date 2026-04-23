@@ -29,6 +29,9 @@ nav:
 markdown_extensions:
   - attr_list
   - admonition
+  - codehilite:
+      css_class: codehilite
+      guess_lang: false
   - footnotes
   - fenced_code
   - pymdownx.tabbed:

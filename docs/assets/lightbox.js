@@ -1,4 +1,8 @@
 (() => {
+  document.querySelectorAll('.highlight').forEach((block) => {
+    block.classList.add('codehilite');
+  });
+
   const links = Array.from(document.querySelectorAll('a')).filter((link) =>
     link.querySelector('img.doc-screenshot'),
   );
