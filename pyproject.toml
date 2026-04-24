@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pgwerk"
-version = "0.1.0"
+version = "0.1.1"
 description = "Postgres-backed job queue. Durable, visible, transactional."
 readme = "README.md"
 license = { file = "LICENSE" }
