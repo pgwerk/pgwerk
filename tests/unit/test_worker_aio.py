@@ -49,7 +49,7 @@ class TestAsyncWorkerImport:
             import_fn("no_such_module_xyz.fn")
 
     def test_import_missing_attr_raises(self):
-        with pytest.raises(AttributeError):
+        with pytest.raises(ImportError, match="Couldn't import"):
             import_fn("os.no_such_attr_xyz")
 
 

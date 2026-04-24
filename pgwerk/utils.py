@@ -120,8 +120,7 @@ async def call_hook(hook: Callable, ctx: "Context") -> None:
 async def invoke_callback(dotted: str, job: "Job", timeout: int | None = None) -> None:
     """Import and call a callback by dotted path. Never raises."""
     try:
-        module_path, name = dotted.rsplit(".", 1)
-        fn = getattr(importlib.import_module(module_path), name)
+        fn = import_fn(dotted)
         coro = fn(job)
         if asyncio.iscoroutine(coro):
             if timeout:
@@ -140,9 +139,26 @@ async def invoke_callback(dotted: str, job: "Job", timeout: int | None = None) -
 
 
 def import_fn(dotted: str) -> Callable:
-    """Import a callable from its dotted module path."""
-    module_path, name = dotted.rsplit(".", 1)
-    return getattr(importlib.import_module(module_path), name)
+    """Import a callable from its dotted module path.
+
+    Supports both module-level functions and class methods/staticmethods.
+    For class members, the path includes the class name as a qualname component
+    (e.g. ``module.ClassName.method``), so this walks from right to left until
+    a valid module is found, then resolves the remaining attributes.
+    """
+    parts = dotted.split(".")
+    for i in range(len(parts) - 1, 0, -1):
+        try:
+            obj: Any = importlib.import_module(".".join(parts[:i]))
+            for attr in parts[i:]:
+                obj = getattr(obj, attr)
+            return obj
+        except (ModuleNotFoundError, AttributeError):
+            continue
+    raise ImportError(
+        f"Couldn't import {dotted!r}. Make sure the dotted path points to a "
+        "module-level function, class, or class method that is importable at runtime."
+    )
 
 
 def fn_path(func: Callable) -> str:

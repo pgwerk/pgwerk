@@ -288,6 +288,17 @@ class TestImportFn:
         cls = import_fn("pgwerk.schemas.Job")
         assert cls is Job
 
+    def test_imports_class_method(self):
+        # Simulates fn_path(SomeClass.method) → "module.SomeClass.method"
+        fn = import_fn("pgwerk.schemas.Job.from_row")
+        from pgwerk.schemas import Job
+
+        assert fn.__func__ is Job.from_row.__func__
+
+    def test_raises_on_bad_path(self):
+        with pytest.raises(ImportError, match="Couldn't import"):
+            import_fn("totally.bogus.path.that.does.not.exist")
+
 
 # ---------------------------------------------------------------------------
 # Werk init and pool
