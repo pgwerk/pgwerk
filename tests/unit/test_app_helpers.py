@@ -276,28 +276,84 @@ class TestFnPath:
 
 
 class TestImportFn:
-    def test_imports_function(self):
+    # -- module-level function ------------------------------------------------
+
+    def test_module_level_function(self):
         import os
 
-        fn = import_fn("os.getcwd")
-        assert fn is os.getcwd
+        assert import_fn("os.getcwd") is os.getcwd
+
+    def test_module_level_function_deep_package(self):
+        from pgwerk.utils import advisory_key
+
+        assert import_fn("pgwerk.utils.advisory_key") is advisory_key
+
+    # -- function re-exported through __init__ --------------------------------
+
+    def test_function_via_package_init(self):
+        # configure_logging lives in pgwerk.logging but is re-exported at pgwerk
+        from pgwerk import configure_logging
+
+        assert import_fn("pgwerk.configure_logging") is configure_logging
+
+    def test_class_via_package_init(self):
+        from pgwerk import Job
+
+        assert import_fn("pgwerk.Job") is Job
+
+    # -- classmethod ----------------------------------------------------------
+
+    def test_classmethod(self):
+        # fn_path(Job.from_row) → "pgwerk.schemas.Job.from_row"
+        from pgwerk.schemas import Job
+
+        fn = import_fn("pgwerk.schemas.Job.from_row")
+        assert fn.__func__ is Job.from_row.__func__
+
+    def test_classmethod_via_package_init(self):
+        # same class, accessed through the re-exported __init__ path
+        from pgwerk import Job
+
+        fn = import_fn("pgwerk.Job.from_row")
+        assert fn.__func__ is Job.from_row.__func__
+
+    # -- staticmethod ---------------------------------------------------------
+
+    def test_staticmethod(self):
+        from pgwerk.worker.base import BaseWorker
+
+        fn = import_fn("pgwerk.worker.base.BaseWorker._with_timeout")
+        assert fn is BaseWorker._with_timeout
+
+    # -- regular instance method ----------------------------------------------
+
+    def test_instance_method(self):
+        # import_fn should resolve instance methods too (even if rarely enqueued)
+        from pgwerk.schemas import Job
+
+        fn = import_fn("pgwerk.schemas.Job.__post_init__")
+        assert fn is Job.__post_init__
+
+    # -- class (not a callable attribute) -------------------------------------
 
     def test_imports_class(self):
         from pgwerk.schemas import Job
 
-        cls = import_fn("pgwerk.schemas.Job")
-        assert cls is Job
+        assert import_fn("pgwerk.schemas.Job") is Job
 
-    def test_imports_class_method(self):
-        # Simulates fn_path(SomeClass.method) → "module.SomeClass.method"
-        fn = import_fn("pgwerk.schemas.Job.from_row")
-        from pgwerk.schemas import Job
+    # -- error cases ----------------------------------------------------------
 
-        assert fn.__func__ is Job.from_row.__func__
-
-    def test_raises_on_bad_path(self):
+    def test_entirely_bogus_path(self):
         with pytest.raises(ImportError, match="Couldn't import"):
             import_fn("totally.bogus.path.that.does.not.exist")
+
+    def test_valid_module_missing_attr(self):
+        with pytest.raises(ImportError, match="Couldn't import"):
+            import_fn("os.no_such_attr_xyz")
+
+    def test_single_segment_raises(self):
+        with pytest.raises(ImportError, match="Couldn't import"):
+            import_fn("nonexistentmodule")
 
 
 # ---------------------------------------------------------------------------
