@@ -13,6 +13,7 @@ from litestar import Response
 from litestar import get
 from litestar.di import Provide
 from litestar.response import File
+from litestar.exceptions import HTTPException
 from litestar.exceptions import NotFoundException
 from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
 
@@ -59,6 +60,8 @@ logger = logging.getLogger("pgwerk.api")
 
 
 def _server_error_handler(request: Request, exc: Exception) -> Response:
+    if isinstance(exc, HTTPException):
+        raise exc
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path, exc_info=exc)
     return Response(
         content={"detail": "Internal server error"},

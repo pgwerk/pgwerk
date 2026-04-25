@@ -528,8 +528,20 @@ class ServerController(Controller):
 
 
 # ---------------------------------------------------------------------------
+# Core
+# ---------------------------------------------------------------------------
+
+
+class CoreController(Controller):
+    @get("/health", tags=["Core"])
+    async def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
 # Router
 # ---------------------------------------------------------------------------
+
 
 router = Router(
     path="/api",
@@ -539,5 +551,6 @@ router = Router(
         StatsController,
         CronController,
         ServerController,
+        CoreController,
     ],
 )
