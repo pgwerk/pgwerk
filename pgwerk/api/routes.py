@@ -534,7 +534,7 @@ class ServerController(Controller):
 
 class CoreController(Controller):
     @get("/health", tags=["Core"])
-    async def health() -> dict[str, str]:
+    async def health(self) -> dict[str, str]:
         return {"status": "ok"}
 
 
