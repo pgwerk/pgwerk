@@ -1,0 +1,12 @@
+.git
+.github
+.refs
+.archive
+.roo
+dashboard/node_modules
+docs
+site
+tests
+*.md
+*.lock
+uv.lock
