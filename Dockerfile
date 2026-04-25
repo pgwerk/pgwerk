@@ -6,6 +6,7 @@ COPY dashboard/ ./
 RUN pnpm build
 
 FROM python:3.12-slim
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY . .
 COPY --from=dashboard /app/pgwerk/api/static ./pgwerk/api/static
