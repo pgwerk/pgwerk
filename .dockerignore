@@ -7,6 +7,5 @@ dashboard/node_modules
 docs
 site
 tests
-*.md
 *.lock
 uv.lock
