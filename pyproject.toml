@@ -108,3 +108,4 @@ asyncio_mode = "auto"
 
 [tool.hatch.build.targets.wheel]
 packages = ["pgwerk"]
+artifacts = ["pgwerk/api/static"]

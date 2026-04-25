@@ -61,7 +61,7 @@ logger = logging.getLogger("pgwerk.api")
 
 def _server_error_handler(request: Request, exc: Exception) -> Response:
     if isinstance(exc, HTTPException):
-        raise exc
+        return Response(content={"detail": exc.detail}, status_code=exc.status_code)
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path, exc_info=exc)
     return Response(
         content={"detail": "Internal server error"},
