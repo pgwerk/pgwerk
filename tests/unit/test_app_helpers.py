@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from datetime import timezone
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -354,6 +355,16 @@ class TestImportFn:
     def test_single_segment_raises(self):
         with pytest.raises(ImportError, match="Couldn't import"):
             import_fn("nonexistentmodule")
+
+    def test_broken_transitive_import_surfaces_real_error(self):
+        def fake_import(name):
+            if name == "fake_pkg.dispatcher":
+                raise ModuleNotFoundError("No module named 'missing_dep'", name="missing_dep")
+            raise ModuleNotFoundError(f"No module named {name!r}", name=name)
+
+        with patch("pgwerk.utils.importlib.import_module", side_effect=fake_import):
+            with pytest.raises(ModuleNotFoundError, match="missing_dep"):
+                import_fn("fake_pkg.dispatcher.run_workload")
 
 
 # ---------------------------------------------------------------------------

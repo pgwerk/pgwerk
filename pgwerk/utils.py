@@ -141,10 +141,14 @@ async def invoke_callback(dotted: str, job: "Job", timeout: int | None = None) -
 def import_fn(dotted: str) -> Callable:
     """Import a callable from its dotted module path.
 
-    Supports both module-level functions and class methods/staticmethods.
-    For class members, the path includes the class name as a qualname component
+    Supports module-level functions and class methods/staticmethods. For class
+    members the path includes the class name as a qualname component
     (e.g. ``module.ClassName.method``), so this walks from right to left until
     a valid module is found, then resolves the remaining attributes.
+
+    If the target module exists but one of its imports is missing, the real
+    ``ModuleNotFoundError`` is re-raised immediately rather than being swallowed
+    and replaced with the generic "Couldn't import" message.
     """
     parts = dotted.split(".")
     for i in range(len(parts) - 1, 0, -1):
@@ -155,7 +159,10 @@ def import_fn(dotted: str) -> Callable:
                 obj = getattr(obj, attr)
             return obj
         except ModuleNotFoundError as exc:
-            if exc.name and not exc.name.startswith(module_path):
+            is_own_module = exc.name and (
+                exc.name == module_path or module_path.startswith(exc.name + ".")
+            )
+            if not is_own_module:
                 raise
             continue
         except AttributeError:
