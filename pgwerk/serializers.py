@@ -1,58 +1,14 @@
 from __future__ import annotations
 
+import enum
 import json
+import uuid
+import decimal
+import datetime
 
 from typing import Any
 from typing import Protocol
 from typing import runtime_checkable
-
-
-def encode(serializer: "Serializer", value: Any) -> str | None:
-    """Encode a value with *serializer* for JSONB storage.
-
-    Args:
-        serializer: Serializer instance used to convert the value to a string.
-        value: The Python object to encode.
-
-    Returns:
-        A JSON-encoded string suitable for insertion into a JSONB column, or
-        ``None`` if *value* is ``None``.
-    """
-    if value is None:
-        return None
-    return json.dumps(serializer.dumps(value))
-
-
-def decode(serializer: "Serializer", value: Any) -> Any:
-    """Decode a JSONB-stored value produced by :func:`encode`.
-
-    Args:
-        serializer: Serializer instance used to deserialize the inner payload.
-        value: Raw value from the database — may be ``None``, ``bytes``, or a
-            JSON string.
-
-    Returns:
-        The decoded Python object, or ``None`` if *value* is ``None``.
-    """
-    if value is None:
-        return None
-    if isinstance(value, bytes):
-        value = value.decode()
-    if isinstance(value, str):
-        try:
-            parsed = json.loads(value)
-        except json.JSONDecodeError:
-            try:
-                return serializer.loads(value)
-            except Exception:
-                return value
-        if isinstance(parsed, str):
-            try:
-                return serializer.loads(parsed)
-            except Exception:
-                return parsed
-        return parsed
-    return value
 
 
 @runtime_checkable
@@ -86,6 +42,19 @@ class Serializer(Protocol):
         ...
 
 
+class _Encoder(json.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, uuid.UUID):
+            return str(o)
+        if isinstance(o, (datetime.datetime, datetime.date, datetime.time)):
+            return o.isoformat()
+        if isinstance(o, decimal.Decimal):
+            return str(o)
+        if isinstance(o, enum.Enum):
+            return o.value
+        return super().default(o)
+
+
 class JSONSerializer:
     """Default serializer that encodes payloads as plain JSON."""
 
@@ -98,7 +67,7 @@ class JSONSerializer:
         Returns:
             JSON string representation.
         """
-        return json.dumps(obj)
+        return json.dumps(obj, cls=_Encoder)
 
     def loads(self, s: str | bytes) -> Any:
         """Deserialize a JSON string back to a Python object.
@@ -152,6 +121,54 @@ class PickleSerializer:
 
 
 _default: JSONSerializer | None = None
+
+
+def encode(serializer: "Serializer", value: Any) -> str | None:
+    """Encode a value with *serializer* for JSONB storage.
+
+    Args:
+        serializer: Serializer instance used to convert the value to a string.
+        value: The Python object to encode.
+
+    Returns:
+        A JSON-encoded string suitable for insertion into a JSONB column, or
+        ``None`` if *value* is ``None``.
+    """
+    if value is None:
+        return None
+    return json.dumps(serializer.dumps(value))
+
+
+def decode(serializer: "Serializer", value: Any) -> Any:
+    """Decode a JSONB-stored value produced by :func:`encode`.
+
+    Args:
+        serializer: Serializer instance used to deserialize the inner payload.
+        value: Raw value from the database — may be ``None``, ``bytes``, or a
+            JSON string.
+
+    Returns:
+        The decoded Python object, or ``None`` if *value* is ``None``.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bytes):
+        value = value.decode()
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            try:
+                return serializer.loads(value)
+            except Exception:
+                return value
+        if isinstance(parsed, str):
+            try:
+                return serializer.loads(parsed)
+            except Exception:
+                return parsed
+        return parsed
+    return value
 
 
 def get_default() -> JSONSerializer:

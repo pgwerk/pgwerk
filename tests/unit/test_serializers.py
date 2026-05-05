@@ -28,6 +28,47 @@ class TestJSONSerializer:
     def test_implements_protocol(self):
         assert isinstance(JSONSerializer(), Serializer)
 
+    def test_uuid_becomes_str(self):
+        import uuid
+
+        s = JSONSerializer()
+        uid = uuid.uuid4()
+        result = s.loads(s.dumps({"id": uid}))
+        assert result == {"id": str(uid)}
+
+    def test_datetime_becomes_isoformat(self):
+        import datetime
+
+        s = JSONSerializer()
+        dt = datetime.datetime(2024, 1, 15, 12, 30, 0)
+        result = s.loads(s.dumps({"at": dt}))
+        assert result == {"at": "2024-01-15T12:30:00"}
+
+    def test_date_becomes_isoformat(self):
+        import datetime
+
+        s = JSONSerializer()
+        d = datetime.date(2024, 1, 15)
+        result = s.loads(s.dumps({"on": d}))
+        assert result == {"on": "2024-01-15"}
+
+    def test_decimal_becomes_str(self):
+        import decimal
+
+        s = JSONSerializer()
+        result = s.loads(s.dumps({"amount": decimal.Decimal("9.99")}))
+        assert result == {"amount": "9.99"}
+
+    def test_enum_becomes_value(self):
+        import enum
+
+        class Color(enum.Enum):
+            RED = "red"
+
+        s = JSONSerializer()
+        result = s.loads(s.dumps({"color": Color.RED}))
+        assert result == {"color": "red"}
+
 
 class TestPickleSerializer:
     def test_roundtrip_dict(self):
