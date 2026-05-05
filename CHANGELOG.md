@@ -9,6 +9,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-05-05
+
+### Fixed
+
+- `JSONSerializer` now handles `UUID`, `datetime`, `date`, `time`, `Decimal`, and `Enum` without raising `TypeError` — values are coerced to their string/primitive equivalents (same behaviour as Celery/kombu)
+
 ## [0.1.0] - 2026-04-22
 
 ### Added
