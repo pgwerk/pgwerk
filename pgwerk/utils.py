@@ -148,12 +148,17 @@ def import_fn(dotted: str) -> Callable:
     """
     parts = dotted.split(".")
     for i in range(len(parts) - 1, 0, -1):
+        module_path = ".".join(parts[:i])
         try:
-            obj: Any = importlib.import_module(".".join(parts[:i]))
+            obj: Any = importlib.import_module(module_path)
             for attr in parts[i:]:
                 obj = getattr(obj, attr)
             return obj
-        except (ModuleNotFoundError, AttributeError):
+        except ModuleNotFoundError as exc:
+            if exc.name and not exc.name.startswith(module_path):
+                raise
+            continue
+        except AttributeError:
             continue
     raise ImportError(
         f"Couldn't import {dotted!r}. Make sure the dotted path points to a "
