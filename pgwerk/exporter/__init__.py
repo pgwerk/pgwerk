@@ -133,13 +133,13 @@ class WerkExporter:
 
     async def collect(self) -> None:
         """Run a single collection pass and update all gauges."""
+        from psycopg import AsyncConnection
         from psycopg.sql import SQL
         from psycopg.rows import dict_row
 
-        pool = self._pgwerk._pool_or_raise()
         t = self._pgwerk._t
 
-        async with pool.connection() as conn:
+        async with await AsyncConnection.connect(self._pgwerk.dsn, autocommit=True) as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
                 # --- job counts by queue + status ---
                 await cur.execute(

@@ -14,6 +14,7 @@ from .utils import load_app
 @click.confirmation_option(prompt="Purge matching jobs?")
 def purge(app: str, status: str, queue: str | None) -> None:
     """Delete finished jobs from the database."""
+    import psycopg
     from psycopg.sql import SQL
 
     wrk_app = load_app(app)
@@ -21,8 +22,7 @@ def purge(app: str, status: str, queue: str | None) -> None:
 
     async def _run() -> None:
         async with wrk_app:
-            pool = wrk_app._pool_or_raise()
-            async with pool.connection() as conn, conn.cursor() as cur:
+            async with await psycopg.AsyncConnection.connect(wrk_app.dsn, autocommit=True) as conn, conn.cursor() as cur:
                 await cur.execute(
                     SQL("""
                         DELETE FROM {jobs}

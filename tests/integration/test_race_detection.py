@@ -7,6 +7,7 @@ import logging
 from unittest.mock import patch
 
 import pytest
+import psycopg
 
 from psycopg.sql import SQL
 
@@ -29,13 +30,12 @@ class TestRaceDetection:
     async def test_ack_race_logs_warning_when_worker_id_stolen(self, app, caplog):
         """If worker_id is changed mid-flight, _ack is a no-op and logs a warning."""
         await app.enqueue(noop)
-        pool = app._pool_or_raise()
 
         original_ack = AsyncWorker._ack
 
         async def ack_with_stolen_ownership(self, job, result=None):
             # Steal the worker_id before the ack UPDATE executes
-            async with pool.connection() as conn:
+            async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
                 await conn.execute(
                     SQL("UPDATE {jobs} SET worker_id = gen_random_uuid() WHERE id = %s").format(jobs=app._t["jobs"]),
                     (job.id,),
@@ -51,13 +51,12 @@ class TestRaceDetection:
     async def test_ack_race_does_not_overwrite_stolen_job(self, app):
         """When ack race is detected, the job row is not overwritten with our result."""
         job = await app.enqueue(noop)
-        pool = app._pool_or_raise()
 
         original_ack = AsyncWorker._ack
 
         async def ack_after_steal(self, j, result=None):
             # Change worker_id and mark complete from another worker
-            async with pool.connection() as conn:
+            async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
                 await conn.execute(
                     SQL("""
                         UPDATE {jobs}
@@ -78,12 +77,11 @@ class TestRaceDetection:
     async def test_nack_race_logs_warning(self, app, caplog):
         """If worker_id is stolen before nack, nack is a no-op and logs a warning."""
         await app.enqueue(fail_always)
-        pool = app._pool_or_raise()
 
         original_nack = AsyncWorker._nack
 
         async def nack_after_steal(self, j, error, **kwargs):
-            async with pool.connection() as conn:
+            async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
                 await conn.execute(
                     SQL("UPDATE {jobs} SET worker_id = gen_random_uuid() WHERE id = %s").format(jobs=app._t["jobs"]),
                     (j.id,),

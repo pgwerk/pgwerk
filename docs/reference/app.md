@@ -2,7 +2,9 @@
 
 ## Werk
 
-The central object. Holds the connection pool and exposes all job management operations.
+The central object. Manages schema migrations and exposes all job management operations.
+
+pgwerk does not maintain an internal connection pool. Each operation opens and closes its own short-lived connection, which makes it compatible with external poolers like PgBouncer in transaction pooling mode. Point your DSN at the pooler and pgwerk will use it transparently.
 
 ### Constructor
 
@@ -13,8 +15,6 @@ Werk(
     config: WerkConfig | dict | None = None,
     schema: str | None = None,
     prefix: str | None = None,
-    min_pool_size: int | None = None,
-    max_pool_size: int | None = None,
     serializer: Serializer | None = None,
     max_active_secs: int | None = None,
     log_level: int | str | None = None,
@@ -26,12 +26,10 @@ Werk(
 
 | Parameter | Default | Description |
 |---|---|---|
-| `dsn` | required | Postgres connection string |
+| `dsn` | required | Postgres connection string (or PgBouncer DSN) |
 | `config` | `WerkConfig()` | Base configuration; keyword arguments take precedence |
 | `schema` | `None` | Postgres schema to qualify all table names |
 | `prefix` | `"_pgwerk"` | Prefix applied to every table name |
-| `min_pool_size` | `2` | Minimum pooled connections |
-| `max_pool_size` | `10` | Maximum pooled connections |
 | `serializer` | `JSONSerializer` | Payload/result serializer |
 | `max_active_secs` | `3600` | Seconds before an active job is considered stuck by `sweep` |
 | `log_level` | `None` | Logging level passed to `configure_logging` |
@@ -43,11 +41,11 @@ Werk(
 
 #### `connect() → None`
 
-Open the connection pool and run schema migrations. Idempotent — safe to call multiple times. Runs registered `on_startup` hooks after the pool is open.
+Run schema migrations and initialise internal state. Idempotent — safe to call multiple times. Runs registered `on_startup` hooks on first call.
 
 #### `disconnect() → None`
 
-Run `on_shutdown` hooks and close the connection pool. Idempotent.
+Run `on_shutdown` hooks and clean up internal state. Idempotent.
 
 #### `async with app`
 
@@ -55,7 +53,7 @@ Calls `connect()` on entry and `disconnect()` on exit.
 
 #### `on_startup(func) → func`
 
-Register a callable to run after the pool opens. Can be used as a decorator.
+Register a callable to run on `connect()`. Can be used as a decorator.
 
 ```python
 @app.on_startup
@@ -65,7 +63,7 @@ async def init_cache():
 
 #### `on_shutdown(func) → func`
 
-Register a callable to run before the pool closes.
+Register a callable to run on `disconnect()`.
 
 ### Enqueueing
 
@@ -199,7 +197,6 @@ from pgwerk import Werk, WerkConfig
 
 config = WerkConfig(
     prefix="_jobs",
-    max_pool_size=20,
     sweep_interval=30.0,
 )
 app = Werk(dsn, config=config)
@@ -209,8 +206,6 @@ app = Werk(dsn, config=config)
 |---|---|---|
 | `schema` | `None` | Postgres schema for table qualification |
 | `prefix` | `"_pgwerk"` | Table name prefix |
-| `min_pool_size` | `2` | Min connections in pool |
-| `max_pool_size` | `10` | Max connections in pool |
 | `max_active_secs` | `3600` | Stuck-job threshold for sweep |
 | `heartbeat_interval` | `10` | Worker heartbeat cadence (seconds) |
 | `poll_interval` | `5.0` | Idle poll cadence (seconds) |

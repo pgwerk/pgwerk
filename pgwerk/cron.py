@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 
+import psycopg
+
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -214,12 +216,11 @@ class CronScheduler:
         the primary's connection is released.
         """
         self._running = True
-        pool = self.app._pool_or_raise()
 
         while self._running:
             acquired = False
             try:
-                async with pool.connection() as lock_conn:
+                async with await psycopg.AsyncConnection.connect(self.app.dsn, autocommit=True) as lock_conn:
                     async with lock_conn.cursor() as cur:
                         await cur.execute("SELECT pg_try_advisory_lock(%s)", (self._lock_key,))
                         row = await cur.fetchone()

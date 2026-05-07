@@ -25,9 +25,9 @@ def _clear_cbs():
 
 class TestJobHeartbeat:
     async def test_touch_updates_timestamp(self, app):
+        import psycopg
         job = await app.enqueue(noop)
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("UPDATE {jobs} SET status='active', touched_at='2000-01-01' WHERE id=%s").format(
                     jobs=app._t["jobs"]
@@ -35,7 +35,7 @@ class TestJobHeartbeat:
                 (job.id,),
             )
         await app.touch_job(job.id)
-        async with pool.connection() as conn, conn.cursor() as cur:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("SELECT touched_at FROM {jobs} WHERE id=%s").format(jobs=app._t["jobs"]),
                 (job.id,),
@@ -45,10 +45,10 @@ class TestJobHeartbeat:
 
     async def test_job_heartbeat_updates_touched_at(self, app):
         """A long-running job with heartbeat_secs should update touched_at periodically."""
+        import psycopg
         job = await app.enqueue(slow_async, seconds=0.4, _heartbeat=1)
-        pool = app._pool_or_raise()
 
-        async with pool.connection() as conn, conn.cursor() as cur:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("SELECT touched_at FROM {jobs} WHERE id = %s").format(jobs=app._t["jobs"]),
                 (job.id,),
@@ -57,7 +57,7 @@ class TestJobHeartbeat:
 
         await make_worker(app, sweep_interval=9999).run()
 
-        async with pool.connection() as conn, conn.cursor() as cur:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("SELECT touched_at FROM {jobs} WHERE id = %s").format(jobs=app._t["jobs"]),
                 (job.id,),

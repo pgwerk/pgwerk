@@ -19,7 +19,6 @@ from datetime import timedelta
 from psycopg import AsyncConnection
 from psycopg.sql import SQL
 from psycopg.sql import Identifier
-from psycopg_pool import AsyncConnectionPool
 
 from .repos import JobInsert
 from .repos import JobRepository
@@ -57,8 +56,6 @@ class Werk:
         config: WerkConfig | dict | None = None,
         schema: str | None = None,
         prefix: str | None = None,
-        min_pool_size: int | None = None,
-        max_pool_size: int | None = None,
         serializer: Serializer | None = None,
         max_active_secs: int | None = None,
         log_level: int | str | None = None,
@@ -74,8 +71,6 @@ class Werk:
                 precedence over values in the config object.
             schema: Postgres schema to place wrk tables in.
             prefix: Table-name prefix (default ``_pgwerk_``).
-            min_pool_size: Minimum number of pooled connections.
-            max_pool_size: Maximum number of pooled connections.
             serializer: Payload serializer; defaults to JSON.
             max_active_secs: Seconds before an active job is considered stuck
                 by :meth:`sweep`.
@@ -92,10 +87,7 @@ class Werk:
         self.schema = schema if schema is not None else self.config.schema
         self.prefix = prefix if prefix is not None else self.config.prefix
         self.serializer: Serializer = serializer or get_default()
-        self._min_pool_size = min_pool_size if min_pool_size is not None else self.config.min_pool_size
-        self._max_pool_size = max_pool_size if max_pool_size is not None else self.config.max_pool_size
         self.max_active_secs = max_active_secs if max_active_secs is not None else self.config.max_active_secs
-        self._pool: AsyncConnectionPool | None = None
         self._connected = False
         self._db = DatabaseManager(self.schema, self.prefix, ephemeral_tables=self.config.ephemeral_tables)
         self._before_enqueues: dict[int, Callable] = {}
@@ -486,7 +478,8 @@ class Werk:
         from .commons import JobStatus
 
         terminal = {JobStatus.Complete, JobStatus.Failed, JobStatus.Aborted}
-        pool = self._pool_or_raise()
+        if not self._connected:
+            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
 
         job = await self.get_job(job_id)
         if job.status in terminal:
@@ -499,7 +492,7 @@ class Werk:
             backoff = 1.0
             while True:
                 try:
-                    async with pool.connection() as conn:
+                    async with await AsyncConnection.connect(self.dsn, autocommit=True) as conn:
                         await conn.execute(SQL("LISTEN {ch}").format(ch=Identifier(channel)))
                         backoff = 1.0
                         async for _ in conn.notifies():
@@ -946,10 +939,10 @@ class Werk:
         return await self._stats_repo.get_queue_depth_history(minutes)
 
     async def get_server_info(self) -> tuple[str, int, list[dict[str, Any]]]:
-        """Return Postgres version, connection pool size, and table metadata.
+        """Return Postgres version, database size, and table metadata.
 
         Returns:
-            A tuple of ``(pg_version, pool_size, table_rows)`` where
+            A tuple of ``(pg_version, db_size_bytes, table_rows)`` where
             ``table_rows`` contains size and row-count info for each wrk table.
         """
         return await self._stats_repo.get_server_info(self.prefix)
@@ -960,14 +953,11 @@ class Werk:
 
     async def vacuum(self) -> None:
         """Run ``VACUUM ANALYZE`` on all wrk tables outside of a transaction."""
-        pool = self._pool_or_raise()
-        conn = await pool.getconn()
-        try:
-            await conn.set_autocommit(True)
+        if not self._connected:
+            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
+        async with await AsyncConnection.connect(self.dsn, autocommit=True) as conn:
             for table in self._t.values():
                 await conn.execute(SQL("VACUUM ANALYZE {t}").format(t=table))
-        finally:
-            await pool.putconn(conn)
 
     async def truncate(self) -> None:
         """Truncate all wrk tables and restart their identity sequences.
@@ -976,8 +966,9 @@ class Werk:
             This is a destructive, irreversible operation. All jobs, workers,
             executions, and dependency records will be permanently deleted.
         """
-        pool = self._pool_or_raise()
-        async with pool.connection() as conn:
+        if not self._connected:
+            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
+        async with await AsyncConnection.connect(self.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("""
                     TRUNCATE {jobs}, {executions}, {worker}, {worker_jobs}, {deps}
@@ -1038,25 +1029,16 @@ class Werk:
         """
         if self._connected:
             return
-        pool = AsyncConnectionPool(
-            self.dsn,
-            min_size=self._min_pool_size,
-            max_size=self._max_pool_size,
-            open=False,
-            kwargs={"autocommit": True},
-        )
-        await pool.open()
-        self._pool = pool  # type: ignore[assignment]
 
-        async with pool.connection() as conn:
+        async with await AsyncConnection.connect(self.dsn, autocommit=True) as conn:
             await self._db.migrate(conn)
             if self.config.ephemeral_tables:
                 await self._db.alter_ephemeral_tables(conn)
 
         get_serializer = lambda: self.serializer  # noqa: E731
-        self.__job_repo = JobRepository(pool, self._t, self.prefix, get_serializer)  # type: ignore[arg-type]
-        self.__worker_repo = WorkerRepository(pool, self._t, self.prefix, get_serializer, self.__job_repo)  # type: ignore[arg-type]
-        self.__stats_repo = StatsRepository(pool, self._t)  # type: ignore[arg-type]
+        self.__job_repo = JobRepository(self.dsn, self._t, self.prefix, get_serializer)
+        self.__worker_repo = WorkerRepository(self.dsn, self._t, self.prefix, get_serializer, self.__job_repo)
+        self.__stats_repo = StatsRepository(self.dsn, self._t)
 
         from .worker import AsyncWorker
 
@@ -1078,7 +1060,7 @@ class Werk:
 
         Idempotent — safe to call when already disconnected.
         """
-        if not self._connected or not self._pool:
+        if not self._connected:
             return
         await self._run_hooks(self._on_shutdown)
         if self._sync_worker is not None:
@@ -1086,7 +1068,6 @@ class Werk:
             if self.__worker_repo is not None:
                 await self.__worker_repo.deregister(self._sync_worker.id)
             self._sync_worker = None
-        await self._pool.close()
         self._connected = False
         self.__job_repo = None
         self.__worker_repo = None
@@ -1105,15 +1086,3 @@ class Werk:
         """Disconnect on exiting the async context manager."""
         await self.disconnect()
 
-    def _pool_or_raise(self) -> AsyncConnectionPool:
-        """Return the connection pool or raise if not connected.
-
-        Returns:
-            The active :class:`AsyncConnectionPool`.
-
-        Raises:
-            RuntimeError: If :meth:`connect` has not been called yet.
-        """
-        if not self._connected or self._pool is None:
-            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
-        return self._pool

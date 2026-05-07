@@ -17,9 +17,6 @@ class WerkConfig:
             ``"public"``). ``None`` means no schema prefix.
         prefix: Prefix applied to every wrk table name (default ``"_pgwerk"``),
             producing tables like ``_pgwerk_jobs``, ``_pgwerk_worker``, etc.
-        min_pool_size: Minimum number of connections kept open in the
-            connection pool.
-        max_pool_size: Maximum number of connections the pool will open.
         max_active_secs: How long (seconds) a job may stay in the
             ``active`` state before the sweep marks it as failed. Applies
             to jobs that never heartbeat or whose worker crashes.
@@ -51,10 +48,6 @@ class WerkConfig:
     # Schema / table naming
     schema: str | None = None
     prefix: str = "_pgwerk"
-
-    # Connection pool
-    min_pool_size: int = 2
-    max_pool_size: int = 10
 
     # Job lifecycle
     max_active_secs: int = 3600

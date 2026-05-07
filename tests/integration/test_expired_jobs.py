@@ -14,9 +14,9 @@ from .conftest import make_worker
 class TestExpiredJobs:
     async def test_expired_queued_job_not_dequeued(self, app):
         """A job whose expires_at is in the past is skipped by the dequeue query."""
+        import psycopg
         job = await app.enqueue(noop)
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("UPDATE {jobs} SET expires_at = NOW() - INTERVAL '1 second' WHERE id = %(id)s").format(
                     jobs=app._t["jobs"]

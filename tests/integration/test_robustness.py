@@ -14,8 +14,8 @@ from .conftest import make_worker
 class TestMissingFunction:
     async def _insert_raw_job(self, app, function: str) -> str:
         """Insert a job with an arbitrary function path, bypassing enqueue()."""
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn, conn.cursor() as cur:
+        import psycopg
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     INSERT INTO {jobs} (function, queue, status, scheduled_at, max_attempts)
@@ -61,8 +61,8 @@ class TestMissingFunction:
 
     async def test_bad_function_retried_then_failed(self, app):
         """Worker retries a bad-function job until max_attempts, then marks FAILED."""
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn, conn.cursor() as cur:
+        import psycopg
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     INSERT INTO {jobs} (function, queue, status, scheduled_at, max_attempts)

@@ -20,6 +20,7 @@ from .utils import require_rich
 @click.option("--offset", default=0, help="Row offset for pagination.")
 def jobs(app: str, queue: str | None, status: str | None, limit: int, offset: int) -> None:
     """List recent jobs in a formatted table."""
+    import psycopg
     from psycopg.sql import SQL
 
     console = require_rich()
@@ -33,8 +34,7 @@ def jobs(app: str, queue: str | None, status: str | None, limit: int, offset: in
 
     async def _run() -> None:
         async with wrk_app:
-            pool = wrk_app._pool_or_raise()
-            async with pool.connection() as conn, conn.cursor() as cur:
+            async with await psycopg.AsyncConnection.connect(wrk_app.dsn, autocommit=True) as conn, conn.cursor() as cur:
                 conditions = []
                 params: dict = {"limit": limit, "offset": offset}
                 if queue:

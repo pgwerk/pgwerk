@@ -194,7 +194,9 @@ await app.enqueue_many([
 Enqueue a job inside an existing database transaction by passing `_conn`:
 
 ```python
-async with pool.connection() as conn:
+import psycopg
+
+async with await psycopg.AsyncConnection.connect(dsn) as conn:
     await conn.execute("INSERT INTO orders ...", ...)
     await app.enqueue(fulfill_order, order_id=123, _conn=conn)
     # both the INSERT and the enqueue commit or roll back together

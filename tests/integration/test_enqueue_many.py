@@ -50,9 +50,9 @@ class TestEnqueueMany:
         assert jobs[1] is None
 
     async def test_enqueue_many_inside_existing_connection(self, app):
-        pool = app._pool_or_raise()
+        import psycopg
         specs = [EnqueueParams(func=noop), EnqueueParams(func=noop)]
-        async with pool.connection() as conn, conn.transaction():
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn, conn.transaction():
             jobs = await app.enqueue_many(specs, _conn=conn)
         assert len(jobs) == 2
         assert all(j is not None for j in jobs)

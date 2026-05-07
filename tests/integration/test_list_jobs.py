@@ -56,10 +56,10 @@ class TestListJobs:
 
     async def test_filter_by_worker_id(self, app):
         """worker_id filter returns only jobs claimed by that worker."""
+        import psycopg
         fake_wid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
         job = await app.enqueue(noop)
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("UPDATE {jobs} SET worker_id = %(wid)s::uuid WHERE id = %(id)s").format(jobs=app._t["jobs"]),
                 {"wid": fake_wid, "id": job.id},

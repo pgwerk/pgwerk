@@ -50,7 +50,7 @@ The dashboard refreshes automatically and displays:
 - **Active workers** — registered worker instances, their queues, and heartbeat status
 - **Throughput chart** — completed jobs over the last N minutes
 - **Queue depth history** — how queue depth has changed over time
-- **Server info** — Postgres version, connection pool stats, table prefix
+- **Server info** — Postgres version, database size, table prefix
 
 ## REST API
 

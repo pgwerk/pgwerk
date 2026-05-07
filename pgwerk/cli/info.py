@@ -12,6 +12,7 @@ from .utils import load_app
 @click.option("--queue", "-q", default=None, help="Filter by queue name.")
 def info(app: str, queue: str | None) -> None:
     """Print queue statistics and active workers."""
+    import psycopg
     from psycopg.sql import SQL
 
     from ..commons import JobStatus
@@ -20,8 +21,7 @@ def info(app: str, queue: str | None) -> None:
 
     async def _run() -> None:
         async with wrk_app:
-            pool = wrk_app._pool_or_raise()
-            async with pool.connection() as conn, conn.cursor() as cur:
+            async with await psycopg.AsyncConnection.connect(wrk_app.dsn, autocommit=True) as conn, conn.cursor() as cur:
                 await cur.execute(
                     SQL("""
                         SELECT status, count(*)

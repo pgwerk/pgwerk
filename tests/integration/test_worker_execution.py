@@ -73,7 +73,7 @@ class TestWorkerExecution:
         assert execs[0].result == value
 
     async def test_worker_auto_touches_long_running_jobs(self, app):
-        job = await app.enqueue(async_slow, seconds=1.6, _heartbeat=1)
+        job = await app.enqueue(async_slow, seconds=1.6, _heartbeat=2)
 
         await make_worker(app, sweep_interval=0.05).run()
 

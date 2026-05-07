@@ -20,10 +20,7 @@ logger = logging.getLogger(__name__)
 CONCURRENCY = 10
 QUEUES = ["default", "email", "media", "billing"]
 
-app = Werk(
-    os.environ.get("PGWERK_DSN", "postgresql://pgwerk:pgwerk@localhost/pgwerk"),
-    max_pool_size=CONCURRENCY + 5,  # listen loop holds 1 conn permanently; leave headroom for concurrent acks
-)
+app = Werk(os.environ.get("PGWERK_DSN", "postgresql://pgwerk:pgwerk@localhost/pgwerk"))
 
 
 async def main() -> None:

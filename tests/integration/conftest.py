@@ -42,11 +42,10 @@ def _reset_pgwerk_logger_propagation():
 
 @pytest_asyncio.fixture
 async def app():
-    a = Werk(_TEST_DSN, prefix=_TEST_PREFIX, min_pool_size=1, max_pool_size=5)
+    a = Werk(_TEST_DSN, prefix=_TEST_PREFIX)
     await a.connect()
 
-    pool = a._pool_or_raise()
-    async with pool.connection() as conn:
+    async with await psycopg.AsyncConnection.connect(_TEST_DSN, autocommit=True) as conn:
         for tbl in _TABLES:
             await conn.execute(f'TRUNCATE "{_TEST_PREFIX}_{tbl}" CASCADE')
 

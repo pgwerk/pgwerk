@@ -18,6 +18,7 @@ from .utils import require_rich
 @click.option("--since", default="24h", show_default=True, help="Time window e.g. 24h, 7d, 30m.")
 def slowest(app: str, queue: str | None, limit: int, since: str) -> None:
     """Show slowest job functions by average execution time."""
+    import psycopg
     from psycopg.sql import SQL
 
     console = require_rich()
@@ -31,8 +32,7 @@ def slowest(app: str, queue: str | None, limit: int, since: str) -> None:
 
     async def _run() -> None:
         async with wrk_app:
-            pool = wrk_app._pool_or_raise()
-            async with pool.connection() as conn, conn.cursor() as cur:
+            async with await psycopg.AsyncConnection.connect(wrk_app.dsn, autocommit=True) as conn, conn.cursor() as cur:
                 await cur.execute(
                     SQL("""
                         SELECT

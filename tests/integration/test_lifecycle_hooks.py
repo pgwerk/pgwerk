@@ -63,7 +63,7 @@ class TestLifecycleHooks:
     async def test_double_connect_is_idempotent(self):
         a = Werk(_TEST_DSN, prefix=_TEST_PREFIX + "_dbl")
         await a.connect()
-        pool1 = a._pool
+        assert a._connected
         await a.connect()
-        assert a._pool is pool1
+        assert a._connected
         await a.disconnect()

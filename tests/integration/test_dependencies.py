@@ -154,8 +154,8 @@ class TestDependencies:
         parent = await app.enqueue(noop)
         child = await app.enqueue(noop, _depends_on=parent)
 
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        import psycopg
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -180,8 +180,8 @@ class TestDependencies:
         a = await app.enqueue(noop)
         b = await app.enqueue(noop, _depends_on=a)
 
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        import psycopg
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("""
                     INSERT INTO {deps} (job_id, depends_on, allow_failure)
@@ -202,8 +202,8 @@ class TestDependencies:
 
     async def test_self_dependency_stays_waiting(self, app):
         a = await app.enqueue(noop)
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        import psycopg
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("""
                     INSERT INTO {deps} (job_id, depends_on, allow_failure)

@@ -33,6 +33,10 @@ async with app:
 
 `connect()` is idempotent — calling it multiple times is safe. On first connect it runs schema migrations using a Postgres advisory lock, so multiple processes starting simultaneously will not race.
 
+### Connection pooling
+
+pgwerk does not maintain an internal connection pool. Each operation opens and closes its own short-lived psycopg connection, so it works naturally with external poolers like [PgBouncer](https://www.pgbouncer.org/) in transaction pooling mode. Point your DSN at the pooler and pgwerk uses it transparently — no extra configuration needed.
+
 ## Define handlers
 
 Handlers are plain async (or sync) functions. `werk` records their dotted import path and imports them on the worker side when a job runs.

@@ -20,11 +20,11 @@ class TestGroupKey:
         The group_key check filters on status = 'active'. This prevents cross-batch
         claims — it does not serialize jobs within a single dequeue batch.
         """
+        import psycopg
         job_a = await app.enqueue(noop, _group="g1")
         job_b = await app.enqueue(noop, _group="g1")
 
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -40,11 +40,11 @@ class TestGroupKey:
 
     async def test_group_job_runnable_after_sibling_completes(self, app):
         """Once the active same-group job finishes, the sibling is dequeued normally."""
+        import psycopg
         job_a = await app.enqueue(noop, _group="g2")
         job_b = await app.enqueue(noop, _group="g2")
 
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -83,8 +83,8 @@ class TestGroupKey:
     async def test_group_enforcement_is_per_queue(self, app):
         """Group enforcement only looks at jobs in the same queues the worker listens to.
         An active job in queue-A with group G does not block a job in queue-B with group G."""
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        import psycopg
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("""
                     INSERT INTO {jobs} (function, queue, group_key, status, worker_id, attempts, started_at, max_attempts)

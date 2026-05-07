@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+import psycopg
+
 from psycopg.sql import SQL
 
 from pgwerk.worker import AsyncWorker
@@ -19,8 +21,7 @@ class TestWorkerLifecycle:
         worker = make_worker(app)
         await worker.run()
 
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn, conn.cursor() as cur:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("SELECT status FROM {worker} WHERE id = %(id)s").format(worker=app._t["worker"]),
                 {"id": worker.id},
@@ -46,8 +47,7 @@ class TestWorkerLifecycle:
         worker._request_shutdown()
         await asyncio.wait_for(task, timeout=5.0)
 
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn, conn.cursor() as cur:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("SELECT heartbeat_at FROM {worker} WHERE id = %(id)s").format(worker=app._t["worker"]),
                 {"id": worker.id},
@@ -64,8 +64,7 @@ class TestWorkerLifecycle:
 
         await asyncio.sleep(0.3)
 
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn, conn.cursor() as cur:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("SELECT COUNT(*) FROM {worker}").format(worker=app._t["worker"]),
             )

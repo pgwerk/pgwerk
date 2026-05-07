@@ -10,6 +10,8 @@ A Postgres-backed job queue. Durable, visible, transactional.
 
 Jobs are rows. Workers poll with `SELECT … FOR UPDATE SKIP LOCKED`. No external broker, no sidecar, just your existing Postgres instance. The schema is created automatically on first connect.
 
+pgwerk does not maintain an internal connection pool. Each operation uses a short-lived connection, making it compatible with external poolers like PgBouncer in transaction pooling mode.
+
 ![PGWerk dashboard overview](docs/assets/01-ss-home.png)
 
 ---

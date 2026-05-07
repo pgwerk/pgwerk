@@ -70,8 +70,7 @@ class TestProdPaths:
             else:
                 raise AssertionError("job never became active on worker A")
 
-            pool = app._pool_or_raise()
-            async with pool.connection() as conn:
+            async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
                 await conn.execute(
                     SQL("""
                         UPDATE {jobs}
@@ -119,30 +118,17 @@ class TestProdPaths:
 
     async def test_ack_transient_db_failure_retries_without_rerunning_handler(self, app):
         job = await app.enqueue(record_execution, label="ack-retry", _on_failure=on_failure)
-        pool = app._pool_or_raise()
-        original_connection = pool.connection
         injected = False
+        original_connect = psycopg.AsyncConnection.connect
 
-        class FlakyConnection:
-            def __init__(self, cm):
-                self._cm = cm
-                self._inner = None
+        async def flaky_connect(dsn, **kwargs):
+            nonlocal injected
+            if _execution_log and not injected:
+                injected = True
+                raise psycopg.OperationalError("simulated ack connection failure")
+            return await original_connect(dsn, **kwargs)
 
-            async def __aenter__(self):
-                nonlocal injected
-                if _execution_log and not injected:
-                    injected = True
-                    raise psycopg.OperationalError("simulated ack connection failure")
-                self._inner = await self._cm.__aenter__()
-                return self._inner
-
-            async def __aexit__(self, exc_type, exc, tb):
-                return await self._cm.__aexit__(exc_type, exc, tb)
-
-        def flaky_connection():
-            return FlakyConnection(original_connection())
-
-        with patch.object(pool, "connection", flaky_connection):
+        with patch.object(psycopg.AsyncConnection, "connect", flaky_connect):
             await make_worker(app, concurrency=1).run()
 
         done = await app.get_job(job.id)
@@ -165,8 +151,7 @@ class TestProdPaths:
         assert refreshed.status == JobStatus.Queued
         assert refreshed.attempts == 0
 
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -184,7 +169,7 @@ class TestProdPaths:
         assert done.attempts == 2
 
     async def test_worker_makes_progress_with_tight_connection_pool(self):
-        app = Werk(_TEST_DSN, prefix=_unique_prefix("pool"), min_pool_size=1, max_pool_size=2)
+        app = Werk(_TEST_DSN, prefix=_unique_prefix("pool"))
         await app.connect()
         try:
             for _ in range(8):
@@ -214,15 +199,11 @@ class TestProdPaths:
             _TEST_DSN,
             prefix=prefix,
             config={"prefix": prefix, "cron_standby_retry_interval": 0.05},
-            min_pool_size=1,
-            max_pool_size=2,
         )
         app_b = Werk(
             _TEST_DSN,
             prefix=prefix,
             config={"prefix": prefix, "cron_standby_retry_interval": 0.05},
-            min_pool_size=1,
-            max_pool_size=2,
         )
         await app_a.connect()
         await app_b.connect()

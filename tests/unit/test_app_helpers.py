@@ -379,7 +379,6 @@ class TestWrkInit:
         assert wrk.prefix == "_pgwerk"
         assert wrk.schema is None
         assert not wrk._connected
-        assert wrk._pool is None
 
     def test_custom_prefix(self):
         wrk = Werk("postgresql://localhost/test", prefix="myapp")
@@ -389,10 +388,10 @@ class TestWrkInit:
         wrk = Werk("postgresql://localhost/test", schema="myschema")
         assert wrk.schema == "myschema"
 
-    def test_pool_or_raise_not_connected(self):
+    def test_not_connected_raises_on_job_repo(self):
         wrk = Werk("postgresql://localhost/test")
         with pytest.raises(RuntimeError, match="connect"):
-            wrk._pool_or_raise()
+            _ = wrk._job_repo
 
     def test_register_before_enqueue(self):
         wrk = Werk("postgresql://localhost/test")

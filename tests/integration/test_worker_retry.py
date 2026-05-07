@@ -153,8 +153,8 @@ class TestWorkerRetry:
         await make_worker(app).run()
         await app.requeue_job(job.id)
 
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        import psycopg
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("UPDATE {jobs} SET function = 'tests.integration.tasks.noop' WHERE id = %s").format(
                     jobs=app._t["jobs"]
@@ -171,9 +171,9 @@ class TestWorkerRetry:
         assert result is False
 
     async def test_requeue_returns_false_for_active_job(self, app):
+        import psycopg
         job = await app.enqueue(noop)
-        pool = app._pool_or_raise()
-        async with pool.connection() as conn:
+        async with await psycopg.AsyncConnection.connect(app.dsn, autocommit=True) as conn:
             await conn.execute(
                 SQL("UPDATE {jobs} SET status='active', worker_id=gen_random_uuid() WHERE id=%s").format(
                     jobs=app._t["jobs"]
