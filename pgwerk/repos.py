@@ -12,12 +12,12 @@ from datetime import timezone
 from datetime import timedelta
 from contextlib import asynccontextmanager
 
-from psycopg import AsyncConnection
 from psycopg.sql import SQL
 from psycopg.sql import Identifier
 from psycopg.rows import dict_row
 
 from .commons import DequeueStrategy
+from .connection import AsyncConnection
 from .connection import Connect
 from .exceptions import JobNotFound
 from .schemas import JOB_COLS
