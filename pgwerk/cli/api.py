@@ -70,7 +70,7 @@ def api(
 
     config = WerkConfig(
         dsn=dsn,
-        schema=schema,
+        schema=schema or "pgwerk",
         prefix=prefix or "_pgwerk",
         metrics=metrics,
         metrics_interval=metrics_interval,

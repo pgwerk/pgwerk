@@ -4,10 +4,7 @@ import asyncio
 
 import click
 
-import psycopg
-
-from ..config import WerkConfig
-from ..database import DatabaseManager
+from ..app import Werk
 
 
 @click.command()
@@ -18,10 +15,9 @@ def migrate(dsn: str, schema: str | None, prefix: str | None) -> None:
     """Create or migrate the wrk schema."""
 
     async def _run() -> None:
-        defaults = WerkConfig()
-        db = DatabaseManager(schema or defaults.schema, prefix or defaults.prefix)
-        async with await psycopg.AsyncConnection.connect(dsn, autocommit=True) as conn:
-            await db.migrate(conn)
+        app = Werk(dsn, schema=schema, prefix=prefix)
+        async with await app._connect() as conn:
+            await app._db.migrate(conn)
         click.echo("Migration complete.")
 
     asyncio.run(_run())
