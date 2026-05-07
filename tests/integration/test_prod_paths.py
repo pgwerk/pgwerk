@@ -229,8 +229,8 @@ class TestProdPaths:
         try:
             scheduler_a = CronScheduler(app_a)
             scheduler_b = CronScheduler(app_b)
-            scheduler_a.register(noop, name="cron.failover.noop", interval=60)
-            scheduler_b.register(noop, name="cron.failover.noop", interval=60)
+            scheduler_a.register(noop, name="cron.failover.noop", interval=3600)
+            scheduler_b.register(noop, name="cron.failover.noop", interval=3600)
 
             task_a = asyncio.create_task(scheduler_a.run())
             task_b = asyncio.create_task(scheduler_b.run())
