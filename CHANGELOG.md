@@ -9,6 +9,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-05-07
+
+### Fixed
+
+- Dashboard static files are now correctly bundled into the PyPI wheel — `werk api` serves the UI as expected after a plain `pip install`
+
+## [0.1.3] - 2026-05-05
+
+### Fixed
+
+- `import_fn` no longer swallows `ModuleNotFoundError` raised by a dependency of the target module — the real error is re-raised immediately instead of being replaced with a generic "Couldn't import" message
+
 ## [0.1.2] - 2026-05-05
 
 ### Fixed
