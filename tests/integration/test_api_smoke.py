@@ -11,7 +11,7 @@ from .conftest import make_worker
 
 class TestApiSmoke:
     async def test_create_get_list_and_cancel_job(self, app):
-        api = create_app(app)
+        api = create_app(app.dsn, prefix=app.prefix)
         async with AsyncTestClient(app=api) as client:
             resp = await client.post(
                 "/api/jobs",
@@ -40,7 +40,7 @@ class TestApiSmoke:
         test_worker = make_worker(app)
         await test_worker._register()
 
-        api = create_app(app)
+        api = create_app(app.dsn, prefix=app.prefix)
         async with AsyncTestClient(app=api) as client:
             workers = await client.get("/api/workers")
             assert workers.status_code == 200

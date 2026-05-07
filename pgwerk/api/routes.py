@@ -6,15 +6,21 @@ from typing import Any
 from typing import Annotated
 
 from litestar import Router
+from litestar import Response
 from litestar import Controller
 from litestar import get
 from litestar import post
 from litestar import delete
+from litestar.di import Provide
 from litestar.params import Parameter
+from litestar.response import File
 from litestar.exceptions import ClientException
 from litestar.exceptions import NotFoundException
 
+from .spa import resolve_spa_file
+from .exporter import get_exporter
 from ..app import Werk
+from ..exporter import WerkExporter
 from .models import TableInfo
 from .models import QueueStats
 from .models import ServerInfo
@@ -536,6 +542,47 @@ class CoreController(Controller):
     @get("/health", tags=["Core"])
     async def health(self) -> dict[str, str]:
         return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Metrics
+# ---------------------------------------------------------------------------
+
+
+class MetricsController(Controller):
+    dependencies = {"exporter": Provide(get_exporter, use_cache=False)}
+
+    @get("/metrics", media_type="text/plain", include_in_schema=False)
+    async def get_metrics(self, exporter: WerkExporter | None) -> Response[bytes]:
+        """Serve current Prometheus metrics.
+
+        Args:
+            exporter: WerkExporter instance injected via dependency.
+
+        Returns:
+            Prometheus text-format metrics payload.
+        """
+        if exporter is None:
+            return Response(content=b"", media_type="text/plain", status_code=503)
+        body, content_type = exporter.metrics_bytes()
+        return Response(content=body, media_type=content_type)
+
+
+# ---------------------------------------------------------------------------
+# SPA
+# ---------------------------------------------------------------------------
+
+
+class SpaController(Controller):
+    dependencies = {"served_file": Provide(resolve_spa_file, sync_to_thread=True)}
+
+    @get("/", include_in_schema=False)
+    async def spa_index(self, served_file: File) -> File:
+        return served_file
+
+    @get("/{path:path}", include_in_schema=False)
+    async def spa_fallback(self, served_file: File) -> File:
+        return served_file
 
 
 # ---------------------------------------------------------------------------

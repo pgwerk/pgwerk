@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import click
 
-from .utils import load_app
 from ..logging import configure_logging
 
 
 @click.command()
-@click.argument("app", required=False)
+@click.option("--dsn", envvar="PGWERK_DSN", required=True, help="Postgres connection string.")
 @click.option("--host", "-h", default="127.0.0.1", show_default=True, help="Host to bind.")
 @click.option("--port", "-p", default=8000, show_default=True, help="Port to bind.")
 @click.option("--reload", is_flag=True, default=False, help="Enable auto-reload (development).")
+@click.option("--schema", default=None, help="Postgres schema for wrk tables.")
+@click.option("--prefix", default=None, help="Table-name prefix.")
 @click.option("--metrics", is_flag=True, default=False, help="Serve Prometheus metrics at GET /metrics.")
 @click.option("--metrics-interval", default=15.0, show_default=True, help="Metrics collection interval in seconds.")
 @click.option(
@@ -28,21 +29,19 @@ from ..logging import configure_logging
 )
 @click.option("--no-color", is_flag=True, default=False, help="Disable colored log output.")
 def api(
-    app: str | None,
+    dsn: str,
     host: str,
     port: int,
     reload: bool,
+    schema: str | None,
+    prefix: str | None,
     metrics: bool,
     metrics_interval: float,
     log_level: str,
     log_format: str,
     no_color: bool,
 ) -> None:
-    """Start the HTTP API server.
-
-    APP is an optional Wrk instance to use, e.g. ``myapp.tasks:wrk``.
-    If omitted, PGWERK_DSN must be set in the environment.
-    """
+    """Start the HTTP API server."""
     try:
         import uvicorn
     except ImportError:
@@ -53,8 +52,6 @@ def api(
     from ..api.app import create_app
 
     if reload:
-        if app:
-            raise click.ClickException("--reload cannot be used with a custom APP instance.")
         uvicorn.run(
             "pgwerk.api.app:create_app",
             factory=True,
@@ -64,14 +61,10 @@ def api(
             log_level=log_level.lower(),
         )
     else:
-        wrk_instance = load_app(app) if app else None
         litestar_app = create_app(
-            werk=wrk_instance,
+            dsn=dsn,
+            schema=schema,
+            prefix=prefix,
             exporter_interval=metrics_interval if metrics else None,
         )
-        uvicorn.run(
-            litestar_app,
-            host=host,
-            port=port,
-            log_level=log_level.lower(),
-        )
+        uvicorn.run(litestar_app, host=host, port=port, log_level=log_level.lower())
