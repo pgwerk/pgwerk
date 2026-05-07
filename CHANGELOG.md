@@ -9,6 +9,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-05-07
+
+### Added
+
+- `werk migrate` CLI command — runs schema migrations standalone with a dedicated DSN, without starting a worker or API server
+- `auto_migrate` flag on `Werk` (default `True`) — set to `False` to skip auto-migration at connect time when running migrations separately
+
+### Changed
+
+- Default schema changed from `public` (search_path) to `pgwerk` — tables are now isolated in a dedicated schema out of the box
+- Production security recommendation added to the README: create a Postgres role scoped to the `pgwerk` schema to prevent cross-schema access
+
 ## [0.1.8] - 2026-05-07
 
 ### Added
