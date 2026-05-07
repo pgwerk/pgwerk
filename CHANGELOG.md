@@ -9,6 +9,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-05-07
+
+### Fixed
+
+- Dashboard is now correctly bundled in the PyPI wheel — `werk api` serves the UI as expected after `pip install`
+
 ## [0.1.4] - 2026-05-07
 
 ### Fixed

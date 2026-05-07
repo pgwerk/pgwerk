@@ -41,7 +41,7 @@ jobs:
           python-version: "3.12"
 
       - name: Build wheel
-        run: uv build
+        run: uv build --wheel
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
