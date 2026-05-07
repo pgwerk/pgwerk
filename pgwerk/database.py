@@ -6,9 +6,8 @@ from psycopg import AsyncConnection
 from psycopg.sql import SQL
 from psycopg.sql import Identifier
 
-from .config import WerkConfig
-
 from . import utils
+from .config import WerkConfig
 
 
 logger = logging.getLogger(__name__)
@@ -51,13 +50,13 @@ class DatabaseManager:
             # --- worker -------------------------------------------------------
             SQL(
                 "CREATE {unlogged}TABLE IF NOT EXISTS {worker} ("
+                "    started_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
                 "    id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),"
                 "    name         TEXT        NOT NULL,"
                 "    queue        TEXT        NOT NULL DEFAULT 'default',"
                 "    status       TEXT        NOT NULL DEFAULT 'idle',"
                 "    metadata     JSONB,"
                 "    heartbeat_at TIMESTAMPTZ,"
-                "    started_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),"
                 "    expires_at   TIMESTAMPTZ"
                 ")"
             ).format(unlogged=unlogged, worker=t("worker")),
@@ -67,6 +66,7 @@ class DatabaseManager:
             # --- jobs ---------------------------------------------------------
             SQL("""
                 CREATE TABLE IF NOT EXISTS {jobs} (
+                    enqueued_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
                     key                  TEXT        UNIQUE,
                     function             TEXT        NOT NULL,
@@ -82,7 +82,6 @@ class DatabaseManager:
                     timeout_secs         INT,
                     heartbeat_secs       INT,
                     scheduled_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    enqueued_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     started_at           TIMESTAMPTZ,
                     completed_at         TIMESTAMPTZ,
                     touched_at           TIMESTAMPTZ,
@@ -140,15 +139,15 @@ class DatabaseManager:
             # --- jobs_executions ----------------------------------------------
             SQL("""
                 CREATE TABLE IF NOT EXISTS {executions} (
+                    started_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    completed_at TIMESTAMPTZ,
                     id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
                     job_id       UUID        NOT NULL REFERENCES {jobs}(id)   ON DELETE CASCADE,
                     worker_id    UUID                 REFERENCES {worker}(id) ON DELETE SET NULL,
                     attempt      INT         NOT NULL DEFAULT 1,
                     status       TEXT        NOT NULL DEFAULT 'running',
                     error        TEXT,
-                    result       JSONB,
-                    started_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    completed_at TIMESTAMPTZ
+                    result       JSONB
                 )
             """).format(
                 executions=t("jobs_executions"),
