@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import os
+import json
+import socket
 import asyncio
 import logging
 
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
+
+if TYPE_CHECKING:
+    from .worker import AsyncWorker
 from datetime import datetime
 from datetime import timezone
 from datetime import timedelta
@@ -94,6 +101,7 @@ class Werk:
         self._before_enqueues: dict[int, Callable] = {}
         self._on_startup: list[Callable] = []
         self._on_shutdown: list[Callable] = []
+        self._sync_worker: AsyncWorker | None = None
 
         self._t = {
             "worker": self._db.table("worker"),
@@ -237,6 +245,7 @@ class Werk:
         _depends_on: list[Dependency | str | Job] | Dependency | str | Job | None = None,
         _cron_name: str | None = None,
         _failure_mode: str = "hold",
+        _sync: bool = False,
         **kwargs: Any,
     ) -> Job | None:
         """Enqueue *func* for async execution.
@@ -342,6 +351,8 @@ class Werk:
 
         if job is not None:
             await self._run_before_enqueue(job)
+            if _sync:
+                job = await self.run_sync(job)
 
         return job
 
@@ -431,6 +442,27 @@ class Werk:
                 await self._run_before_enqueue(job)
 
         return results
+
+    async def run_sync(self, job: Job) -> Job:
+        """Execute *job* synchronously in the current process and return the completed job.
+
+        The job is claimed by the app's singleton sync worker, executed through
+        the full worker lifecycle (before/after hooks, callbacks), and the
+        refreshed job row is returned when done.
+
+        Args:
+            job: A job in ``queued`` state, typically just returned by
+                :meth:`enqueue`.
+
+        Returns:
+            The refreshed :class:`Job` after execution (status ``complete`` or
+            ``failed``).
+        """
+        if self._sync_worker is None:
+            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
+        claimed = await self._worker_repo.claim_sync(self._sync_worker.id, job)
+        await self._sync_worker._handle_job(claimed)
+        return await self._job_repo.get(claimed.id)
 
     async def wait_for(self, job_id: str, *, timeout: float | None = None, poll_interval: float = 2.0) -> Job:
         """Block until a job reaches a terminal state.
@@ -1026,6 +1058,17 @@ class Werk:
         self.__worker_repo = WorkerRepository(pool, self._t, self.prefix, get_serializer, self.__job_repo)  # type: ignore[arg-type]
         self.__stats_repo = StatsRepository(pool, self._t)  # type: ignore[arg-type]
 
+        from .worker import AsyncWorker
+
+        self._sync_worker = AsyncWorker(app=self, queues=[], concurrency=1)
+        await self._sync_worker._setup_executor()
+        await self.__worker_repo.register(
+            self._sync_worker.id,
+            f"sync@{socket.gethostname()}",
+            [],
+            json.dumps({"sync": True, "pid": os.getpid()}),
+        )
+
         self._connected = True
         logger.info("werk: connected")
         await self._run_hooks(self._on_startup)
@@ -1038,6 +1081,11 @@ class Werk:
         if not self._connected or not self._pool:
             return
         await self._run_hooks(self._on_shutdown)
+        if self._sync_worker is not None:
+            await self._sync_worker._teardown_executor()
+            if self.__worker_repo is not None:
+                await self.__worker_repo.deregister(self._sync_worker.id)
+            self._sync_worker = None
         await self._pool.close()
         self._connected = False
         self.__job_repo = None

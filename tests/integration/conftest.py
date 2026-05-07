@@ -14,7 +14,7 @@ from pgwerk.worker import AsyncWorker
 _TEST_PREFIX = "_pgwerk"
 _TEST_DSN = os.environ.get("PGWERK_TEST_DSN", "postgresql://pgwerk:pgwerk@localhost/pgwerk_test")
 
-_TABLES = ["job_deps", "worker_jobs", "jobs_executions", "jobs", "worker"]
+_TABLES = ["job_deps", "worker_jobs", "jobs_executions", "jobs"]
 _DROP_TABLES = [*_TABLES, "versions"]
 
 

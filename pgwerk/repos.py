@@ -905,6 +905,44 @@ class WorkerRepository:
                 {"id": job_id},
             )
 
+    async def claim_sync(self, worker_id: str, job: Job) -> Job:
+        async with self._pool.connection() as conn, conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                SQL(
+                    """
+                    UPDATE {jobs}
+                    SET status = 'active',
+                        worker_id = %(wid)s,
+                        attempts = attempts + 1,
+                        started_at = NOW()
+                    WHERE id = %(id)s AND status = 'queued'
+                    RETURNING """
+                    + JOB_COLS
+                ).format(jobs=self._t["jobs"]),
+                {"wid": worker_id, "id": job.id},
+            )
+            row = await cur.fetchone()
+            if row is None:
+                raise RuntimeError(f"sync claim failed for job {job.id}: not found or not in queued state")
+            claimed = Job.from_row(row, self._serializer)
+
+            await cur.execute(
+                SQL("""
+                    INSERT INTO {worker_jobs} (worker_id, job_id)
+                    VALUES (%(wid)s, %(jid)s)
+                """).format(worker_jobs=self._t["worker_jobs"]),
+                {"wid": worker_id, "jid": claimed.id},
+            )
+            await cur.execute(
+                SQL("""
+                    INSERT INTO {executions} (job_id, worker_id, attempt, status)
+                    VALUES (%(jid)s, %(wid)s, %(attempt)s, 'running')
+                """).format(executions=self._t["executions"]),
+                {"jid": claimed.id, "wid": worker_id, "attempt": claimed.attempts},
+            )
+
+        return claimed
+
     async def requeue_cancelled(self, worker_id: str, job: Job) -> None:
         async with self._pool.connection() as conn, conn.transaction(), conn.cursor() as cur:
             await cur.execute(
