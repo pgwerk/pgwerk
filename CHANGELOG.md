@@ -9,6 +9,28 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-05-07
+
+### Added
+
+- `werk api` now accepts `--api-token` and `--auth` flags to enable token-based authentication on the REST API
+
+### Changed
+
+- REST API module split into focused files (`deps.py`, `handlers.py`, `routes.py`, `spa.py`, `exporter.py`) instead of a single monolithic `app.py`
+- Config management centralized through `pgwerk/config.py` — workers, CLI commands, and the API all read from one place
+- Database repository layer now uses a protocol-based driver abstraction (`AsyncConnection` / `AsyncCursor` in `pgwerk/connection.py`), decoupling it from psycopg specifics
+
+## [0.1.7] - 2026-05-07
+
+### Added
+
+- `sync=True` on `enqueue` / `enqueue_many` — jobs can now be executed synchronously in the calling thread without spinning up a worker
+
+### Removed
+
+- `psycopg_pool` dependency dropped — the library manages a plain single connection, removing a heavy transitive dependency and simplifying the connection lifecycle
+
 ## [0.1.6] - 2026-05-07
 
 ### Changed
