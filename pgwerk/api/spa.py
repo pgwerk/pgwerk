@@ -36,13 +36,16 @@ def resolve_spa_file(path: str | None = None) -> File:
     return File(path=_STATIC_DIR / "index.html", media_type="text/html", content_disposition_type="inline")
 
 
-def init_spa(route_handlers: list) -> None:
+def init_spa(route_handlers: list, guard=None) -> None:
     """Register SpaController if a built frontend is present.
 
     Args:
         route_handlers: List of Litestar route handlers to append SpaController to.
+        guard: Optional Litestar guard to apply to all SPA routes.
     """
     if (_STATIC_DIR / "index.html").exists():
         from .routes import SpaController
 
+        if guard is not None:
+            SpaController = type("SpaController", (SpaController,), {"guards": [guard]})
         route_handlers.append(SpaController)

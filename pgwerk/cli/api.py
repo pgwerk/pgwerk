@@ -27,6 +27,9 @@ from ..logging import configure_logging
     show_default=True,
     type=click.Choice(["text", "json"], case_sensitive=False),
 )
+@click.option("--no-ui", is_flag=True, default=False, help="Disable the SPA dashboard.")
+@click.option("--auth", default=None, envvar="PGWERK_AUTH", help="Basic Auth for the SPA as user:password.")
+@click.option("--token", default=None, envvar="PGWERK_TOKEN", help="Bearer token for the API.")
 @click.option("--no-color", is_flag=True, default=False, help="Disable colored log output.")
 def api(
     dsn: str,
@@ -37,6 +40,9 @@ def api(
     prefix: str | None,
     metrics: bool,
     metrics_interval: float,
+    no_ui: bool,
+    auth: str | None,
+    token: str | None,
     log_level: str,
     log_format: str,
     no_color: bool,
@@ -65,6 +71,10 @@ def api(
             dsn=dsn,
             schema=schema,
             prefix=prefix,
-            exporter_interval=metrics_interval if metrics else None,
+            metrics=metrics,
+            metrics_interval=metrics_interval,
+            ui=not no_ui,
+            auth=auth,
+            token=token,
         )
         uvicorn.run(litestar_app, host=host, port=port, log_level=log_level.lower())

@@ -6,6 +6,7 @@ from typing import Any
 from typing import Annotated
 
 from litestar import Router
+from .auth import Guard
 from litestar import Response
 from litestar import Controller
 from litestar import get
@@ -590,14 +591,16 @@ class SpaController(Controller):
 # ---------------------------------------------------------------------------
 
 
-router = Router(
-    path="/api",
-    route_handlers=[
-        JobController,
-        WorkerController,
-        StatsController,
-        CronController,
-        ServerController,
-        CoreController,
-    ],
-)
+def make_router(guards: list[Guard] | None = None) -> Router:
+    return Router(
+        path="/api",
+        route_handlers=[
+            JobController,
+            WorkerController,
+            StatsController,
+            CronController,
+            ServerController,
+            CoreController,
+        ],
+        guards=guards or [],
+    )

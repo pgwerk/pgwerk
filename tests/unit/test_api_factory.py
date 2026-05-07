@@ -5,10 +5,12 @@ import pytest
 from litestar import Litestar
 
 from pgwerk.api.app import create_app
-from pgwerk.api.deps import init_werk
-from pgwerk.api.exporter import init_exporter, get_exporter
 from pgwerk.api.spa import init_spa
-from pgwerk.api.routes import MetricsController, SpaController
+from pgwerk.api.deps import init_werk
+from pgwerk.api.routes import SpaController
+from pgwerk.api.routes import make_router
+from pgwerk.api.exporter import get_exporter
+from pgwerk.api.exporter import init_exporter
 
 
 # ---------------------------------------------------------------------------
@@ -44,6 +46,7 @@ class TestInitExporter:
     @pytest.fixture(autouse=True)
     def _clear_exporter_state(self):
         import pgwerk.api.exporter as _mod
+
         _mod._state.clear()
         yield
         _mod._state.clear()
@@ -96,11 +99,11 @@ class TestCreateApp:
     def test_returns_litestar_instance(self):
         assert isinstance(create_app("postgresql://localhost/test"), Litestar)
 
-    def test_no_metrics_route_without_exporter_interval(self):
+    def test_no_metrics_route_by_default(self):
         assert "/metrics" not in _paths(create_app("postgresql://localhost/test"))
 
-    def test_metrics_route_registered_with_exporter_interval(self):
-        assert "/metrics" in _paths(create_app("postgresql://localhost/test", exporter_interval=15.0))
+    def test_metrics_route_registered_when_enabled(self):
+        assert "/metrics" in _paths(create_app("postgresql://localhost/test", metrics=True))
 
     def test_no_spa_routes_when_index_missing(self, tmp_path, monkeypatch):
         monkeypatch.setattr("pgwerk.api.spa._STATIC_DIR", tmp_path)
@@ -110,6 +113,42 @@ class TestCreateApp:
         monkeypatch.setattr("pgwerk.api.spa._STATIC_DIR", tmp_path)
         (tmp_path / "index.html").write_text("<html/>")
         assert "/" in _paths(create_app("postgresql://localhost/test"))
+
+    def test_no_spa_routes_when_ui_disabled(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("pgwerk.api.spa._STATIC_DIR", tmp_path)
+        (tmp_path / "index.html").write_text("<html/>")
+        assert "/" not in _paths(create_app("postgresql://localhost/test", ui=False))
+
+    def test_spa_has_no_guards_without_auth(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("pgwerk.api.spa._STATIC_DIR", tmp_path)
+        (tmp_path / "index.html").write_text("<html/>")
+        from pgwerk.api.spa import init_spa
+
+        handlers: list = []
+        init_spa(handlers)
+        assert "guards" not in handlers[0].__dict__
+
+    def test_spa_has_basic_auth_guard_when_configured(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("pgwerk.api.spa._STATIC_DIR", tmp_path)
+        (tmp_path / "index.html").write_text("<html/>")
+        from pgwerk.api.spa import init_spa
+        from pgwerk.api.auth import make_basic_auth_guard
+
+        handlers: list = []
+        guard = make_basic_auth_guard("admin", "secret")
+        init_spa(handlers, guard=guard)
+        assert handlers[0].guards == [guard]
+
+    def test_api_router_has_bearer_guard_when_token_configured(self):
+        from pgwerk.api.auth import make_bearer_guard
+
+        guard = make_bearer_guard("secret")
+        router = make_router(guards=[guard])
+        assert guard in router.guards
+
+    def test_api_router_has_no_guards_by_default(self):
+        router = make_router()
+        assert not router.guards
 
     def test_api_router_always_registered(self):
         paths = _paths(create_app("postgresql://localhost/test"))
