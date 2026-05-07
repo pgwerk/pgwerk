@@ -245,6 +245,34 @@ queued → active → complete
 
 ---
 
+## Production security
+
+By default, pgwerk tables land in whatever schema your connection's `search_path` resolves to (usually `public`). For production we recommend a dedicated schema and a role scoped to it, so pgwerk credentials can never touch the rest of your database.
+
+```sql
+CREATE SCHEMA pgwerk;
+CREATE USER pgwerk_app WITH PASSWORD 'strong-password';
+GRANT USAGE, CREATE ON SCHEMA pgwerk TO pgwerk_app;
+```
+
+Then point your app at that schema and user:
+
+```python
+app = Werk("postgresql://pgwerk_app:strong-password@localhost/mydb", schema="pgwerk")
+```
+
+The `CREATE` privilege is needed because pgwerk auto-migrates on first connect. If you prefer to run migrations separately — e.g. as a CI/CD step with elevated credentials — use `werk migrate`:
+
+```bash
+# Run once during deployment with a role that has CREATE
+werk migrate --dsn postgresql://pgwerk_admin:...@localhost/mydb --schema pgwerk
+
+# Application runtime needs only DML
+app = Werk("postgresql://pgwerk_app:...@localhost/mydb", schema="pgwerk", auto_migrate=False)
+```
+
+---
+
 ## License
 
 MIT

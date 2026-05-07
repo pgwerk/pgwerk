@@ -55,7 +55,7 @@ class WerkConfig:
     dsn: str | None = None
 
     # Schema / table naming
-    schema: str | None = None
+    schema: str = "pgwerk"
     prefix: str = "_pgwerk"
 
     # Job lifecycle

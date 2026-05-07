@@ -377,7 +377,7 @@ class TestWrkInit:
         wrk = Werk("postgresql://localhost/test")
         assert wrk.dsn == "postgresql://localhost/test"
         assert wrk.prefix == "_pgwerk"
-        assert wrk.schema is None
+        assert wrk.schema == "pgwerk"
         assert not wrk._connected
 
     def test_custom_prefix(self):

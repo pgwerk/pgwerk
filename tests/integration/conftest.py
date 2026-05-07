@@ -11,19 +11,21 @@ from pgwerk.app import Werk
 from pgwerk.worker import AsyncWorker
 
 
-_TEST_PREFIX = "_pgwerk"
 _TEST_DSN = os.environ.get("PGWERK_TEST_DSN", "postgresql://pgwerk:pgwerk@localhost/pgwerk_test")
+_TEST_SCHEMA = "pgwerk"
+_TEST_PREFIX = "_pgwerk"
 
 _TABLES = ["job_deps", "worker_jobs", "jobs_executions", "jobs"]
-_DROP_TABLES = [*_TABLES, "versions"]
+_DROP_TABLES = [*_TABLES, "worker", "versions"]
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _reset_test_schema():
-    """Drop all test tables at session start so auto-migrate rebuilds them clean."""
+    """Drop the pgwerk schema and any public-schema leftovers so auto-migrate rebuilds clean."""
     with psycopg.connect(_TEST_DSN) as conn:
+        conn.execute(f'DROP SCHEMA IF EXISTS "{_TEST_SCHEMA}" CASCADE')
         for tbl in _DROP_TABLES:
-            conn.execute(f'DROP TABLE IF EXISTS "{_TEST_PREFIX}_{tbl}" CASCADE')
+            conn.execute(f'DROP TABLE IF EXISTS public."{_TEST_PREFIX}_{tbl}" CASCADE')
         conn.commit()
 
 
@@ -47,7 +49,7 @@ async def app():
 
     async with await psycopg.AsyncConnection.connect(_TEST_DSN, autocommit=True) as conn:
         for tbl in _TABLES:
-            await conn.execute(f'TRUNCATE "{_TEST_PREFIX}_{tbl}" CASCADE')
+            await conn.execute(f'TRUNCATE "{_TEST_SCHEMA}"."{_TEST_PREFIX}_{tbl}" CASCADE')
 
     yield a
     await a.disconnect()

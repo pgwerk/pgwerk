@@ -65,6 +65,7 @@ class Werk:
         log_format: str | None = None,
         log_color: bool | None = None,
         log_fmt: str | None = None,
+        auto_migrate: bool = True,
     ) -> None:
         """Initialize Werk with a Postgres DSN and optional configuration.
 
@@ -92,6 +93,7 @@ class Werk:
         self.prefix = prefix if prefix is not None else self.config.prefix
         self.serializer: Serializer = serializer or get_default()
         self.max_active_secs = max_active_secs if max_active_secs is not None else self.config.max_active_secs
+        self.auto_migrate = auto_migrate
         self._connected = False
         self._db = DatabaseManager(self.schema, self.prefix, ephemeral_tables=self.config.ephemeral_tables)
         self._before_enqueues: dict[int, Callable] = {}
@@ -1028,7 +1030,8 @@ class Werk:
             return
 
         async with await self._connect() as conn:
-            await self._db.migrate(conn)
+            if self.auto_migrate:
+                await self._db.migrate(conn)
             if self.config.ephemeral_tables:
                 await self._db.alter_ephemeral_tables(conn)
 

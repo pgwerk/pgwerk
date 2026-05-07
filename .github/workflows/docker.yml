@@ -1,14 +1,13 @@
 name: Docker
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - "v*"
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
 
 jobs:
   docker:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -29,9 +28,9 @@ jobs:
         with:
           images: ghcr.io/pgwerk/pgwerk
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},value=${{ github.event.workflow_run.head_branch }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ github.event.workflow_run.head_branch }}
+            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v6

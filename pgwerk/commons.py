@@ -38,4 +38,3 @@ class DequeueStrategy(str, enum.Enum):
 class FailureMode(str, enum.Enum):
     Hold = "hold"  # keep failed job row for inspection / manual retry
     Delete = "delete"  # delete job row on terminal failure (fire-and-forget)
-
