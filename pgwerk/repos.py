@@ -928,17 +928,10 @@ class WorkerRepository:
 
             await cur.execute(
                 SQL("""
-                    INSERT INTO {worker_jobs} (worker_id, job_id)
-                    VALUES (%(wid)s, %(jid)s)
-                """).format(worker_jobs=self._t["worker_jobs"]),
-                {"wid": worker_id, "jid": claimed.id},
-            )
-            await cur.execute(
-                SQL("""
                     INSERT INTO {executions} (job_id, worker_id, attempt, status)
-                    VALUES (%(jid)s, %(wid)s, %(attempt)s, 'running')
+                    VALUES (%(jid)s, NULL, %(attempt)s, 'running')
                 """).format(executions=self._t["executions"]),
-                {"jid": claimed.id, "wid": worker_id, "attempt": claimed.attempts},
+                {"jid": claimed.id, "attempt": claimed.attempts},
             )
 
         return claimed

@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import os
-import json
-import socket
 import asyncio
 import logging
 
@@ -1042,12 +1039,6 @@ class Werk:
 
         self._sync_worker = AsyncWorker(app=self, queues=[], concurrency=1)
         await self._sync_worker._setup_executor()
-        await self.__worker_repo.register(
-            self._sync_worker.id,
-            f"sync@{socket.gethostname()}",
-            [],
-            json.dumps({"sync": True, "pid": os.getpid()}),
-        )
 
         self._connected = True
         logger.info("werk: connected")
@@ -1063,8 +1054,6 @@ class Werk:
         await self._run_hooks(self._on_shutdown)
         if self._sync_worker is not None:
             await self._sync_worker._teardown_executor()
-            if self.__worker_repo is not None:
-                await self.__worker_repo.deregister(self._sync_worker.id)
             self._sync_worker = None
         self._connected = False
         self.__job_repo = None
