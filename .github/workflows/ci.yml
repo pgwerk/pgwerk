@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
     paths:
       - ".github/workflows/ci.yml"
       - "pgwerk/**"
@@ -41,8 +42,39 @@ jobs:
       - name: Type check
         run: uv run mypy pgwerk/
 
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: dashboard/pnpm-lock.yaml
+
+      - name: Install dashboard dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: dashboard
+
+      - name: Build dashboard
+        run: pnpm build
+        working-directory: dashboard
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel
+        run: uv build --wheel
+
   test:
-    needs: [typecheck]
+    needs: [typecheck, build]
     name: Python ${{ matrix.python-version }} / Postgres ${{ matrix.postgres-version }}
     runs-on: ubuntu-latest
 
