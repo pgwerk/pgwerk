@@ -3,6 +3,11 @@ from __future__ import annotations
 import asyncio
 
 import click
+import rich.box as box
+
+from rich.text import Text
+from rich.table import Table
+from psycopg.sql import SQL
 
 from .utils import STATUS_STYLES
 from .utils import fmt_age
@@ -20,13 +25,8 @@ from .utils import require_rich
 @click.option("--offset", default=0, help="Row offset for pagination.")
 def jobs(app: str, queue: str | None, status: str | None, limit: int, offset: int) -> None:
     """List recent jobs in a formatted table."""
-    from psycopg.sql import SQL
 
     console = require_rich()
-    import rich.box as box
-
-    from rich.text import Text
-    from rich.table import Table
 
     wrk_app = load_app(app)
     statuses = [s.strip() for s in status.split(",")] if status else None

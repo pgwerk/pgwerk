@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 
 from typing import Any
 from functools import partial
@@ -55,8 +56,6 @@ class ThreadWorker(BaseWorker):
         Raises:
             Exception: Any exception raised by the handler propagates to the caller.
         """
-        import inspect
-
         args: list = (job.payload or {}).get("args", [])
         kwargs: dict = (job.payload or {}).get("kwargs", {})
 

@@ -4,6 +4,8 @@ import asyncio
 
 import click
 
+from psycopg.sql import SQL
+
 from .utils import ALL_STATUSES
 from .utils import STATUS_STYLES
 from .utils import bar
@@ -17,8 +19,6 @@ from .utils import require_rich
 @click.option("--queue", "-q", default=None, help="Filter by queue name.")
 def stats(app: str, queue: str | None) -> None:
     """Show queue statistics with visual breakdown."""
-    from psycopg.sql import SQL
-
     console = require_rich()
     import rich.box as box
 

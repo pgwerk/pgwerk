@@ -3,6 +3,8 @@ from __future__ import annotations
 import enum
 import json
 import uuid
+import base64
+import pickle
 import decimal
 import datetime
 
@@ -98,9 +100,6 @@ class PickleSerializer:
         Returns:
             Base64-encoded pickle bytes as a UTF-8 string.
         """
-        import base64
-        import pickle
-
         return base64.b64encode(pickle.dumps(obj)).decode()
 
     def loads(self, s: str | bytes) -> Any:
@@ -112,9 +111,6 @@ class PickleSerializer:
         Returns:
             The original Python object.
         """
-        import base64
-        import pickle
-
         if isinstance(s, str):
             s = s.encode()
         return pickle.loads(base64.b64decode(s))

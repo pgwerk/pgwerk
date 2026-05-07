@@ -19,13 +19,9 @@ def _fork_target(
     result_queue: "multiprocessing.Queue[tuple[str, Any]]",
 ) -> None:
     """Entry point for the forked process. Puts (ok|err, value) into result_queue."""
-    import asyncio as _aio
-
     try:
-        from pgwerk.utils import import_fn
-
         fn = import_fn(dotted)
-        result = _aio.run(fn(*args, **kwargs)) if _aio.iscoroutinefunction(fn) else fn(*args, **kwargs)
+        result = asyncio.run(fn(*args, **kwargs)) if asyncio.iscoroutinefunction(fn) else fn(*args, **kwargs)
         result_queue.put(("ok", result))
     except Exception as exc:
         result_queue.put(("err", str(exc)))

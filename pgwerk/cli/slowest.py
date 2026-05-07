@@ -4,6 +4,8 @@ import asyncio
 
 import click
 
+from psycopg.sql import SQL
+
 from .utils import load_app
 from .utils import short_func
 from .utils import parse_since
@@ -18,8 +20,6 @@ from .utils import require_rich
 @click.option("--since", default="24h", show_default=True, help="Time window e.g. 24h, 7d, 30m.")
 def slowest(app: str, queue: str | None, limit: int, since: str) -> None:
     """Show slowest job functions by average execution time."""
-    from psycopg.sql import SQL
-
     console = require_rich()
     import rich.box as box
 

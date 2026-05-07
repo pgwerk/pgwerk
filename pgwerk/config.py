@@ -1,4 +1,4 @@
-"""Default configuration values for wrk workers and schedulers."""
+"""Configuration for wrk workers, schedulers, and the API server."""
 
 from __future__ import annotations
 
@@ -8,11 +8,12 @@ from dataclasses import dataclass
 
 @dataclass
 class WerkConfig:
-    """Configuration for a wrk worker or scheduler.
+    """Unified configuration for wrk.
 
     Attributes:
         schema_version: Internal schema version; bump on each migration. Not
             user-configurable — treated as a read-only class constant.
+        dsn: Postgres connection string.
         schema: PostgreSQL schema that qualifies all wrk table names (e.g.
             ``"public"``). ``None`` means no schema prefix.
         prefix: Prefix applied to every wrk table name (default ``"_pgwerk"``),
@@ -41,9 +42,17 @@ class WerkConfig:
             ``_pgwerk_worker_jobs``. Faster writes; data is lost on a crash,
             which is safe because workers re-register on startup and the
             sweep re-establishes claims.
+        metrics: Enable Prometheus metrics at ``GET /metrics``.
+        metrics_interval: Metrics scrape interval in seconds.
+        ui: Serve the SPA dashboard (requires built static files).
+        ui_auth: Basic Auth for the SPA as ``user:password``.
+        api_token: Bearer token for all ``/api/*`` routes.
     """
 
     schema_version: ClassVar[int] = 4
+
+    # Connection
+    dsn: str | None = None
 
     # Schema / table naming
     schema: str | None = None
@@ -67,3 +76,10 @@ class WerkConfig:
 
     # Table storage
     ephemeral_tables: bool = False
+
+    # API server
+    metrics: bool = False
+    metrics_interval: float = 15.0
+    ui: bool = True
+    ui_auth: str | None = None
+    api_token: str | None = None

@@ -6,12 +6,8 @@ import socket
 import asyncio
 import logging
 
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
-
-if TYPE_CHECKING:
-    from .worker import AsyncWorker
 from datetime import datetime
 from datetime import timezone
 from datetime import timedelta
@@ -39,6 +35,10 @@ from .schemas import Callback
 from .schemas import Dependency
 from .schemas import JobExecution
 from .schemas import EnqueueParams
+from .worker import AsyncWorker
+from .worker import ForkWorker
+from .worker import ThreadWorker
+from .worker import ProcessWorker
 from .database import DatabaseManager
 from .exceptions import JobError
 from .serializers import Serializer
@@ -477,8 +477,6 @@ class Werk:
             asyncio.TimeoutError: If *timeout* elapses before the job
                 finishes.
         """
-        from .commons import JobStatus
-
         terminal = {JobStatus.Complete, JobStatus.Failed, JobStatus.Aborted}
         if not self._connected:
             raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
@@ -1002,11 +1000,6 @@ class Werk:
             worker_type: One of ``"async"``, ``"thread"``, ``"process"``, or
                 ``"fork"``.
         """
-        from .worker import ForkWorker
-        from .worker import AsyncWorker
-        from .worker import ThreadWorker
-        from .worker import ProcessWorker
-
         _types = {
             "async": AsyncWorker,
             "thread": ThreadWorker,
@@ -1041,8 +1034,6 @@ class Werk:
         self.__job_repo = JobRepository(self._connect, self._t, self.prefix, get_serializer)
         self.__worker_repo = WorkerRepository(self._connect, self._t, self.prefix, get_serializer, self.__job_repo)
         self.__stats_repo = StatsRepository(self._connect, self._t)
-
-        from .worker import AsyncWorker
 
         self._sync_worker = AsyncWorker(app=self, queues=[], concurrency=1)
         await self._sync_worker._setup_executor()

@@ -46,6 +46,5 @@ def init_spa(route_handlers: list, guard=None) -> None:
     if (_STATIC_DIR / "index.html").exists():
         from .routes import SpaController
 
-        if guard is not None:
-            SpaController = type("SpaController", (SpaController,), {"guards": [guard]})
-        route_handlers.append(SpaController)
+        cls = type("SpaController", (SpaController,), {"guards": [guard]}) if guard is not None else SpaController
+        route_handlers.append(cls)

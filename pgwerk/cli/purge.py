@@ -4,6 +4,8 @@ import asyncio
 
 import click
 
+from psycopg.sql import SQL
+
 from .utils import load_app
 
 
@@ -14,7 +16,6 @@ from .utils import load_app
 @click.confirmation_option(prompt="Purge matching jobs?")
 def purge(app: str, status: str, queue: str | None) -> None:
     """Delete finished jobs from the database."""
-    from psycopg.sql import SQL
 
     wrk_app = load_app(app)
     statuses = [s.strip() for s in status.split(",")]

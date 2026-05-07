@@ -8,6 +8,8 @@ from datetime import timedelta
 
 import click
 
+from psycopg.sql import SQL
+
 from .utils import load_app
 from .utils import require_rich
 
@@ -22,8 +24,6 @@ def throughput(app: str, hours: int, queue: str | None) -> None:
         import plotext as plt
     except ImportError:
         raise click.ClickException("This command requires 'plotext'. Install with: pip install 'wrk[analytics]'")
-
-    from psycopg.sql import SQL
 
     console = require_rich()
     import rich.box as box

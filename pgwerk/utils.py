@@ -9,21 +9,17 @@ import inspect
 import logging
 import importlib
 
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from datetime import datetime
 from datetime import timezone
 
 from pgwerk.schemas import CronJob
-
-
-if TYPE_CHECKING:
-    from .schemas import Job
-    from .schemas import Retry
-    from .schemas import Context
-    from .schemas import Callback
-    from .schemas import Dependency
+from pgwerk.schemas import Job
+from pgwerk.schemas import Retry
+from pgwerk.schemas import Context
+from pgwerk.schemas import Callback
+from pgwerk.schemas import Dependency
 
 logger = logging.getLogger(__name__)
 
@@ -98,8 +94,6 @@ def wants_context(fn: Callable) -> bool:
         ann = first.annotation
         if ann is inspect.Parameter.empty:
             return False
-        from .schemas import Context
-
         return ann is Context or (isinstance(ann, str) and ann == "Context")
     except (ValueError, TypeError):
         return False
@@ -233,9 +227,7 @@ def normalize_callback(
     """
     if cb is None:
         return None, None
-    from .schemas import Callback as _Callback
-
-    if isinstance(cb, _Callback):
+    if isinstance(cb, Callback):
         return cb.path(), cb.timeout
     if callable(cb):
         return fn_path(cb), None
@@ -260,13 +252,10 @@ def normalize_depends_on(
     if not isinstance(depends_on, list):
         depends_on = [depends_on]
     result = []
-    from .schemas import Job as _Job
-    from .schemas import Dependency as _Dependency
-
     for d in depends_on:
-        if isinstance(d, _Dependency):
+        if isinstance(d, Dependency):
             result.append((d.job_id, d.allow_failure))
-        elif isinstance(d, _Job):
+        elif isinstance(d, Job):
             result.append((d.id, False))
         else:
             result.append((str(d), False))

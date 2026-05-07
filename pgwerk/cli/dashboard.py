@@ -6,6 +6,8 @@ from datetime import datetime
 
 import click
 
+from psycopg.sql import SQL
+
 from .utils import ALL_STATUSES
 from .utils import STATUS_STYLES
 from .utils import bar
@@ -22,8 +24,6 @@ from .utils import require_rich
 @click.option("--queue", "-q", default=None, help="Filter by queue.")
 def dashboard(app: str, interval: int, queue: str | None) -> None:
     """Live auto-refreshing analytics dashboard."""
-    from psycopg.sql import SQL
-
     console = require_rich()
     import rich.box as box
 

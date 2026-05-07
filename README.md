@@ -169,18 +169,55 @@ await app.cancel_job(job_id)
 
 ### CLI
 
-```bash
-# Start a worker
-werk worker myapp.tasks:app --queues default,high --concurrency 10 --worker-type async
+`APP` is a `module:attribute` path to a `Werk` instance.
 
+#### Worker
+
+```bash
+werk worker myapp.tasks:app --queues default,high --concurrency 10 --worker-type async
+```
+
+#### Observability API
+
+```bash
+werk api --dsn postgresql://localhost/mydb
+```
+
+| Flag | Env var | Default | Description |
+|---|---|---|---|
+| `--dsn` | `PGWERK_DSN` | — | Postgres connection string (**required**) |
+| `--host` / `-h` | `PGWERK_HOST` | `127.0.0.1` | Host to bind |
+| `--port` / `-p` | `PGWERK_PORT` | `8000` | Port to bind |
+| `--schema` | `PGWERK_SCHEMA` | — | Postgres schema for wrk tables |
+| `--prefix` | `PGWERK_PREFIX` | — | Table-name prefix |
+| `--metrics` | `PGWERK_METRICS` | off | Enable Prometheus metrics at `GET /metrics` |
+| `--metrics-interval` | `PGWERK_METRICS_INTERVAL` | `15.0` | Metrics scrape interval in seconds |
+| `--no-ui` | `PGWERK_NO_UI` | off | Disable the SPA dashboard |
+| `--ui-auth` | `PGWERK_UI_AUTH` | — | Basic Auth for the SPA as `user:password` |
+| `--api-token` | `PGWERK_API_TOKEN` | — | Bearer token for all `/api/*` routes |
+| `--log-level` / `-l` | `PGWERK_LOG_LEVEL` | `INFO` | `debug`, `info`, `warning`, `error` |
+| `--log-format` | `PGWERK_LOG_FORMAT` | `text` | `text` or `json` |
+| `--no-color` | `PGWERK_NO_COLOR` | off | Disable colored log output |
+| `--reload` | `PGWERK_RELOAD` | off | Auto-reload (development) |
+
+#### Inspection
+
+```bash
 # Show queue statistics and active workers
 werk info myapp.tasks:app
+
+# Live terminal dashboard
+werk dashboard myapp.tasks:app
+
+# List recent jobs
+werk jobs myapp.tasks:app
+
+# Show slowest functions by average execution time
+werk slowest myapp.tasks:app
 
 # Delete finished jobs
 werk purge myapp.tasks:app --status complete,failed
 ```
-
-`APP` is a `module:attribute` path to a `Werk` instance.
 
 ---
 

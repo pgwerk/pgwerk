@@ -4,6 +4,9 @@ import asyncio
 
 import click
 
+from psycopg.sql import SQL
+
+from ..commons import JobStatus
 from .utils import load_app
 
 
@@ -12,10 +15,6 @@ from .utils import load_app
 @click.option("--queue", "-q", default=None, help="Filter by queue name.")
 def info(app: str, queue: str | None) -> None:
     """Print queue statistics and active workers."""
-    from psycopg.sql import SQL
-
-    from ..commons import JobStatus
-
     wrk_app = load_app(app)
 
     async def _run() -> None:

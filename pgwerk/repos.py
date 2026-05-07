@@ -19,6 +19,7 @@ from psycopg.rows import dict_row
 
 from .commons import DequeueStrategy
 from .connection import Connect
+from .exceptions import JobNotFound
 from .schemas import JOB_COLS
 from .schemas import Job
 from .schemas import JobInsert
@@ -138,8 +139,6 @@ class JobRepository:
     # ------------------------------------------------------------------
 
     async def get(self, job_id: str) -> Job:
-        from .exceptions import JobNotFound
-
         async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("SELECT" + JOB_COLS + "FROM {jobs} WHERE id = %(id)s").format(jobs=self._t["jobs"]),
