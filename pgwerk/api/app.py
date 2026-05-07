@@ -17,6 +17,13 @@ from litestar.exceptions import HTTPException
 from litestar.exceptions import NotFoundException
 from litestar.status_codes import HTTP_500_INTERNAL_SERVER_ERROR
 
+from ..app import Werk  # noqa: E402
+from .routes import router  # noqa: E402
+
+
+if TYPE_CHECKING:
+    from ..exporter import WerkExporter
+
 
 _STATIC_DIR = pathlib.Path(__file__).parent / "static"
 _STATIC_RESERVED_PREFIXES = {"api", "metrics"}
@@ -46,14 +53,6 @@ def _create_spa_handlers() -> list:
         return _serve_path(path)
 
     return [spa_index, spa_fallback]
-
-
-from ..app import Werk  # noqa: E402
-from .routes import router  # noqa: E402
-
-
-if TYPE_CHECKING:
-    from ..exporter import WerkExporter
 
 
 logger = logging.getLogger("pgwerk.api")

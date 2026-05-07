@@ -18,6 +18,7 @@ from psycopg.sql import Identifier
 from psycopg.rows import dict_row
 
 from .commons import DequeueStrategy
+from .connection import Connect
 from .schemas import JOB_COLS
 from .schemas import Job
 from .schemas import JobInsert
@@ -42,12 +43,12 @@ _INSERT_SQL: LiteralString = cast(
 class JobRepository:
     def __init__(
         self,
-        dsn: str,
+        connect: Connect,
         tables: dict[str, Any],
         prefix: str,
         get_serializer: Callable[[], Serializer],
     ) -> None:
-        self._dsn = dsn
+        self._connect = connect
         self._t = tables
         self._prefix = prefix
         self._get_serializer = get_serializer
@@ -61,10 +62,10 @@ class JobRepository:
         if conn is not None:
             yield conn
         elif transaction:
-            async with await AsyncConnection.connect(self._dsn, autocommit=True) as c, c.transaction():
+            async with await self._connect() as c, c.transaction():
                 yield c
         else:
-            async with await AsyncConnection.connect(self._dsn, autocommit=True) as c:
+            async with await self._connect() as c:
                 yield c
 
     # ------------------------------------------------------------------
@@ -139,7 +140,7 @@ class JobRepository:
     async def get(self, job_id: str) -> Job:
         from .exceptions import JobNotFound
 
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("SELECT" + JOB_COLS + "FROM {jobs} WHERE id = %(id)s").format(jobs=self._t["jobs"]),
                 {"id": job_id},
@@ -173,7 +174,7 @@ class JobRepository:
             filters.append("(function ILIKE %(search)s OR id::text ILIKE %(search)s OR queue ILIKE %(search)s)")
             params["search"] = f"%{search}%"
         where = SQL("WHERE " + " AND ".join(filters)) if filters else SQL("")
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL(
                     "SELECT" + JOB_COLS + "FROM {jobs} {where}"
@@ -185,7 +186,7 @@ class JobRepository:
         return [Job.from_row(r, self._serializer) for r in rows]
 
     async def get_executions(self, job_id: str) -> list[JobExecution]:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
                     SELECT id, job_id, worker_id, attempt, status,
@@ -200,7 +201,7 @@ class JobRepository:
         return [JobExecution.from_row(r, self._serializer) for r in rows]
 
     async def get_dependencies(self, job_id: str) -> list[str]:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor() as cur:
+        async with await self._connect() as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("SELECT depends_on FROM {deps} WHERE job_id = %(id)s").format(deps=self._t["deps"]),
                 {"id": job_id},
@@ -213,7 +214,7 @@ class JobRepository:
     # ------------------------------------------------------------------
 
     async def cancel(self, job_id: str) -> bool:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction(), conn.cursor() as cur:
+        async with await self._connect() as conn, conn.transaction(), conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -229,7 +230,7 @@ class JobRepository:
             return True
 
     async def abort(self, job_id: str) -> bool:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor() as cur:
+        async with await self._connect() as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -242,14 +243,14 @@ class JobRepository:
             return await cur.fetchone() is not None
 
     async def touch(self, job_id: str) -> None:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction():
+        async with await self._connect() as conn, conn.transaction():
             await conn.execute(
                 SQL("UPDATE {jobs} SET touched_at = NOW() WHERE id = %(id)s").format(jobs=self._t["jobs"]),
                 {"id": job_id},
             )
 
     async def requeue(self, job_id: str) -> bool:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor() as cur:
+        async with await self._connect() as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -278,7 +279,7 @@ class JobRepository:
         swept_ids: list[str] = []
         notify_queues: set[str] = set()
 
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
                     WITH stuck AS (
@@ -354,7 +355,7 @@ class JobRepository:
 
         scheduled_at = datetime.now(timezone.utc) + timedelta(seconds=delay)
 
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn:
+        async with await self._connect() as conn:
             await conn.execute(
                 SQL("""
                     INSERT INTO {jobs} (
@@ -391,7 +392,7 @@ class JobRepository:
     # ------------------------------------------------------------------
 
     async def delete(self, job_id: str) -> None:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn:
+        async with await self._connect() as conn:
             await conn.execute(
                 SQL("DELETE FROM {jobs} WHERE id = %(id)s").format(jobs=self._t["jobs"]),
                 {"id": job_id},
@@ -408,7 +409,7 @@ class JobRepository:
             params["function_name"] = function_name
         where = SQL(" AND ".join(filters))
 
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -439,7 +440,7 @@ class JobRepository:
             params["queue"] = queue
         where = SQL(" AND ".join(filters))
 
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor() as cur:
+        async with await self._connect() as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -451,7 +452,7 @@ class JobRepository:
             return cur.rowcount
 
     async def purge(self, statuses: list[str], older_than_days: int) -> int:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor() as cur:
+        async with await self._connect() as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     DELETE FROM {jobs}
@@ -463,7 +464,7 @@ class JobRepository:
             return cur.rowcount
 
     async def list_cron_stats(self) -> list[dict[str, Any]]:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
                     SELECT
@@ -484,7 +485,7 @@ class JobRepository:
             return await cur.fetchall()
 
     async def trigger_cron(self, name: str) -> Job | None:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
                     SELECT function, queue FROM {jobs}
@@ -500,7 +501,7 @@ class JobRepository:
 
         channel = Identifier(f"{self._prefix}:{existing['queue']}")
 
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL(
                     """
@@ -520,7 +521,7 @@ class JobRepository:
         return job
 
     async def reschedule_stuck(self) -> int:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -610,13 +611,13 @@ class JobRepository:
 class WorkerRepository:
     def __init__(
         self,
-        dsn: str,
+        connect: Connect,
         tables: dict[str, Any],
         prefix: str,
         get_serializer: Callable[[], Serializer],
         job_repo: JobRepository,
     ) -> None:
-        self._dsn = dsn
+        self._connect = connect
         self._t = tables
         self._prefix = prefix
         self._get_serializer = get_serializer
@@ -631,7 +632,7 @@ class WorkerRepository:
     # ------------------------------------------------------------------
 
     async def register(self, worker_id: str, name: str, queues: list[str], metadata: str) -> None:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction():
+        async with await self._connect() as conn, conn.transaction():
             await conn.execute(
                 SQL("""
                     INSERT INTO {worker} (id, name, queue, status, metadata, heartbeat_at)
@@ -647,7 +648,7 @@ class WorkerRepository:
             )
 
     async def deregister(self, worker_id: str) -> None:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction():
+        async with await self._connect() as conn, conn.transaction():
             await conn.execute(
                 SQL("""
                     UPDATE {worker}
@@ -658,7 +659,7 @@ class WorkerRepository:
             )
 
     async def update_heartbeat(self, worker_id: str) -> None:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction():
+        async with await self._connect() as conn, conn.transaction():
             await conn.execute(
                 SQL("UPDATE {worker} SET heartbeat_at = NOW() WHERE id = %(id)s").format(worker=self._t["worker"]),
                 {"id": worker_id},
@@ -688,7 +689,7 @@ class WorkerRepository:
             )
             extra_params = {"ordered_queues": ordered_queues}
 
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL(
                     """
@@ -776,7 +777,7 @@ class WorkerRepository:
         result_json: str | None,
         expires_at: datetime | None,
     ) -> bool:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction(), conn.cursor() as cur:
+        async with await self._connect() as conn, conn.transaction(), conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -835,7 +836,7 @@ class WorkerRepository:
     ) -> bool:
         is_terminal = new_status in ("failed", "aborted")
 
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction(), conn.cursor() as cur:
+        async with await self._connect() as conn, conn.transaction(), conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -898,14 +899,14 @@ class WorkerRepository:
         return True
 
     async def delete_job(self, job_id: str) -> None:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction():
+        async with await self._connect() as conn, conn.transaction():
             await conn.execute(
                 SQL("DELETE FROM {jobs} WHERE id = %(id)s").format(jobs=self._t["jobs"]),
                 {"id": job_id},
             )
 
     async def claim_sync(self, worker_id: str, job: Job) -> Job:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL(
                     """
@@ -943,7 +944,7 @@ class WorkerRepository:
         return claimed
 
     async def requeue_cancelled(self, worker_id: str, job: Job) -> None:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.transaction(), conn.cursor() as cur:
+        async with await self._connect() as conn, conn.transaction(), conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     UPDATE {jobs}
@@ -974,7 +975,7 @@ class WorkerRepository:
                 ),
                 {"wid": worker_id, "jid": job.id},
             )
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn:
+        async with await self._connect() as conn:
             await conn.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{job.queue}")))
 
     # ------------------------------------------------------------------
@@ -982,7 +983,7 @@ class WorkerRepository:
     # ------------------------------------------------------------------
 
     async def get_aborting(self, job_ids: list[str]) -> list[str]:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor() as cur:
+        async with await self._connect() as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     SELECT id::text FROM {jobs}
@@ -995,11 +996,11 @@ class WorkerRepository:
         return [r[0] for r in rows]
 
     async def notify(self, queue: str) -> None:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn:
+        async with await self._connect() as conn:
             await conn.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{queue}")))
 
     async def fetch(self) -> list[dict[str, Any]]:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
                     SELECT id::text, name, queue, status, metadata, heartbeat_at, started_at, expires_at
@@ -1010,7 +1011,7 @@ class WorkerRepository:
             return await cur.fetchall()
 
     async def get(self, worker_id: str) -> dict[str, Any] | None:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
                     SELECT id::text, name, queue, status, metadata, heartbeat_at, started_at, expires_at
@@ -1022,7 +1023,7 @@ class WorkerRepository:
             return await cur.fetchone()
 
     async def list_jobs(self, worker_id: str, limit: int = 50, offset: int = 0) -> list[Job]:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL(
                     """
@@ -1060,10 +1061,10 @@ class StatsRepository:
 
     def __init__(
         self,
-        dsn: str,
+        connect: Connect,
         tables: dict[str, Any],
     ) -> None:
-        self._dsn = dsn
+        self._connect = connect
         self._t = tables
 
     @staticmethod
@@ -1079,7 +1080,7 @@ class StatsRepository:
         return 6 * 60 * 60
 
     async def get_queue_stats(self) -> tuple[list[dict[str, Any]], int, int]:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
                     SELECT
@@ -1115,7 +1116,7 @@ class StatsRepository:
     async def get_throughput_history(self, minutes: int) -> list[dict[str, Any]]:
         step = self._step_secs(minutes)
         n = max(1, (minutes * 60) // step)
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL(
                     self._SAMPLE_GRID
@@ -1144,7 +1145,7 @@ class StatsRepository:
         step = self._step_secs(minutes)
         n = max(1, (minutes * 60) // step)
         window_secs = n * step
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL(
                     self._SAMPLE_GRID
@@ -1181,7 +1182,7 @@ class StatsRepository:
             return await cur.fetchall()
 
     async def get_server_info(self, prefix: str) -> tuple[str, int, list[dict[str, Any]]]:
-        async with await AsyncConnection.connect(self._dsn, autocommit=True) as conn, conn.cursor(row_factory=dict_row) as cur:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute("SELECT version() AS ver")
             pg_version: str = (await cur.fetchone() or {}).get("ver", "")
 

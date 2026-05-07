@@ -22,7 +22,6 @@ from .utils import require_rich
 @click.option("--queue", "-q", default=None, help="Filter by queue.")
 def dashboard(app: str, interval: int, queue: str | None) -> None:
     """Live auto-refreshing analytics dashboard."""
-    import psycopg
     from psycopg.sql import SQL
 
     console = require_rich()
@@ -37,8 +36,8 @@ def dashboard(app: str, interval: int, queue: str | None) -> None:
 
     wrk_app = load_app(app)
 
-    async def _fetch(dsn, t):
-        async with await psycopg.AsyncConnection.connect(dsn, autocommit=True) as conn, conn.cursor() as cur:
+    async def _fetch(connect, t):
+        async with await connect() as conn, conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     SELECT status, count(*)
@@ -142,7 +141,7 @@ def dashboard(app: str, interval: int, queue: str | None) -> None:
 
     async def _run() -> None:
         async with wrk_app:
-            counts, workers, recent = await _fetch(wrk_app.dsn, wrk_app._t)
+            counts, workers, recent = await _fetch(wrk_app._connect, wrk_app._t)
             last_refresh = datetime.now().strftime("%H:%M:%S")
 
             with Live(
@@ -151,7 +150,7 @@ def dashboard(app: str, interval: int, queue: str | None) -> None:
                 try:
                     while True:
                         await asyncio.sleep(interval)
-                        counts, workers, recent = await _fetch(wrk_app.dsn, wrk_app._t)
+                        counts, workers, recent = await _fetch(wrk_app._connect, wrk_app._t)
                         last_refresh = datetime.now().strftime("%H:%M:%S")
                         live.update(_build(counts, workers, recent, last_refresh))
                 except (KeyboardInterrupt, asyncio.CancelledError):

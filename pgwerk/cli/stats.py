@@ -17,7 +17,6 @@ from .utils import require_rich
 @click.option("--queue", "-q", default=None, help="Filter by queue name.")
 def stats(app: str, queue: str | None) -> None:
     """Show queue statistics with visual breakdown."""
-    import psycopg
     from psycopg.sql import SQL
 
     console = require_rich()
@@ -30,7 +29,7 @@ def stats(app: str, queue: str | None) -> None:
 
     async def _run() -> None:
         async with wrk_app:
-            async with await psycopg.AsyncConnection.connect(wrk_app.dsn, autocommit=True) as conn, conn.cursor() as cur:
+            async with await wrk_app._connect() as conn, conn.cursor() as cur:
                 await cur.execute(
                     SQL("""
                         SELECT status, count(*)

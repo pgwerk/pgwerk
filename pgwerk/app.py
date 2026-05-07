@@ -20,6 +20,7 @@ from psycopg import AsyncConnection
 from psycopg.sql import SQL
 from psycopg.sql import Identifier
 
+from .connection import Connect
 from .repos import JobInsert
 from .repos import JobRepository
 from .repos import StatsRepository
@@ -84,6 +85,7 @@ class Werk:
         self.config: WerkConfig = config or WerkConfig()
 
         self.dsn = dsn
+        self._connect: Connect = lambda: AsyncConnection.connect(self.dsn, autocommit=True)
         self.schema = schema if schema is not None else self.config.schema
         self.prefix = prefix if prefix is not None else self.config.prefix
         self.serializer: Serializer = serializer or get_default()
@@ -492,7 +494,7 @@ class Werk:
             backoff = 1.0
             while True:
                 try:
-                    async with await AsyncConnection.connect(self.dsn, autocommit=True) as conn:
+                    async with await self._connect() as conn:
                         await conn.execute(SQL("LISTEN {ch}").format(ch=Identifier(channel)))
                         backoff = 1.0
                         async for _ in conn.notifies():
@@ -955,7 +957,7 @@ class Werk:
         """Run ``VACUUM ANALYZE`` on all wrk tables outside of a transaction."""
         if not self._connected:
             raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
-        async with await AsyncConnection.connect(self.dsn, autocommit=True) as conn:
+        async with await self._connect() as conn:
             for table in self._t.values():
                 await conn.execute(SQL("VACUUM ANALYZE {t}").format(t=table))
 
@@ -968,7 +970,7 @@ class Werk:
         """
         if not self._connected:
             raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
-        async with await AsyncConnection.connect(self.dsn, autocommit=True) as conn:
+        async with await self._connect() as conn:
             await conn.execute(
                 SQL("""
                     TRUNCATE {jobs}, {executions}, {worker}, {worker_jobs}, {deps}
@@ -1030,15 +1032,15 @@ class Werk:
         if self._connected:
             return
 
-        async with await AsyncConnection.connect(self.dsn, autocommit=True) as conn:
+        async with await self._connect() as conn:
             await self._db.migrate(conn)
             if self.config.ephemeral_tables:
                 await self._db.alter_ephemeral_tables(conn)
 
         get_serializer = lambda: self.serializer  # noqa: E731
-        self.__job_repo = JobRepository(self.dsn, self._t, self.prefix, get_serializer)
-        self.__worker_repo = WorkerRepository(self.dsn, self._t, self.prefix, get_serializer, self.__job_repo)
-        self.__stats_repo = StatsRepository(self.dsn, self._t)
+        self.__job_repo = JobRepository(self._connect, self._t, self.prefix, get_serializer)
+        self.__worker_repo = WorkerRepository(self._connect, self._t, self.prefix, get_serializer, self.__job_repo)
+        self.__stats_repo = StatsRepository(self._connect, self._t)
 
         from .worker import AsyncWorker
 

@@ -139,7 +139,7 @@ class WerkExporter:
 
         t = self._pgwerk._t
 
-        async with await AsyncConnection.connect(self._pgwerk.dsn, autocommit=True) as conn:
+        async with await self._pgwerk._connect() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
                 # --- job counts by queue + status ---
                 await cur.execute(

@@ -281,7 +281,7 @@ class BaseWorker(abc.ABC):
         while self._running:
             conn: psycopg.AsyncConnection | None = None
             try:
-                conn = await psycopg.AsyncConnection.connect(self.app.dsn, autocommit=True)
+                conn = await self.app._connect()
                 for queue in self.queues:
                     await conn.execute(SQL("LISTEN {ch}").format(ch=Identifier(f"{self.app.prefix}:{queue}")))
                 backoff = 1.0
