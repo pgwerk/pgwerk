@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 
-from psycopg import AsyncConnection
 from psycopg.sql import SQL
 from psycopg.sql import Identifier
+
+from .connection import AsyncConnection
 
 from . import utils
 from .config import WerkConfig

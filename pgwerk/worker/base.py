@@ -279,29 +279,36 @@ class BaseWorker(abc.ABC):
     async def _listen_loop(self) -> None:
         backoff = 1.0
         while self._running:
-            conn: psycopg.AsyncConnection | None = None
             try:
                 conn = await self.app._connect()
+            except Exception as exc:
+                if not self._running:
+                    return  # type: ignore[unreachable]
+                logger.warning("Worker %s: listen loop error, reconnecting in %.1fs: %s", self.name, backoff, exc)
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, 30.0)
+                continue
+
+            try:
                 for queue in self.queues:
                     await conn.execute(SQL("LISTEN {ch}").format(ch=Identifier(f"{self.app.prefix}:{queue}")))
                 backoff = 1.0
                 self._wakeup.set()
                 async for _ in conn.notifies():
                     if not self._running:
-                        return
+                        return  # type: ignore[unreachable]
                     self._wakeup.set()
             except Exception as exc:
                 if not self._running:
-                    return
+                    return  # type: ignore[unreachable]
                 logger.warning("Worker %s: listen loop error, reconnecting in %.1fs: %s", self.name, backoff, exc)
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 30.0)
             finally:
-                if conn is not None:
-                    try:
-                        await conn.close()
-                    except Exception:
-                        pass
+                try:
+                    await conn.close()
+                except Exception:
+                    pass
 
     # ------------------------------------------------------------------
     # Abort loop

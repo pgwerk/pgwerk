@@ -6,7 +6,24 @@ on:
       - "v*"
 
 jobs:
+  typecheck:
+    name: Type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Type check
+        run: uv run mypy pgwerk/
+
   release:
+    needs: [typecheck]
     runs-on: ubuntu-latest
     environment: release
     permissions:

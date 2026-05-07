@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- Added `mypy` config with strict type checking
 - REST API module split into focused files (`deps.py`, `handlers.py`, `routes.py`, `spa.py`, `exporter.py`) instead of a single monolithic `app.py`
 - Config management centralized through `pgwerk/config.py` — workers, CLI commands, and the API all read from one place
 - Database repository layer now uses a protocol-based driver abstraction (`AsyncConnection` / `AsyncCursor` in `pgwerk/connection.py`), decoupling it from psycopg specifics

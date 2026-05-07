@@ -1,6 +1,6 @@
 from .app import Werk
-from .cron import CronJob
 from .cron import CronScheduler
+from .schemas import CronJob
 from .config import WerkConfig
 from .worker import BaseWorker
 from .worker import ForkWorker

@@ -263,7 +263,7 @@ class CronJob:
         if not self.interval and not self.cron:
             raise ValueError("Must specify either interval or cron")
         if self.name is None:
-            self.name = f"{self.func.__module__}.{self.func.__qualname__}"
+            self.name = f"{self.func.__module__}.{self.func.__qualname__}"  # type: ignore[unreachable]
         if self.cron:
             self._advance_cron()
 
@@ -491,7 +491,7 @@ class EnqueueParams:
     failure_mode: str = "hold"
 
 
-JOB_COLS: LiteralString = cast(
+JOB_COLS: LiteralString = cast(  # type: ignore[redundant-cast]
     LiteralString,
     "\n    " + ",\n    ".join(f.name for f in dataclasses.fields(Job)) + "\n",
 )

@@ -4,9 +4,10 @@ import logging
 import dataclasses
 
 from typing import Any
+from typing import cast
 from typing import Callable
 from typing import LiteralString
-from typing import cast
+from typing import AsyncGenerator
 from datetime import datetime
 from datetime import timezone
 from datetime import timedelta
@@ -31,7 +32,7 @@ from .serializers import encode
 logger = logging.getLogger(__name__)
 
 _INSERT_COLS = [f.name for f in dataclasses.fields(JobInsert) if f.name != "dep_ids"]
-_INSERT_SQL: LiteralString = cast(
+_INSERT_SQL: LiteralString = cast(  # type: ignore[redundant-cast]
     LiteralString,
     "INSERT INTO {jobs} (\n    "
     + ",\n    ".join(_INSERT_COLS)
@@ -59,7 +60,7 @@ class JobRepository:
         return self._get_serializer()
 
     @asynccontextmanager
-    async def _conn(self, conn: AsyncConnection | None, transaction: bool = False):
+    async def _conn(self, conn: AsyncConnection | None, transaction: bool = False) -> AsyncGenerator[AsyncConnection, None]:
         if conn is not None:
             yield conn
         elif transaction:

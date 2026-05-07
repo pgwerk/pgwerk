@@ -133,7 +133,6 @@ class WerkExporter:
 
     async def collect(self) -> None:
         """Run a single collection pass and update all gauges."""
-        from psycopg import AsyncConnection
         from psycopg.sql import SQL
         from psycopg.rows import dict_row
 

@@ -5,6 +5,7 @@ import mimetypes
 
 from litestar.response import File
 from litestar.exceptions import NotFoundException
+from litestar.types import Guard
 
 
 _STATIC_DIR = pathlib.Path(__file__).parent / "static"
@@ -36,7 +37,7 @@ def resolve_spa_file(path: str | None = None) -> File:
     return File(path=_STATIC_DIR / "index.html", media_type="text/html", content_disposition_type="inline")
 
 
-def init_spa(route_handlers: list, guard=None) -> None:
+def init_spa(route_handlers: list, guard: Guard | None = None) -> None:
     """Register SpaController if a built frontend is present.
 
     Args:

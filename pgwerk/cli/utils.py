@@ -3,11 +3,16 @@ from __future__ import annotations
 import re
 import importlib
 
+from typing import Any
+from typing import TYPE_CHECKING
 from datetime import datetime
 from datetime import timezone
 from datetime import timedelta
 
 import click
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 
 ALL_STATUSES = ["scheduled", "queued", "active", "waiting", "complete", "failed", "aborted", "aborting"]
@@ -24,7 +29,7 @@ STATUS_STYLES = {
 }
 
 
-def load_app(app_string: str):
+def load_app(app_string: str) -> Any:
     """Load a Wrk instance from a ``module:attribute`` string."""
     try:
         module_path, attr = app_string.rsplit(":", 1)
@@ -40,7 +45,7 @@ def load_app(app_string: str):
         raise click.ClickException(f"{module_path!r} has no attribute {attr!r}")
 
 
-def require_rich():
+def require_rich() -> "Console":
     try:
         from rich.console import Console
 

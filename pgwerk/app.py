@@ -7,17 +7,19 @@ import asyncio
 import logging
 
 from typing import Any
+from typing import cast
 from typing import Callable
 from datetime import datetime
 from datetime import timezone
 from datetime import timedelta
 
-from psycopg import AsyncConnection
+import psycopg
 from psycopg.sql import SQL
 from psycopg.sql import Identifier
 
+from .connection import AsyncConnection
 from .connection import Connect
-from .repos import JobInsert
+from .schemas import JobInsert
 from .repos import JobRepository
 from .repos import StatsRepository
 from .repos import WorkerRepository
@@ -85,7 +87,7 @@ class Werk:
         self.config: WerkConfig = config or WerkConfig()
 
         self.dsn = dsn
-        self._connect: Connect = lambda: AsyncConnection.connect(self.dsn, autocommit=True)
+        self._connect: Connect = cast(Connect, lambda: psycopg.AsyncConnection.connect(self.dsn, autocommit=True))
         self.schema = schema if schema is not None else self.config.schema
         self.prefix = prefix if prefix is not None else self.config.prefix
         self.serializer: Serializer = serializer or get_default()
@@ -1000,7 +1002,7 @@ class Werk:
             worker_type: One of ``"async"``, ``"thread"``, ``"process"``, or
                 ``"fork"``.
         """
-        _types = {
+        _types: dict[str, type[AsyncWorker] | type[ThreadWorker] | type[ProcessWorker] | type[ForkWorker]] = {
             "async": AsyncWorker,
             "thread": ThreadWorker,
             "process": ProcessWorker,

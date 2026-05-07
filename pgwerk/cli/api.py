@@ -70,13 +70,13 @@ def api(
 
     config = WerkConfig(
         dsn=dsn,
+        schema=schema,
+        prefix=prefix or "_pgwerk",
         metrics=metrics,
         metrics_interval=metrics_interval,
         ui=not no_ui,
         ui_auth=ui_auth,
         api_token=api_token,
-        **({} if schema is None else {"schema": schema}),
-        **({} if prefix is None else {"prefix": prefix}),
     )
 
     if reload:
