@@ -9,6 +9,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-05-07
+
+### Changed
+
+- DDL column ordering: timestamp columns (`enqueued_at`, `started_at`) are now the first column in each table, making the schema easier to read
+
 ## [0.1.5] - 2026-05-07
 
 ### Fixed
