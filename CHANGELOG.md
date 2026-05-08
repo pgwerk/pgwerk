@@ -11,8 +11,33 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
-- `CronScheduler` now registers itself in `_pgwerk_worker` with `role = 'scheduler'`, runs a heartbeat loop, and deregisters on shutdown — giving the same observability as job workers
-- `role` column on `_pgwerk_worker` (`'worker'` or `'scheduler'`, default `'worker'`) to distinguish job workers from scheduler instances; existing databases are migrated automatically (schema version 5)
+- `_pgwerk_schedules` table — recurring-job definitions are first-class rows keyed by `name`, with a new `Schedule` dataclass and `ScheduleRepository`
+- `on_unregistered` policy on `CronScheduler` (default `"pause"`, also `"keep"` and `"delete"`) for reconciling orphan schedules at startup
+- `CronScheduler` registers in `_pgwerk_worker` with `role = 'scheduler'` (new `role` column)
+- `CronScheduler.schedule()`, `schedule_at()`, `schedule_in()` — imperative registration that upserts to the DB immediately; safe to call after `run()` has started, and `_at` / `_in` variants anchor the first run at an explicit time
+- `Werk.enqueue_at(dt, func, ...)` and `Werk.enqueue_in(delay, func, ...)` — thin wrappers over `enqueue()` for one-shot deferred jobs
+- `GET /api/schedules` — list every registered schedule row (including never-fired ones)
+- `GET /api/schedules/stats` — per-schedule aggregate job statistics (the previous list endpoint's shape)
+- `GET /api/schedules/{name}` — fetch a single schedule row
+- `POST /api/jobs` now returns `404` (instead of `500`) when `schedule_name` references a schedule that doesn't exist
+
+### Changed
+
+- Scheduler coordination uses `FOR NO KEY UPDATE SKIP LOCKED` on `_pgwerk_schedules` instead of advisory-lock primary/standby
+- Renamed `jobs.cron_name` to `jobs.schedule_name` with a FK to `schedules(name)` (`ON DELETE SET NULL`, `ON UPDATE CASCADE`). The migration adds the FK with `NOT VALID` so existing rows are not scanned — pre-migration `cron_name` values that point to nothing become orphan labels. Run `ALTER TABLE <prefix>_jobs VALIDATE CONSTRAINT <prefix>_jobs_schedule_name_fkey` after backfilling or cleaning up to promote it
+- `CronScheduler.register()` stages in memory; the DB is written by `sync()` (auto-called by `run()`)
+- `POST /api/schedules/{name}/trigger` now returns the updated schedule row instead of the previously-enqueued job (triggering advances `next_run_at`; the next scheduler tick does the enqueue)
+
+### Removed
+
+- `CronJob` (replaced by `Schedule`), advisory-lock primary/standby machinery, and `cron_standby_retry_interval` config
+- `/api/cron/*` routes (replaced by `/api/schedules/*`)
+
+## [0.1.10] - 2026-05-07
+
+### Changed
+
+- `sync=True` execution no longer registers a pseudo-worker in `_pgwerk_worker` or claims a row in `_pgwerk_worker_jobs` — sync runs stay fully in-process and only record an execution row with `worker_id = NULL`
 
 ## [0.1.9] - 2026-05-07
 
