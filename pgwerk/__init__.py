@@ -1,6 +1,6 @@
 from .app import Werk
 from .cron import CronScheduler
-from .schemas import CronJob
+from .schemas import Schedule
 from .config import WerkConfig
 from .worker import BaseWorker
 from .worker import ForkWorker
@@ -53,7 +53,7 @@ __all__ = [
     "DequeueStrategy",
     "FailureMode",
     # Scheduler
-    "CronJob",
+    "Schedule",
     "CronScheduler",
     # Serializers
     "Serializer",

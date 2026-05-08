@@ -13,13 +13,14 @@ from typing import Any
 from typing import Callable
 from datetime import datetime
 from datetime import timezone
+from datetime import timedelta
 
-from pgwerk.schemas import CronJob
 from pgwerk.schemas import Job
 from pgwerk.schemas import Retry
 from pgwerk.schemas import Context
 from pgwerk.schemas import Callback
 from pgwerk.schemas import Dependency
+from pgwerk.schemas import Schedule
 
 logger = logging.getLogger(__name__)
 
@@ -37,30 +38,59 @@ def tty_supports_color(stream: Any = None) -> bool:
     return hasattr(stream, "isatty") and stream.isatty()
 
 
-def tick_dedupe_key(cjob: CronJob) -> str:
-    """Return a deduplication key for a single cron tick.
+def schedule_tick_key(schedule: Schedule) -> str:
+    """Return a dedup key for a single schedule tick.
 
-    The key is stable within the current scheduling bucket so that concurrent
-    scheduler instances produce the same key and the database deduplication
-    logic silently drops the duplicate enqueue.
-
-    Args:
-        cjob: The CronJob being enqueued.
-
-    Returns:
-        A unique string key scoped to this cron job and scheduling bucket.
+    Stable within the current scheduling bucket so that concurrent enqueues
+    (from multiple schedulers or a retry) collapse via the ``_jobs.key`` UNIQUE
+    constraint.
     """
-    if cjob.interval:
-        bucket = int(datetime.now(timezone.utc).timestamp() // cjob.interval)
-        return f"_pgwerk_cron:{cjob.name}:interval:{bucket}"
+    if schedule.interval_secs:
+        bucket = int(datetime.now(timezone.utc).timestamp() // schedule.interval_secs)
+        return f"_pgwerk_sched:{schedule.name}:interval:{bucket}"
 
-    if cjob.next_run_at is not None:
-        nxt = cjob.next_run_at
+    if schedule.next_run_at is not None:
+        nxt = schedule.next_run_at
         if nxt.tzinfo is None:
             nxt = nxt.replace(tzinfo=timezone.utc)
-        return f"_pgwerk_cron:{cjob.name}:cron:{nxt.isoformat()}"
+        return f"_pgwerk_sched:{schedule.name}:cron:{nxt.isoformat()}"
 
-    return f"_pgwerk_cron:{cjob.name}:fallback:{int(datetime.now(timezone.utc).timestamp())}"
+    return f"_pgwerk_sched:{schedule.name}:fallback:{int(datetime.now(timezone.utc).timestamp())}"
+
+
+def compute_next_run(
+    interval_secs: int | None,
+    cron: str | None,
+    base: datetime | None = None,
+) -> datetime:
+    """Return the next run time given a schedule's policy.
+
+    Args:
+        interval_secs: Uniform interval between runs. Mutually exclusive with ``cron``.
+        cron: Cron expression. Mutually exclusive with ``interval_secs``.
+        base: Anchor time to compute from. Defaults to ``NOW()`` UTC. For an
+            interval schedule this is typically the last (or current) run time.
+
+    Raises:
+        ValueError: If neither (or both) of ``interval_secs`` / ``cron`` is set.
+        ImportError: If ``cron`` is set but ``croniter`` is not installed.
+    """
+    if (interval_secs is None) == (cron is None):
+        raise ValueError("Specify either interval_secs or cron, not both")
+
+    anchor = base or datetime.now(timezone.utc)
+    if anchor.tzinfo is None:
+        anchor = anchor.replace(tzinfo=timezone.utc)
+
+    if interval_secs is not None:
+        return anchor + timedelta(seconds=interval_secs)
+
+    try:
+        from croniter import croniter
+    except ImportError:
+        raise ImportError("croniter is required for cron expressions: pip install croniter")
+    assert cron is not None
+    return croniter(cron, anchor).get_next(datetime)
 
 
 def advisory_key(s: str) -> int:

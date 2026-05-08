@@ -13,8 +13,11 @@ from datetime import timezone
 from datetime import timedelta
 from contextlib import asynccontextmanager
 
+import psycopg
+
 from psycopg.sql import SQL
 from psycopg.sql import Identifier
+from psycopg.sql import Placeholder
 from psycopg.rows import dict_row
 
 from .commons import DequeueStrategy
@@ -25,8 +28,10 @@ from .schemas import JOB_COLS
 from .schemas import Job
 from .schemas import JobInsert
 from .schemas import JobExecution
+from .schemas import Schedule
 from .serializers import Serializer
 from .serializers import encode
+from .utils import compute_next_run
 
 
 logger = logging.getLogger(__name__)
@@ -156,6 +161,7 @@ class JobRepository:
         status: str | None = None,
         worker_id: str | None = None,
         search: str | None = None,
+        schedule_name: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Job]:
@@ -173,6 +179,9 @@ class JobRepository:
         if search:
             filters.append("(function ILIKE %(search)s OR id::text ILIKE %(search)s OR queue ILIKE %(search)s)")
             params["search"] = f"%{search}%"
+        if schedule_name:
+            filters.append("schedule_name = %(schedule_name)s")
+            params["schedule_name"] = schedule_name
         where = SQL("WHERE " + " AND ".join(filters)) if filters else SQL("")
         async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
@@ -463,62 +472,26 @@ class JobRepository:
             )
             return cur.rowcount
 
-    async def list_cron_stats(self) -> list[dict[str, Any]]:
+    async def list_schedule_stats(self) -> list[dict[str, Any]]:
         async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
                     SELECT
-                        cron_name,
+                        schedule_name,
                         MAX(function)                             AS function,
-                        MAX(queue)                               AS queue,
-                        COUNT(*)                                 AS total_runs,
+                        MAX(queue)                                AS queue,
+                        COUNT(*)                                  AS total_runs,
                         COUNT(*) FILTER (WHERE status = 'failed') AS failed_runs,
                         (array_agg(status ORDER BY enqueued_at DESC))[1] AS last_status,
-                        MAX(enqueued_at)                         AS last_enqueued_at,
-                        MAX(completed_at)                        AS last_completed_at
+                        MAX(enqueued_at)                          AS last_enqueued_at,
+                        MAX(completed_at)                         AS last_completed_at
                     FROM {jobs}
-                    WHERE cron_name IS NOT NULL
-                    GROUP BY cron_name
+                    WHERE schedule_name IS NOT NULL
+                    GROUP BY schedule_name
                     ORDER BY MAX(enqueued_at) DESC
                 """).format(jobs=self._t["jobs"])
             )
             return await cur.fetchall()
-
-    async def trigger_cron(self, name: str) -> Job | None:
-        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                SQL("""
-                    SELECT function, queue FROM {jobs}
-                    WHERE cron_name = %(name)s
-                    ORDER BY enqueued_at DESC LIMIT 1
-                """).format(jobs=self._t["jobs"]),
-                {"name": name},
-            )
-            existing = await cur.fetchone()
-
-        if not existing:
-            return None
-
-        channel = Identifier(f"{self._prefix}:{existing['queue']}")
-
-        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                SQL(
-                    """
-                    INSERT INTO {jobs} (function, queue, status, priority, scheduled_at, cron_name)
-                    VALUES (%(fn)s, %(queue)s, 'queued', 0, NOW(), %(cron_name)s)
-                    RETURNING
-                """
-                    + JOB_COLS
-                ).format(jobs=self._t["jobs"]),
-                {"fn": existing["function"], "queue": existing["queue"], "cron_name": name},
-            )
-            row = await cur.fetchone()
-            if not row:
-                return None
-            job = Job.from_row(row, self._serializer)
-            await conn.execute(SQL("NOTIFY {ch}").format(ch=channel))
-        return job
 
     async def reschedule_stuck(self) -> int:
         async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
@@ -997,7 +970,7 @@ class WorkerRepository:
         async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
-                    SELECT id::text, name, queue, status, metadata, heartbeat_at, started_at, expires_at
+                    SELECT id::text, name, queue, status, role, metadata, heartbeat_at, started_at, expires_at
                     FROM {worker}
                     ORDER BY started_at DESC
                 """).format(worker=self._t["worker"])
@@ -1008,7 +981,7 @@ class WorkerRepository:
         async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL("""
-                    SELECT id::text, name, queue, status, metadata, heartbeat_at, started_at, expires_at
+                    SELECT id::text, name, queue, status, role, metadata, heartbeat_at, started_at, expires_at
                     FROM {worker}
                     WHERE id = %(id)s
                 """).format(worker=self._t["worker"]),
@@ -1175,7 +1148,7 @@ class StatsRepository:
             )
             return await cur.fetchall()
 
-    async def get_server_info(self, prefix: str) -> tuple[str, int, list[dict[str, Any]]]:
+    async def get_server_info(self, prefix: str) -> tuple[str, int, int, list[dict[str, Any]]]:
         async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute("SELECT version() AS ver")
             pg_version: str = (await cur.fetchone() or {}).get("ver", "")
@@ -1197,4 +1170,369 @@ class StatsRepository:
             )
             table_rows = await cur.fetchall()
 
-        return pg_version, db_size_bytes, table_rows
+        pgwerk_size_bytes: int = sum(r["size_bytes"] for r in table_rows)
+        return pg_version, db_size_bytes, pgwerk_size_bytes, table_rows
+
+
+# ---------------------------------------------------------------------------
+# Schedules
+# ---------------------------------------------------------------------------
+
+
+class ScheduleAlreadyExists(Exception):
+    """Raised when registering a schedule whose name is already in the DB."""
+
+
+class ScheduleNotFound(Exception):
+    """Raised when updating or deleting a schedule that does not exist."""
+
+
+class ScheduleRepository:
+    """Persistence for recurring-job definitions in ``_pgwerk_schedules``."""
+
+    def __init__(
+        self,
+        connect: Connect,
+        tables: dict[str, Any],
+        prefix: str,
+        get_serializer: Callable[[], Serializer],
+    ) -> None:
+        self._connect = connect
+        self._t = tables
+        self._prefix = prefix
+        self._get_serializer = get_serializer
+
+    @property
+    def _serializer(self) -> Serializer:
+        return self._get_serializer()
+
+    # ------------------------------------------------------------------
+    # CRUD
+    # ------------------------------------------------------------------
+
+    async def insert(self, schedule: Schedule) -> Schedule:
+        """Insert a new schedule row. Raises if a row with this name already exists.
+
+        If ``schedule.next_run_at`` is set it is honored as-is; otherwise it is
+        computed from the schedule's policy.
+        """
+        next_run_at = schedule.next_run_at or compute_next_run(schedule.interval_secs, schedule.cron)
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
+            try:
+                await cur.execute(
+                    SQL("""
+                        INSERT INTO {schedules} (
+                            name, function, queue, args, kwargs,
+                            interval_secs, cron, timeout_secs,
+                            result_ttl, failure_ttl, meta, paused,
+                            next_run_at, last_registered_at
+                        ) VALUES (
+                            %(name)s, %(function)s, %(queue)s, %(args)s, %(kwargs)s,
+                            %(interval_secs)s, %(cron)s, %(timeout_secs)s,
+                            %(result_ttl)s, %(failure_ttl)s, %(meta)s, %(paused)s,
+                            %(next_run_at)s, NOW()
+                        )
+                        RETURNING *
+                    """).format(schedules=self._t["schedules"]),
+                    {
+                        "name": schedule.name,
+                        "function": schedule.function,
+                        "queue": schedule.queue,
+                        "args": encode(self._serializer, list(schedule.args)) if schedule.args else None,
+                        "kwargs": encode(self._serializer, schedule.kwargs) if schedule.kwargs else None,
+                        "interval_secs": schedule.interval_secs,
+                        "cron": schedule.cron,
+                        "timeout_secs": schedule.timeout_secs,
+                        "result_ttl": schedule.result_ttl,
+                        "failure_ttl": schedule.failure_ttl,
+                        "meta": encode(self._serializer, schedule.meta),
+                        "paused": schedule.paused,
+                        "next_run_at": next_run_at,
+                    },
+                )
+            except psycopg.errors.UniqueViolation as exc:
+                raise ScheduleAlreadyExists(
+                    f"schedule {schedule.name!r} is already registered; "
+                    "call update() to modify it or unregister() to replace it"
+                ) from exc
+            row = await cur.fetchone()
+            assert row is not None
+            return Schedule.from_row(row, self._serializer)
+
+    async def update(self, name: str, **fields: Any) -> Schedule:
+        """Update mutable fields on an existing schedule row.
+
+        When ``interval_secs`` or ``cron`` is supplied the other is cleared and
+        ``next_run_at`` is recomputed from the new policy — unless ``next_run_at``
+        was also supplied explicitly, in which case the caller's value wins
+        (used by ``schedule_at()`` / ``schedule_in()`` to re-anchor the first run).
+        Unknown or ``None``-by-default fields are left untouched; pass them
+        explicitly to clear.
+        """
+        allowed = {
+            "function", "queue", "args", "kwargs",
+            "interval_secs", "cron",
+            "timeout_secs", "result_ttl", "failure_ttl", "meta", "paused",
+            "next_run_at",
+        }
+        updates: dict[str, Any] = {k: v for k, v in fields.items() if k in allowed}
+        if "interval_secs" in updates:
+            updates.setdefault("cron", None)
+        if "cron" in updates:
+            updates.setdefault("interval_secs", None)
+        if "args" in updates:
+            updates["args"] = encode(self._serializer, list(updates["args"])) if updates["args"] else None
+        if "kwargs" in updates:
+            updates["kwargs"] = encode(self._serializer, updates["kwargs"]) if updates["kwargs"] else None
+        if "meta" in updates:
+            updates["meta"] = encode(self._serializer, updates["meta"])
+
+        # Recompute next_run_at when the policy changes — but only if the caller
+        # did not supply next_run_at explicitly.
+        recompute = ("interval_secs" in updates or "cron" in updates) and "next_run_at" not in updates
+
+        async with await self._connect() as conn, conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
+            if recompute:
+                await cur.execute(
+                    SQL("SELECT interval_secs, cron FROM {schedules} WHERE name = %(name)s FOR UPDATE").format(
+                        schedules=self._t["schedules"]
+                    ),
+                    {"name": name},
+                )
+                existing = await cur.fetchone()
+                if existing is None:
+                    raise ScheduleNotFound(f"schedule {name!r} not found")
+                merged_interval = updates.get("interval_secs", existing["interval_secs"])
+                merged_cron = updates.get("cron", existing["cron"])
+                updates["next_run_at"] = compute_next_run(merged_interval, merged_cron)
+
+            if not updates:
+                await cur.execute(
+                    SQL("SELECT * FROM {schedules} WHERE name = %(name)s").format(
+                        schedules=self._t["schedules"]
+                    ),
+                    {"name": name},
+                )
+                row = await cur.fetchone()
+                if row is None:
+                    raise ScheduleNotFound(f"schedule {name!r} not found")
+                return Schedule.from_row(row, self._serializer)
+
+            set_sql = SQL(", ").join(
+                SQL("{c} = {p}").format(c=Identifier(k), p=Placeholder(k)) for k in updates
+            )
+            await cur.execute(
+                SQL("UPDATE {schedules} SET {set_sql} WHERE name = %(name)s RETURNING *").format(
+                    schedules=self._t["schedules"], set_sql=set_sql
+                ),
+                {**updates, "name": name},
+            )
+            row = await cur.fetchone()
+            if row is None:
+                raise ScheduleNotFound(f"schedule {name!r} not found")
+            return Schedule.from_row(row, self._serializer)
+
+    async def upsert(self, schedule: Schedule) -> Schedule:
+        """Insert or update a schedule row and return the resulting state.
+
+        If ``schedule.next_run_at`` is set it is honored (useful for delayed-start
+        schedules); otherwise it is computed from the policy on both insert and
+        update. This is the entry point for imperative registrations from the
+        scheduler's ``schedule()`` / ``schedule_at()`` / ``schedule_in()``.
+        """
+        try:
+            return await self.insert(schedule)
+        except ScheduleAlreadyExists:
+            update_fields: dict[str, Any] = {
+                "function": schedule.function,
+                "queue": schedule.queue,
+                "args": list(schedule.args) if schedule.args else [],
+                "kwargs": dict(schedule.kwargs) if schedule.kwargs else {},
+                "interval_secs": schedule.interval_secs,
+                "cron": schedule.cron,
+                "timeout_secs": schedule.timeout_secs,
+                "result_ttl": schedule.result_ttl,
+                "failure_ttl": schedule.failure_ttl,
+                "meta": schedule.meta,
+            }
+            if schedule.next_run_at is not None:
+                update_fields["next_run_at"] = schedule.next_run_at
+            return await self.update(schedule.name, **update_fields)
+
+    async def delete(self, name: str) -> bool:
+        async with await self._connect() as conn, conn.cursor() as cur:
+            await cur.execute(
+                SQL("DELETE FROM {schedules} WHERE name = %(name)s").format(
+                    schedules=self._t["schedules"]
+                ),
+                {"name": name},
+            )
+            return cur.rowcount > 0
+
+    async def get(self, name: str) -> Schedule | None:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                SQL("SELECT * FROM {schedules} WHERE name = %(name)s").format(
+                    schedules=self._t["schedules"]
+                ),
+                {"name": name},
+            )
+            row = await cur.fetchone()
+        return Schedule.from_row(row, self._serializer) if row else None
+
+    async def list_all(self) -> list[Schedule]:
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                SQL("SELECT * FROM {schedules} ORDER BY name").format(schedules=self._t["schedules"])
+            )
+            rows = await cur.fetchall()
+        return [Schedule.from_row(r, self._serializer) for r in rows]
+
+    async def list_names(self) -> list[str]:
+        async with await self._connect() as conn, conn.cursor() as cur:
+            await cur.execute(
+                SQL("SELECT name FROM {schedules}").format(schedules=self._t["schedules"])
+            )
+            rows = await cur.fetchall()
+        return [r[0] for r in rows]
+
+    # ------------------------------------------------------------------
+    # Tick
+    # ------------------------------------------------------------------
+
+    async def tick_once(self, enqueue_one: Callable[[Schedule], Any], limit: int = 100) -> int:
+        """Atomically fire all due schedules.
+
+        For each schedule returned by ``SELECT ... FOR NO KEY UPDATE SKIP LOCKED``,
+        invokes ``enqueue_one(schedule)`` and advances ``next_run_at`` /
+        ``last_run_at`` in the same transaction. Returns the number fired.
+
+        Args:
+            enqueue_one: Async callable that enqueues a job for a schedule.
+                It must not swallow exceptions it cannot handle — raising
+                aborts the whole tick transaction (nothing is marked run).
+            limit: Maximum schedules to fire in a single tick.
+        """
+        fired = 0
+        # FOR NO KEY UPDATE (not FOR UPDATE): enqueue_one() inserts a job on a
+        # fresh connection whose FK check grabs FOR KEY SHARE on the schedule
+        # row. FOR UPDATE would block that; FOR NO KEY UPDATE does not.
+        async with await self._connect() as conn, conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                SQL("""
+                    SELECT * FROM {schedules}
+                    WHERE NOT paused
+                      AND next_run_at IS NOT NULL
+                      AND next_run_at <= NOW()
+                    ORDER BY next_run_at
+                    LIMIT %(limit)s
+                    FOR NO KEY UPDATE SKIP LOCKED
+                """).format(schedules=self._t["schedules"]),
+                {"limit": limit},
+            )
+            rows = await cur.fetchall()
+            if not rows:
+                return 0
+
+            now = datetime.now(timezone.utc)
+            for row in rows:
+                schedule = Schedule.from_row(row, self._serializer)
+                await enqueue_one(schedule)
+                next_run = compute_next_run(schedule.interval_secs, schedule.cron, base=now)
+                await cur.execute(
+                    SQL("""
+                        UPDATE {schedules}
+                        SET last_run_at = %(now)s, next_run_at = %(next)s
+                        WHERE name = %(name)s
+                    """).format(schedules=self._t["schedules"]),
+                    {"now": now, "next": next_run, "name": schedule.name},
+                )
+                fired += 1
+        return fired
+
+    async def seconds_until_next_due(self, fallback: float = 60.0) -> float:
+        """Return seconds until the next un-paused schedule is due.
+
+        Returns ``fallback`` when no schedules are pending. Clamps to ``0``
+        when overdue.
+        """
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                SQL("""
+                    SELECT EXTRACT(EPOCH FROM (next_run_at - NOW()))::float AS secs
+                    FROM {schedules}
+                    WHERE NOT paused AND next_run_at IS NOT NULL
+                    ORDER BY next_run_at
+                    LIMIT 1
+                """).format(schedules=self._t["schedules"])
+            )
+            row = await cur.fetchone()
+        if row is None or row.get("secs") is None:
+            return fallback
+        return max(0.0, float(row["secs"]))
+
+    # ------------------------------------------------------------------
+    # Trigger (manual)
+    # ------------------------------------------------------------------
+
+    async def trigger(self, name: str) -> Schedule | None:
+        """Advance ``next_run_at`` to NOW so the next tick fires this schedule.
+
+        Returns the updated Schedule, or ``None`` if no schedule exists.
+        """
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                SQL("""
+                    UPDATE {schedules}
+                    SET next_run_at = NOW()
+                    WHERE name = %(name)s
+                    RETURNING *
+                """).format(schedules=self._t["schedules"]),
+                {"name": name},
+            )
+            row = await cur.fetchone()
+        return Schedule.from_row(row, self._serializer) if row else None
+
+    # ------------------------------------------------------------------
+    # Registration reconciliation (orphan handling)
+    # ------------------------------------------------------------------
+
+    async def reconcile(self, known_names: list[str], on_unregistered: str) -> list[str]:
+        """Apply the on_unregistered policy to schedules not in *known_names*.
+
+        Args:
+            known_names: Names currently registered in-process.
+            on_unregistered: One of ``'keep'``, ``'pause'``, ``'delete'``.
+
+        Returns:
+            List of schedule names that were affected (paused or deleted).
+            Empty for ``'keep'``.
+        """
+        if on_unregistered == "keep":
+            return []
+        if on_unregistered not in ("pause", "delete"):
+            raise ValueError(f"Invalid on_unregistered: {on_unregistered!r}")
+
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
+            if on_unregistered == "pause":
+                await cur.execute(
+                    SQL("""
+                        UPDATE {schedules}
+                        SET paused = TRUE
+                        WHERE name <> ALL(%(known)s::text[])
+                          AND NOT paused
+                        RETURNING name
+                    """).format(schedules=self._t["schedules"]),
+                    {"known": known_names},
+                )
+            else:  # delete
+                await cur.execute(
+                    SQL("""
+                        DELETE FROM {schedules}
+                        WHERE name <> ALL(%(known)s::text[])
+                        RETURNING name
+                    """).format(schedules=self._t["schedules"]),
+                    {"known": known_names},
+                )
+            rows = await cur.fetchall()
+        return [r["name"] for r in rows]

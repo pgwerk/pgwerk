@@ -10,10 +10,14 @@ import logging
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
+from datetime import datetime
+from datetime import timezone
+from datetime import timedelta
 
-from pgwerk.schemas import CronJob
-
-from . import utils
+from pgwerk.schemas import Schedule
+from pgwerk.utils import fn_path
+from pgwerk.utils import schedule_tick_key
+from pgwerk.repos import ScheduleAlreadyExists
 
 
 if TYPE_CHECKING:
@@ -23,49 +27,71 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+ON_UNREGISTERED = ("keep", "pause", "delete")
+
+
 class CronScheduler:
-    """Async cron scheduler with distributed locking via PostgreSQL advisory locks.
+    """Postgres-backed cron scheduler.
 
-    When multiple instances start (e.g. several worker processes), only one
-    becomes the *primary* scheduler. The others run in *standby* mode and
-    automatically promote if the primary's connection drops.
+    Schedule definitions live in ``_pgwerk_schedules``; all persistence and
+    coordination happens through that table. Multiple scheduler processes share
+    load via ``SELECT ... FOR UPDATE SKIP LOCKED`` — there is no primary/standby
+    role.
 
-    Jobs can be added, removed, paused, and resumed at any time — even while
-    the scheduler is running.
+    Typical usage::
 
-    Example:
-        scheduler = CronScheduler(app)
-        scheduler.register(send_report, queue="reports", cron="0 9 * * *")
-        scheduler.register(cleanup, queue="default", interval=300)
+        scheduler = CronScheduler(app, on_unregistered="pause")
+
+        @scheduler.register(cron="0 9 * * *", queue="reports")
+        async def send_report():
+            ...
 
         async with app:
-            await asyncio.gather(worker.run(), scheduler.run())
+            await scheduler.run()
 
     Attributes:
         id: Unique hex identifier for this scheduler instance.
         name: Human-readable name derived from hostname and PID.
     """
 
-    def __init__(self, app: "Werk") -> None:
+    def __init__(self, app: "Werk", *, on_unregistered: str = "pause") -> None:
+        """Initialize the scheduler.
+
+        Args:
+            app: The Werk app to enqueue jobs through.
+            on_unregistered: Reconciliation policy at ``run()`` startup for
+                schedules that exist in the DB but were not re-registered by
+                this process:
+
+                - ``"keep"``  — leave them as-is (DB remains source of truth;
+                  removing code does not affect behaviour).
+                - ``"pause"`` — set ``paused=True`` (default; recoverable, safe
+                  against accidental "disappearing" schedules during rolling
+                  deploys where subsets of hosts import subsets of modules).
+                - ``"delete"`` — remove the row (destructive; use only when
+                  this process owns the entire schedule inventory).
+        """
+        if on_unregistered not in ON_UNREGISTERED:
+            raise ValueError(f"on_unregistered must be one of {ON_UNREGISTERED}, got {on_unregistered!r}")
         self.app = app
-        self._jobs: dict[str, CronJob] = {}
+        self.on_unregistered = on_unregistered
+        self._pending: dict[str, Schedule] = {}  # stage registrations made before run()
         self._running = False
-        self._lock_key = utils.advisory_key(f"{app.prefix}:cron_scheduler")
         self.id = uuid.uuid4().hex
         self.name = f"{socket.gethostname()}.{os.getpid()}"
         self._heartbeat_task: asyncio.Task | None = None
 
     # ------------------------------------------------------------------
-    # Registration
+    # Registration (builds the desired-state set; DB write happens at sync)
     # ------------------------------------------------------------------
 
     def register(
         self,
-        func_or_cronjob: "Callable | CronJob",
-        queue: str = "default",
+        func: "Callable | None" = None,
         *,
-        name: str | None = None,  # defaults to module.qualname of the function
-        args: tuple | None = None,
+        queue: str = "default",
+        name: str | None = None,
+        args: tuple | list | None = None,
         kwargs: dict | None = None,
         interval: int | None = None,
         cron: str | None = None,
@@ -73,75 +99,143 @@ class CronScheduler:
         result_ttl: int | None = None,
         failure_ttl: int | None = None,
         meta: dict[str, Any] | None = None,
-    ) -> CronJob:
-        """Register a function (or a CronJob instance) to run on a schedule.
+    ) -> "Callable":
+        """Register *func* to run on a schedule.
 
-        If *name* is omitted it defaults to ``module.qualname`` of the function.
-        Registering under a name that is already in use raises ``ValueError``.
+        Can be used as a decorator (``@scheduler.register(interval=60)``) or as
+        a call (``scheduler.register(my_fn, interval=60)``).
 
-        Args:
-            func_or_cronjob: The function to schedule, or a pre-built
-                :class:`~wrk.schemas.CronJob` instance.
-            queue: Queue to enqueue the job into.
-            name: Override for the job name; defaults to ``module.qualname``.
-            args: Positional arguments forwarded to the function on each run.
-            kwargs: Keyword arguments forwarded to the function on each run.
-            interval: Seconds between runs (mutually exclusive with ``cron``).
-            cron: Cron expression (e.g. ``"0 9 * * *"``); requires ``croniter``.
-            timeout: Per-run timeout in seconds.
-            result_ttl: Seconds to retain successful job rows.
-            failure_ttl: Seconds to retain failed job rows.
-            meta: Arbitrary metadata attached to each enqueued job.
-
-        Returns:
-            The registered :class:`~wrk.schemas.CronJob` instance.
+        The schedule is staged in-process; it is upserted into the DB once
+        ``run()`` (or ``sync()``) is called. This matches how job workers are
+        wired: the app instance collects the declaration at import time, and a
+        single reconciliation pass hits the DB.
 
         Raises:
-            ValueError: If both ``interval`` and ``cron`` are set, or neither, or
-                if a job with the same name is already registered.
+            ValueError: If both / neither of ``interval`` and ``cron`` are set,
+                or if a schedule with the same name is already registered in
+                this process.
         """
-        if isinstance(func_or_cronjob, CronJob):
-            key = func_or_cronjob.name or name
-            if key is None:
-                key = f"{func_or_cronjob.func.__module__}.{func_or_cronjob.func.__qualname__}"
-                func_or_cronjob.name = key
-            if key in self._jobs:
-                raise ValueError(f"CronJob {key!r} is already registered; call unregister() first to replace it")
-            self._jobs[key] = func_or_cronjob
-            return func_or_cronjob
+        def _register(f: Callable) -> Callable:
+            sched_name = name or fn_path(f)
+            if sched_name in self._pending:
+                raise ValueError(
+                    f"schedule {sched_name!r} is already registered in this process; "
+                    "call unregister() first to replace it"
+                )
+            if (interval is None) == (cron is None):
+                raise ValueError("Specify either interval or cron, not both")
+            self._pending[sched_name] = Schedule(
+                name=sched_name,
+                function=fn_path(f),
+                queue=queue,
+                args=list(args) if args else [],
+                kwargs=dict(kwargs) if kwargs else {},
+                interval_secs=interval,
+                cron=cron,
+                timeout_secs=timeout,
+                result_ttl=result_ttl,
+                failure_ttl=failure_ttl,
+                meta=meta,
+            )
+            return f
 
-        func = func_or_cronjob
-        cjob = CronJob(
-            func=func,
+        return _register(func) if func is not None else _register
+
+    def unregister(self, name: str) -> None:
+        """Remove a schedule from the in-process set before ``sync()`` runs.
+
+        After ``sync()``, use :meth:`delete` to remove the DB row.
+        """
+        self._pending.pop(name, None)
+
+    # ------------------------------------------------------------------
+    # Imperative registration (writes to DB immediately)
+    # ------------------------------------------------------------------
+
+    def _build_schedule(
+        self,
+        func: "Callable | str",
+        *,
+        queue: str,
+        name: str | None,
+        args: tuple | list | None,
+        kwargs: dict | None,
+        interval: int | None,
+        cron: str | None,
+        timeout: int | None,
+        result_ttl: int | None,
+        failure_ttl: int | None,
+        meta: dict[str, Any] | None,
+        next_run_at: datetime | None,
+    ) -> Schedule:
+        if (interval is None) == (cron is None):
+            raise ValueError("Specify either interval or cron, not both")
+        function_path = func if isinstance(func, str) else fn_path(func)
+        sched_name = name or function_path
+        return Schedule(
+            name=sched_name,
+            function=function_path,
             queue=queue,
-            args=args or (),
-            kwargs=kwargs or {},
+            args=list(args) if args else [],
+            kwargs=dict(kwargs) if kwargs else {},
+            interval_secs=interval,
+            cron=cron,
+            timeout_secs=timeout,
+            result_ttl=result_ttl,
+            failure_ttl=failure_ttl,
+            meta=meta,
+            next_run_at=next_run_at,
+        )
+
+    async def schedule(
+        self,
+        func: "Callable | str",
+        *,
+        queue: str = "default",
+        name: str | None = None,
+        args: tuple | list | None = None,
+        kwargs: dict | None = None,
+        interval: int | None = None,
+        cron: str | None = None,
+        timeout: int | None = None,
+        result_ttl: int | None = None,
+        failure_ttl: int | None = None,
+        meta: dict[str, Any] | None = None,
+    ) -> Schedule:
+        """Imperatively upsert a schedule into the database.
+
+        Unlike :meth:`register` (which stages in-process for a later
+        :meth:`sync`), this writes immediately and is safe to call after
+        :meth:`run` has started. Re-calling with the same ``name`` updates
+        every provided field and recomputes ``next_run_at`` from the new policy.
+
+        Use :meth:`schedule_at` or :meth:`schedule_in` to start the first run
+        at an explicit time instead of the default (policy-derived) one.
+        """
+        sched = self._build_schedule(
+            func,
+            queue=queue,
+            name=name,
+            args=args,
+            kwargs=kwargs,
             interval=interval,
             cron=cron,
             timeout=timeout,
             result_ttl=result_ttl,
             failure_ttl=failure_ttl,
             meta=meta,
-            name=name,  # type: ignore[arg-type]
+            next_run_at=None,
         )
-        if cjob.name in self._jobs:
-            raise ValueError(f"CronJob {cjob.name!r} is already registered; call unregister() first to replace it")
-        self._jobs[cjob.name] = cjob
-        schedule = f"every {interval}s" if interval else f"cron '{cron}'"
-        logger.info(
-            "CronScheduler: registered %s on %s (%s)",
-            cjob.name,
-            queue,
-            schedule,
-        )
-        return cjob
+        return await self.app._schedule_repo.upsert(sched)
 
-    def update(
+    async def schedule_at(
         self,
-        name: str,
+        func: "Callable | str",
+        first_run_at: datetime,
         *,
-        queue: str | None = None,
-        args: tuple | None = None,
+        queue: str = "default",
+        name: str | None = None,
+        args: tuple | list | None = None,
         kwargs: dict | None = None,
         interval: int | None = None,
         cron: str | None = None,
@@ -149,133 +243,157 @@ class CronScheduler:
         result_ttl: int | None = None,
         failure_ttl: int | None = None,
         meta: dict[str, Any] | None = None,
-    ) -> CronJob:
-        """Update fields on a registered job in place.
+    ) -> Schedule:
+        """Like :meth:`schedule` but anchors the first run at ``first_run_at``.
 
-        Only the provided keyword arguments are applied. If either ``interval``
-        or ``cron`` is supplied the other is cleared, and the schedule is
-        re-validated via ``CronJob.__post_init__``.
+        Subsequent runs follow the ``interval``/``cron`` policy normally.
+        Naive datetimes are treated as UTC.
+        """
+        if first_run_at.tzinfo is None:
+            first_run_at = first_run_at.replace(tzinfo=timezone.utc)
+        sched = self._build_schedule(
+            func,
+            queue=queue,
+            name=name,
+            args=args,
+            kwargs=kwargs,
+            interval=interval,
+            cron=cron,
+            timeout=timeout,
+            result_ttl=result_ttl,
+            failure_ttl=failure_ttl,
+            meta=meta,
+            next_run_at=first_run_at,
+        )
+        return await self.app._schedule_repo.upsert(sched)
 
-        Args:
-            name: The registered job name.
-            queue: New queue to enqueue into.
-            args: New positional arguments.
-            kwargs: New keyword arguments.
-            interval: New interval in seconds (clears ``cron``).
-            cron: New cron expression (clears ``interval``).
-            timeout: New per-run timeout in seconds.
-            result_ttl: New seconds to retain successful job rows.
-            failure_ttl: New seconds to retain failed job rows.
-            meta: New metadata dict.
+    async def schedule_in(
+        self,
+        delay_secs: float,
+        func: "Callable | str",
+        *,
+        queue: str = "default",
+        name: str | None = None,
+        args: tuple | list | None = None,
+        kwargs: dict | None = None,
+        interval: int | None = None,
+        cron: str | None = None,
+        timeout: int | None = None,
+        result_ttl: int | None = None,
+        failure_ttl: int | None = None,
+        meta: dict[str, Any] | None = None,
+    ) -> Schedule:
+        """Like :meth:`schedule` but starts the first run ``delay_secs`` from now."""
+        first_run_at = datetime.now(timezone.utc) + timedelta(seconds=delay_secs)
+        return await self.schedule_at(
+            func,
+            first_run_at,
+            queue=queue,
+            name=name,
+            args=args,
+            kwargs=kwargs,
+            interval=interval,
+            cron=cron,
+            timeout=timeout,
+            result_ttl=result_ttl,
+            failure_ttl=failure_ttl,
+            meta=meta,
+        )
+
+    # ------------------------------------------------------------------
+    # Direct DB operations (available once the app is connected)
+    # ------------------------------------------------------------------
+
+    async def sync(self) -> tuple[int, int, list[str]]:
+        """Push staged registrations to the DB and reconcile orphans.
 
         Returns:
-            The updated :class:`~wrk.schemas.CronJob` instance.
-
-        Raises:
-            KeyError: If no job with that name is registered.
-            ValueError: If the resulting schedule configuration is invalid.
+            ``(inserted, updated, reconciled_names)``.
         """
-        cjob = self._jobs[name]
-        if queue is not None:
-            cjob.queue = queue
-        if args is not None:
-            cjob.args = args
-        if kwargs is not None:
-            cjob.kwargs = kwargs
-        if interval is not None:
-            cjob.interval = interval
-            cjob.cron = None
-        if cron is not None:
-            cjob.cron = cron
-            cjob.interval = None
-        if timeout is not None:
-            cjob.timeout = timeout
-        if result_ttl is not None:
-            cjob.result_ttl = result_ttl
-        if failure_ttl is not None:
-            cjob.failure_ttl = failure_ttl
-        if meta is not None:
-            cjob.meta = meta
-        cjob.__post_init__()
-        logger.info("CronScheduler: updated %s", name)
-        return cjob
+        repo = self.app._schedule_repo
+        inserted = 0
+        updated = 0
+        for schedule in self._pending.values():
+            try:
+                await repo.insert(schedule)
+                inserted += 1
+            except ScheduleAlreadyExists:
+                await repo.update(
+                    schedule.name,
+                    function=schedule.function,
+                    queue=schedule.queue,
+                    args=schedule.args,
+                    kwargs=schedule.kwargs,
+                    interval_secs=schedule.interval_secs,
+                    cron=schedule.cron,
+                    timeout_secs=schedule.timeout_secs,
+                    result_ttl=schedule.result_ttl,
+                    failure_ttl=schedule.failure_ttl,
+                    meta=schedule.meta,
+                )
+                updated += 1
 
-    def unregister(self, name: str) -> CronJob:
-        """Remove a job by name.
+        reconciled = await repo.reconcile(
+            list(self._pending.keys()), on_unregistered=self.on_unregistered
+        )
+        if reconciled:
+            logger.info(
+                "CronScheduler: %s %d orphan schedule(s): %s",
+                "deleted" if self.on_unregistered == "delete" else "paused",
+                len(reconciled),
+                reconciled,
+            )
+        return inserted, updated, reconciled
 
-        Args:
-            name: The registered job name.
+    async def update(self, name: str, **fields: Any) -> Schedule:
+        """Update a persisted schedule in place.
 
-        Returns:
-            The removed :class:`~wrk.schemas.CronJob` instance.
+        Pass any of ``queue``, ``args``, ``kwargs``, ``interval``, ``cron``,
+        ``timeout``, ``result_ttl``, ``failure_ttl``, ``meta``, ``paused``.
 
-        Raises:
-            KeyError: If no job with that name is registered.
+        Setting ``interval`` clears ``cron`` (and vice versa) and recomputes
+        ``next_run_at``.
         """
-        job = self._jobs.pop(name)
-        logger.info("CronScheduler: unregistered %s", name)
-        return job
+        # Translate friendly kwargs to DB field names.
+        translated: dict[str, Any] = {}
+        for k, v in fields.items():
+            if k == "interval":
+                translated["interval_secs"] = v
+            elif k == "timeout":
+                translated["timeout_secs"] = v
+            else:
+                translated[k] = v
+        return await self.app._schedule_repo.update(name, **translated)
+
+    async def pause(self, name: str) -> Schedule:
+        """Pause a schedule; its rows remain but tick() will skip it."""
+        return await self.app._schedule_repo.update(name, paused=True)
+
+    async def resume(self, name: str) -> Schedule:
+        """Unpause a schedule."""
+        return await self.app._schedule_repo.update(name, paused=False)
+
+    async def delete(self, name: str) -> bool:
+        """Delete a schedule row. Returns True if a row was removed."""
+        return await self.app._schedule_repo.delete(name)
+
+    async def trigger(self, name: str) -> Schedule | None:
+        """Force a schedule due NOW so the next tick enqueues it."""
+        return await self.app._schedule_repo.trigger(name)
+
+    async def list_schedules(self) -> list[Schedule]:
+        """Return every schedule row, ordered by name."""
+        return await self.app._schedule_repo.list_all()
+
+    async def get(self, name: str) -> Schedule | None:
+        """Return a single schedule by name, or ``None``."""
+        return await self.app._schedule_repo.get(name)
 
     # ------------------------------------------------------------------
-    # Dynamic control
+    # Scheduler lifecycle
     # ------------------------------------------------------------------
 
-    def pause(self, name: str) -> None:
-        """Pause a job — it stays registered but won't be enqueued until resumed.
-
-        Args:
-            name: The registered job name.
-
-        Raises:
-            KeyError: If no job with that name is registered.
-        """
-        self._jobs[name].paused = True
-        logger.info("CronScheduler: paused %s", name)
-
-    def resume(self, name: str) -> None:
-        """Resume a previously paused job.
-
-        Args:
-            name: The registered job name.
-
-        Raises:
-            KeyError: If no job with that name is registered.
-        """
-        self._jobs[name].paused = False
-        logger.info("CronScheduler: resumed %s", name)
-
-    # ------------------------------------------------------------------
-    # Introspection
-    # ------------------------------------------------------------------
-
-    @property
-    def jobs(self) -> dict[str, CronJob]:
-        """Read-only snapshot of registered jobs keyed by name."""
-        return dict(self._jobs)
-
-    def get(self, name: str) -> CronJob | None:
-        """Return the CronJob for *name*, or ``None`` if not registered.
-
-        Args:
-            name: The registered job name.
-
-        Returns:
-            The matching :class:`~wrk.schemas.CronJob`, or ``None``.
-        """
-        return self._jobs.get(name)
-
-    def __len__(self) -> int:
-        return len(self._jobs)
-
-    def __contains__(self, name: object) -> bool:
-        return name in self._jobs
-
-    # ------------------------------------------------------------------
-    # Registration & heartbeat
-    # ------------------------------------------------------------------
-
-    async def _register(self) -> None:
-        """Insert this scheduler into the worker table with role ``'scheduler'``."""
+    async def _register_instance(self) -> None:
         await self.app._worker_repo.register(
             self.id,
             self.name,
@@ -285,8 +403,7 @@ class CronScheduler:
         )
         logger.info("CronScheduler %s registered (%s)", self.name, self.id)
 
-    async def _deregister(self) -> None:
-        """Mark this scheduler as stopped in the worker table, if still connected."""
+    async def _deregister_instance(self) -> None:
         if not self.app._connected:
             return
         try:
@@ -295,7 +412,6 @@ class CronScheduler:
             logger.warning("CronScheduler %s: deregister failed: %s", self.name, exc)
 
     async def _heartbeat_loop(self) -> None:
-        """Periodically update ``heartbeat_at`` in the worker table while running."""
         interval = self.app.config.heartbeat_interval
         while self._running:
             try:
@@ -304,98 +420,59 @@ class CronScheduler:
                 logger.warning("CronScheduler %s: heartbeat error: %s", self.name, exc)
             await asyncio.sleep(interval)
 
-    # ------------------------------------------------------------------
-    # Internal loop helpers
-    # ------------------------------------------------------------------
+    async def _enqueue_due(self, schedule: Schedule) -> None:
+        await self.app.enqueue(
+            schedule.function,
+            *schedule.args,
+            _queue=schedule.queue,
+            _key=schedule_tick_key(schedule),
+            _timeout=schedule.timeout_secs,
+            _result_ttl=schedule.result_ttl,
+            _failure_ttl=schedule.failure_ttl,
+            _meta=schedule.meta,
+            _schedule_name=schedule.name,
+            **schedule.kwargs,
+        )
 
-    def _sleep_seconds(self) -> float:
-        """Return seconds to sleep until the next job is due, capped at 60."""
-        jobs = list(self._jobs.values())
-        if not jobs:
-            return 60.0
-        return min(min(j.seconds_until_next() for j in jobs), 60.0)
-
-    async def _tick(self) -> None:
-        """Enqueue all jobs whose next run time has been reached."""
-        for cjob in list(self._jobs.values()):
-            if not cjob.should_run():
-                continue
-            try:
-                await self.app.enqueue(
-                    cjob.func,
-                    *cjob.args,
-                    _queue=cjob.queue,
-                    _key=utils.tick_dedupe_key(cjob),
-                    _timeout=cjob.timeout,
-                    _result_ttl=cjob.result_ttl,
-                    _failure_ttl=cjob.failure_ttl,
-                    _meta=cjob.meta,
-                    _cron_name=cjob.name,
-                    **cjob.kwargs,
-                )
-                cjob.mark_enqueued()
-                logger.info("CronScheduler: enqueued %s", cjob.name)
-            except Exception as exc:
-                logger.exception(
-                    "CronScheduler: failed to enqueue %s: %s",
-                    cjob.name,
-                    exc,
-                )
-
-    async def _run_as_primary(self) -> None:
-        """Run the tick loop as the primary scheduler until stopped."""
-        logger.info("CronScheduler: running as primary (%d job(s))", len(self._jobs))
-        while self._running:
-            await self._tick()
-            sleep = self._sleep_seconds()
-            if sleep > 0:
-                await asyncio.sleep(sleep)
+    async def _tick(self) -> int:
+        """Fire all due schedules. Returns the number fired."""
+        try:
+            return await self.app._schedule_repo.tick_once(self._enqueue_due)
+        except Exception as exc:
+            logger.exception("CronScheduler: tick error: %s", exc)
+            return 0
 
     async def run(self) -> None:
-        """Start the scheduler and block until shutdown.
+        """Run the scheduler until :meth:`stop` is called or the task is cancelled.
 
-        Registers this instance in the worker table, starts a heartbeat loop,
-        then competes for a PostgreSQL session-level advisory lock. The instance
-        that wins the lock runs as the primary scheduler; all others sit in
-        standby and automatically promote when the primary's connection drops.
-
-        On exit (normal or cancelled), the heartbeat task is cancelled and this
-        instance is deregistered from the worker table.
+        Performs a one-time sync of staged registrations, registers the
+        instance in the worker table, then loops: tick, sleep until the next
+        due schedule (capped at ``poll_interval`` seconds).
         """
         self._running = True
-        await self._register()
+        await self.sync()
+        await self._register_instance()
         self._heartbeat_task = asyncio.ensure_future(self._heartbeat_loop())
 
+        poll_cap = max(1.0, float(self.app.config.poll_interval))
         try:
             while self._running:
-                acquired = False
                 try:
-                    async with await self.app._connect() as lock_conn:
-                        async with lock_conn.cursor() as cur:
-                            await cur.execute("SELECT pg_try_advisory_lock(%s)", (self._lock_key,))
-                            row = await cur.fetchone()
-                        acquired = bool(row and row[0])
-
-                        if acquired:
-                            try:
-                                await self._run_as_primary()
-                            finally:
-                                await lock_conn.execute("SELECT pg_advisory_unlock(%s)", (self._lock_key,))
+                    await self._tick()
+                    sleep_for = await self.app._schedule_repo.seconds_until_next_due(
+                        fallback=poll_cap
+                    )
+                    await asyncio.sleep(min(sleep_for, poll_cap))
                 except asyncio.CancelledError:
                     break
                 except Exception as exc:
-                    logger.warning("CronScheduler: error: %s", exc)
-
-                if not acquired and self._running:
-                    logger.debug(
-                        "CronScheduler: standby — retrying in %.0fs", self.app.config.cron_standby_retry_interval
-                    )
-                    await asyncio.sleep(self.app.config.cron_standby_retry_interval)
+                    logger.warning("CronScheduler: loop error: %s", exc)
+                    await asyncio.sleep(poll_cap)
         finally:
             if self._heartbeat_task:
                 self._heartbeat_task.cancel()
                 await asyncio.gather(self._heartbeat_task, return_exceptions=True)
-            await self._deregister()
+            await self._deregister_instance()
 
     def stop(self) -> None:
         """Signal the scheduler loop to stop after the current tick completes."""

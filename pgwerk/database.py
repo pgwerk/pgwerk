@@ -104,7 +104,7 @@ class DatabaseManager:
                     repeat_remaining     INT,
                     repeat_interval_secs INT,
                     repeat_intervals     JSONB,
-                    cron_name            TEXT
+                    schedule_name        TEXT
                 )
             """).format(jobs=t("jobs")),
             # Full-status index — supports UI queries and filtering on any status
@@ -171,6 +171,42 @@ class DatabaseManager:
             SQL("CREATE INDEX IF NOT EXISTS {idx} ON {deps} (depends_on)").format(
                 idx=idx("job_deps_on_idx"), deps=t("job_deps")
             ),
+            # --- schedules ----------------------------------------------------
+            SQL("""
+                CREATE TABLE IF NOT EXISTS {schedules} (
+                    name                 TEXT        PRIMARY KEY,
+                    function             TEXT        NOT NULL,
+                    queue                TEXT        NOT NULL DEFAULT 'default',
+                    args                 JSONB,
+                    kwargs               JSONB,
+                    interval_secs        INT,
+                    cron                 TEXT,
+                    timeout_secs         INT,
+                    result_ttl           INT,
+                    failure_ttl          INT,
+                    meta                 JSONB,
+                    paused               BOOLEAN     NOT NULL DEFAULT FALSE,
+                    next_run_at          TIMESTAMPTZ,
+                    last_run_at          TIMESTAMPTZ,
+                    last_registered_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    CHECK ((interval_secs IS NULL) <> (cron IS NULL))
+                )
+            """).format(schedules=t("schedules")),
+            SQL(
+                "CREATE INDEX IF NOT EXISTS {idx} ON {schedules} (next_run_at) WHERE NOT paused"
+            ).format(idx=idx("schedules_due_idx"), schedules=t("schedules")),
+            # --- jobs.schedule_name FK (after schedules exists) ---------------
+            SQL("""
+                ALTER TABLE {jobs}
+                ADD CONSTRAINT {fk}
+                FOREIGN KEY (schedule_name) REFERENCES {schedules}(name)
+                ON DELETE SET NULL
+                ON UPDATE CASCADE
+            """).format(jobs=t("jobs"), schedules=t("schedules"), fk=idx("jobs_schedule_name_fkey")),
+            SQL(
+                "CREATE INDEX IF NOT EXISTS {idx} ON {jobs} (schedule_name) WHERE schedule_name IS NOT NULL"
+            ).format(idx=idx("jobs_schedule_name_idx"), jobs=t("jobs")),
         ]
 
     def _migrations(self) -> list[tuple[int, list]]:
@@ -214,6 +250,55 @@ class DatabaseManager:
                     SQL(
                         "ALTER TABLE {worker} ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'worker'"
                     ).format(worker=t("worker")),
+                ],
+            ),
+            (
+                6,
+                [
+                    SQL("""
+                        CREATE TABLE IF NOT EXISTS {schedules} (
+                            name                 TEXT        PRIMARY KEY,
+                            function             TEXT        NOT NULL,
+                            queue                TEXT        NOT NULL DEFAULT 'default',
+                            args                 JSONB,
+                            kwargs               JSONB,
+                            interval_secs        INT,
+                            cron                 TEXT,
+                            timeout_secs         INT,
+                            result_ttl           INT,
+                            failure_ttl          INT,
+                            meta                 JSONB,
+                            paused               BOOLEAN     NOT NULL DEFAULT FALSE,
+                            next_run_at          TIMESTAMPTZ,
+                            last_run_at          TIMESTAMPTZ,
+                            last_registered_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                            created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                            CHECK ((interval_secs IS NULL) <> (cron IS NULL))
+                        )
+                    """).format(schedules=t("schedules")),
+                    SQL(
+                        "CREATE INDEX IF NOT EXISTS {idx} ON {schedules} (next_run_at) WHERE NOT paused"
+                    ).format(idx=idx("schedules_due_idx"), schedules=t("schedules")),
+                    SQL("ALTER TABLE {jobs} RENAME COLUMN cron_name TO schedule_name").format(
+                        jobs=t("jobs")
+                    ),
+                    # NOT VALID: enforce the FK for new/updated rows, but skip the
+                    # scan of existing rows. Pre-migration rows may reference cron
+                    # names that never became schedule rows — treat those as orphan
+                    # labels rather than failing the migration. Operators can promote
+                    # later with: ALTER TABLE jobs VALIDATE CONSTRAINT <fk>.
+                    SQL("""
+                        ALTER TABLE {jobs}
+                        ADD CONSTRAINT {fk}
+                        FOREIGN KEY (schedule_name) REFERENCES {schedules}(name)
+                        ON DELETE SET NULL
+                        ON UPDATE CASCADE
+                        NOT VALID
+                    """).format(jobs=t("jobs"), schedules=t("schedules"), fk=idx("jobs_schedule_name_fkey")),
+                    SQL(
+                        "CREATE INDEX IF NOT EXISTS {idx} ON {jobs} (schedule_name) "
+                        "WHERE schedule_name IS NOT NULL"
+                    ).format(idx=idx("jobs_schedule_name_idx"), jobs=t("jobs")),
                 ],
             ),
         ]

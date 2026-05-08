@@ -12,6 +12,7 @@ from datetime import datetime
 if TYPE_CHECKING:
     from ..schemas import Job
     from ..schemas import JobExecution
+    from ..schemas import Schedule
 
 
 @dataclasses.dataclass
@@ -101,6 +102,7 @@ class ExecutionResponse:
         status: Current or final state of this execution.
         worker_id: UUID of the worker that ran this attempt.
         error: Error message or traceback if the attempt failed.
+        result: Decoded return value if the execution succeeded.
         started_at: When this attempt began.
         completed_at: When this attempt reached a terminal state.
     """
@@ -111,6 +113,7 @@ class ExecutionResponse:
     status: str
     worker_id: str | None = None
     error: str | None = None
+    result: Any = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
 
@@ -131,6 +134,7 @@ class ExecutionResponse:
             status=str(e.status.value),
             worker_id=e.worker_id,
             error=e.error,
+            result=e.result,
             started_at=e.started_at,
             completed_at=e.completed_at,
         )
@@ -333,12 +337,16 @@ class ServerInfo:
 
     Attributes:
         pg_version: Postgres server version string.
-        db_size_bytes: Total database size in bytes.
+        db_size_bytes: Total size of the entire Postgres database in bytes.
+        pgwerk_size_bytes: Combined size of all wrk tables in bytes.
+        schema: Postgres schema that qualifies wrk table names, or ``None`` for the default search path.
         tables: Per-table size and row-count metadata.
     """
 
     pg_version: str
     db_size_bytes: int
+    pgwerk_size_bytes: int
+    schema: str | None
     tables: list[TableInfo]
 
 
@@ -398,7 +406,7 @@ class EnqueueRequest:
         max_attempts: Maximum total execution attempts.
         timeout_secs: Hard per-attempt wall-clock timeout in seconds.
         meta: Arbitrary user-supplied metadata stored with the job.
-        cron_name: Cron job name to associate with this enqueue.
+        schedule_name: Name of the Schedule this enqueue is associated with.
     """
 
     function: str
@@ -412,18 +420,80 @@ class EnqueueRequest:
     max_attempts: int = 1
     timeout_secs: int | None = None
     meta: dict[str, Any] | None = None
-    cron_name: str | None = None
+    schedule_name: str | None = None
 
 
 @dataclasses.dataclass
-class CronJobStats:
-    """Aggregated statistics for a single registered cron job.
+class ScheduleResponse:
+    """A registered schedule row from ``_pgwerk_schedules``.
 
     Attributes:
-        name: Cron job name (``module.qualname`` by default).
+        name: Schedule name (primary key).
         function: Dotted import path of the handler.
-        queue: Queue the cron job enqueues into.
-        total_runs: Total number of times the job has been enqueued.
+        queue: Queue the schedule enqueues into.
+        args: Positional arguments forwarded to the handler on each run.
+        kwargs: Keyword arguments forwarded to the handler on each run.
+        interval_secs: Seconds between runs (mutually exclusive with ``cron``).
+        cron: Cron expression (mutually exclusive with ``interval_secs``).
+        timeout_secs: Per-run wall-clock timeout in seconds.
+        result_ttl: Seconds to retain successful job rows.
+        failure_ttl: Seconds to retain failed job rows.
+        meta: Arbitrary metadata attached to each enqueued job.
+        paused: Whether the schedule is currently paused.
+        next_run_at: Next wall-clock time this schedule is due.
+        last_run_at: Most recent wall-clock time an enqueue fired.
+        last_registered_at: When this row was last bumped by ``register()``.
+        created_at: Row creation time.
+    """
+
+    name: str
+    function: str
+    queue: str
+    args: list[Any]
+    kwargs: dict[str, Any]
+    interval_secs: int | None
+    cron: str | None
+    timeout_secs: int | None
+    result_ttl: int | None
+    failure_ttl: int | None
+    meta: dict[str, Any] | None
+    paused: bool
+    next_run_at: datetime | None
+    last_run_at: datetime | None
+    last_registered_at: datetime | None
+    created_at: datetime | None
+
+    @classmethod
+    def from_schedule(cls, s: "Schedule") -> "ScheduleResponse":
+        return cls(
+            name=s.name,
+            function=s.function,
+            queue=s.queue,
+            args=list(s.args) if s.args else [],
+            kwargs=dict(s.kwargs) if s.kwargs else {},
+            interval_secs=s.interval_secs,
+            cron=s.cron,
+            timeout_secs=s.timeout_secs,
+            result_ttl=s.result_ttl,
+            failure_ttl=s.failure_ttl,
+            meta=s.meta,
+            paused=s.paused,
+            next_run_at=s.next_run_at,
+            last_run_at=s.last_run_at,
+            last_registered_at=s.last_registered_at,
+            created_at=s.created_at,
+        )
+
+
+@dataclasses.dataclass
+class ScheduleStats:
+    """Aggregated job statistics for a single schedule.
+
+    Attributes:
+        name: Schedule name (``module.qualname`` by default).
+        function: Dotted import path of the handler.
+        queue: Queue the schedule enqueues into.
+        total_runs: Total number of times the schedule has been enqueued.
         failed_runs: Number of runs that ended in a failed or aborted state.
         last_status: Status of the most recent execution.
         last_enqueued_at: Timestamp of the most recent enqueue.
@@ -440,17 +510,17 @@ class CronJobStats:
     last_completed_at: datetime | None = None
 
     @classmethod
-    def from_row(cls, r: dict[str, Any]) -> "CronJobStats":
-        """Construct CronJobStats from a raw database row dict.
+    def from_row(cls, r: dict[str, Any]) -> "ScheduleStats":
+        """Construct ScheduleStats from a raw database row dict.
 
         Args:
-            r: Database row with aggregated cron statistics columns.
+            r: Database row with aggregated schedule statistics columns.
 
         Returns:
-            A CronJobStats instance.
+            A ScheduleStats instance.
         """
         return cls(
-            name=r["cron_name"],
+            name=r["schedule_name"],
             function=r["function"],
             queue=r["queue"],
             total_runs=r["total_runs"],
@@ -459,3 +529,24 @@ class CronJobStats:
             last_enqueued_at=r["last_enqueued_at"],
             last_completed_at=r["last_completed_at"],
         )
+
+
+@dataclasses.dataclass
+class CreateScheduleBody:
+    """Request body for POST /schedules.
+
+    Attributes:
+        name: Unique schedule name (primary key).
+        function: Dotted import path of the handler to run on each tick.
+        queue: Queue the enqueued jobs land on.
+        cron: Cron expression (mutually exclusive with ``interval_secs``).
+        interval_secs: Seconds between runs (mutually exclusive with ``cron``).
+        kwargs: Keyword arguments forwarded to the handler on each run.
+    """
+
+    name: str
+    function: str
+    queue: str = "default"
+    cron: str | None = None
+    interval_secs: int | None = None
+    kwargs: dict[str, Any] = dataclasses.field(default_factory=dict)

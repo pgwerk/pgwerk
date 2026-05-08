@@ -35,9 +35,6 @@ class WerkConfig:
             during graceful shutdown before forcibly terminating.
         sigterm_grace: Seconds ``ForkWorker`` waits between sending
             SIGTERM and SIGKILL to a timed-out subprocess.
-        cron_standby_retry_interval: Seconds a standby ``CronScheduler``
-            waits before retrying the advisory lock that guards the
-            primary scheduler role.
         ephemeral_tables: Use ``UNLOGGED`` tables for ``_pgwerk_worker`` and
             ``_pgwerk_worker_jobs``. Faster writes; data is lost on a crash,
             which is safe because workers re-register on startup and the
@@ -49,7 +46,7 @@ class WerkConfig:
         api_token: Bearer token for all ``/api/*`` routes.
     """
 
-    schema_version: ClassVar[int] = 4
+    schema_version: ClassVar[int] = 6
 
     # Connection
     dsn: str | None = None
@@ -70,9 +67,6 @@ class WerkConfig:
 
     # ForkWorker
     sigterm_grace: int = 5
-
-    # CronScheduler
-    cron_standby_retry_interval: float = 30.0
 
     # Table storage
     ephemeral_tables: bool = False

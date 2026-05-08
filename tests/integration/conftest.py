@@ -15,7 +15,7 @@ _TEST_DSN = os.environ.get("PGWERK_TEST_DSN", "postgresql://pgwerk:pgwerk@localh
 _TEST_SCHEMA = "pgwerk"
 _TEST_PREFIX = "_pgwerk"
 
-_TABLES = ["job_deps", "worker_jobs", "jobs_executions", "jobs"]
+_TABLES = ["job_deps", "worker_jobs", "jobs_executions", "jobs", "schedules"]
 _DROP_TABLES = [*_TABLES, "worker", "versions"]
 
 

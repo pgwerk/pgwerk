@@ -11,8 +11,6 @@ from typing import Optional
 from typing import LiteralString
 from typing import cast
 from datetime import datetime
-from datetime import timezone
-from datetime import timedelta
 from dataclasses import field
 from dataclasses import dataclass
 
@@ -64,7 +62,7 @@ class Job:
         repeat_remaining: Number of additional repeats still pending.
         repeat_interval_secs: Uniform delay between repeats in seconds.
         repeat_intervals: Per-run repeat delays in seconds.
-        cron_name: Name of the CronJob that created this job, if any.
+        schedule_name: Name of the Schedule that created this job, if any.
         failure_mode: What to do on terminal failure — ``"hold"`` or ``"delete"``.
     """
 
@@ -103,7 +101,7 @@ class Job:
     repeat_remaining: int | None = None
     repeat_interval_secs: int | None = None
     repeat_intervals: list[int] | None = None
-    cron_name: str | None = None
+    schedule_name: str | None = None
     failure_mode: str = "hold"
 
     def __post_init__(self) -> None:
@@ -166,7 +164,7 @@ class JobInsert:
     repeat_remaining: int | None = None
     repeat_interval_secs: int | None = None
     repeat_intervals: str | None = None
-    cron_name: str | None = None
+    schedule_name: str | None = None
 
     def as_params(self) -> dict[str, Any]:
         """Return a dict of all fields except ``dep_ids`` for use as DB query parameters.
@@ -232,95 +230,55 @@ class JobExecution:
 
 
 @dataclass
-class CronJob:
-    """A function registered to run on a fixed interval or cron schedule."""
+class Schedule:
+    """A recurring job registration as stored in ``_pgwerk_schedules``.
 
-    func: Callable
+    Exactly one of ``interval_secs`` and ``cron`` is set; this is enforced at
+    register/update time and by a DB CHECK constraint.
+
+    Attributes:
+        name: Unique identifier; serves as the primary key in the DB.
+        function: Dotted import path of the handler to enqueue on each tick.
+        queue: Queue the enqueued jobs land on.
+        args: Positional arguments forwarded to the handler on each run.
+        kwargs: Keyword arguments forwarded to the handler on each run.
+        interval_secs: Seconds between runs (mutually exclusive with ``cron``).
+        cron: Cron expression (mutually exclusive with ``interval_secs``).
+        timeout_secs: Per-run wall-clock timeout in seconds.
+        result_ttl: Seconds to retain enqueued successful job rows.
+        failure_ttl: Seconds to retain enqueued failed job rows.
+        meta: Arbitrary metadata attached to each enqueued job.
+        paused: When True, the schedule is skipped by the tick loop.
+        next_run_at: The wall-clock time this schedule is next due.
+        last_run_at: The wall-clock time of the most recent enqueue.
+        last_registered_at: When this row was last bumped by ``register()``.
+        created_at: Row creation time.
+    """
+
+    name: str
+    function: str
     queue: str = "default"
-    args: tuple = field(default_factory=tuple)
-    kwargs: dict = field(default_factory=dict)
-    interval: int | None = None  # seconds between runs
-    cron: str | None = None  # cron expression, e.g. "*/5 * * * *"
-    timeout: int | None = None
+    args: list[Any] = field(default_factory=list)
+    kwargs: dict[str, Any] = field(default_factory=dict)
+    interval_secs: int | None = None
+    cron: str | None = None
+    timeout_secs: int | None = None
     result_ttl: int | None = None
     failure_ttl: int | None = None
     meta: dict[str, Any] | None = None
-    name: str = field(default=None)  # type: ignore[assignment]  # always set by __post_init__
     paused: bool = False
+    next_run_at: datetime | None = None
+    last_run_at: datetime | None = None
+    last_registered_at: datetime | None = None
+    created_at: datetime | None = None
 
-    next_run_at: datetime | None = field(default=None, init=False, repr=False)
-    last_run_at: datetime | None = field(default=None, init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        """Validate configuration and derive the initial ``next_run_at`` for cron jobs.
-
-        Raises:
-            ValueError: If both ``interval`` and ``cron`` are set, or neither is set.
-            ImportError: If ``cron`` is set but ``croniter`` is not installed.
-        """
-        if self.interval and self.cron:
-            raise ValueError("Specify either interval or cron, not both")
-        if not self.interval and not self.cron:
-            raise ValueError("Must specify either interval or cron")
-        if self.name is None:
-            self.name = f"{self.func.__module__}.{self.func.__qualname__}"  # type: ignore[unreachable]
-        if self.cron:
-            self._advance_cron()
-
-    def _advance_cron(self) -> None:
-        try:
-            from croniter import croniter
-        except ImportError:
-            raise ImportError("croniter is required for cron expressions: pip install croniter")
-        assert self.cron is not None
-        base = self.last_run_at or datetime.now(timezone.utc)
-        self.next_run_at = croniter(self.cron, base).get_next(datetime)
-
-    def should_run(self) -> bool:
-        """Return True if this job is due to run now.
-
-        Returns:
-            ``False`` if the job is paused or its next run time has not arrived.
-        """
-        if self.paused:
-            return False
-        now = datetime.now(timezone.utc)
-        if self.interval:
-            if self.last_run_at is None:
-                return True
-            return now >= self.last_run_at + timedelta(seconds=self.interval)
-        if self.next_run_at:
-            nxt = self.next_run_at
-            if nxt.tzinfo is None:
-                nxt = nxt.replace(tzinfo=timezone.utc)
-            return now >= nxt
-        return False
-
-    def mark_enqueued(self) -> None:
-        """Record that the job was just enqueued and advance the schedule."""
-        self.last_run_at = datetime.now(timezone.utc)
-        if self.cron:
-            self._advance_cron()
-
-    def seconds_until_next(self) -> float:
-        """Return the number of seconds until this job should next run.
-
-        Returns:
-            Seconds until the next scheduled run, or ``0.0`` if overdue.
-            Falls back to ``60.0`` when the schedule cannot be determined.
-        """
-        now = datetime.now(timezone.utc)
-        if self.interval:
-            if self.last_run_at is None:
-                return 0.0
-            nxt = self.last_run_at + timedelta(seconds=self.interval)
-            return max(0.0, (nxt - now).total_seconds())
-        if self.next_run_at:
-            nxt = self.next_run_at
-            if nxt.tzinfo is None:
-                nxt = nxt.replace(tzinfo=timezone.utc)
-            return max(0.0, (nxt - now).total_seconds())
-        return 60.0
+    @classmethod
+    def from_row(cls, row: dict, serializer: Serializer) -> Schedule:
+        d = dict(row)
+        d["args"] = decode(serializer, d.get("args")) or []
+        d["kwargs"] = decode(serializer, d.get("kwargs")) or {}
+        d["meta"] = decode(serializer, d.get("meta"))
+        return cls(**d)
 
 
 @dataclasses.dataclass
@@ -487,7 +445,7 @@ class EnqueueParams:
     on_stopped: Callback | Callable | str | None = None
     repeat: Repeat | None = None
     depends_on: "list[Dependency | str | Job] | Dependency | str | Job | None" = None
-    cron_name: str | None = None
+    schedule_name: str | None = None
     failure_mode: str = "hold"
 
 

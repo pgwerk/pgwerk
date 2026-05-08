@@ -17,7 +17,9 @@ from psycopg.sql import Identifier
 from .connection import AsyncConnection
 from .connection import Connect
 from .schemas import JobInsert
+from .schemas import Schedule
 from .repos import JobRepository
+from .repos import ScheduleRepository
 from .repos import StatsRepository
 from .repos import WorkerRepository
 from .utils import fn_path
@@ -104,11 +106,13 @@ class Werk:
             "worker_jobs": self._db.table("worker_jobs"),
             "executions": self._db.table("jobs_executions"),
             "deps": self._db.table("job_deps"),
+            "schedules": self._db.table("schedules"),
         }
 
         self.__job_repo: JobRepository | None = None
         self.__worker_repo: WorkerRepository | None = None
         self.__stats_repo: StatsRepository | None = None
+        self.__schedule_repo: ScheduleRepository | None = None
 
         if any(v is not None for v in (log_level, log_format, log_color, log_fmt)):
             configure_logging(
@@ -135,6 +139,12 @@ class Werk:
         if self.__stats_repo is None:
             raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
         return self.__stats_repo
+
+    @property
+    def _schedule_repo(self) -> ScheduleRepository:
+        if self.__schedule_repo is None:
+            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
+        return self.__schedule_repo
 
     # ------------------------------------------------------------------
     # Lifecycle hooks
@@ -238,7 +248,7 @@ class Werk:
         _on_stopped: Callback | Callable | str | None = None,
         _repeat: Repeat | None = None,
         _depends_on: list[Dependency | str | Job] | Dependency | str | Job | None = None,
-        _cron_name: str | None = None,
+        _schedule_name: str | None = None,
         _failure_mode: str = "hold",
         _sync: bool = False,
         **kwargs: Any,
@@ -272,7 +282,7 @@ class Werk:
             _on_stopped: Callback invoked when the job is stopped/cancelled.
             _repeat: Repeat policy for recurring jobs.
             _depends_on: Job(s) that must complete before this one runs.
-            _cron_name: Cron schedule name this job was created from.
+            _schedule_name: Name of the Schedule this job was enqueued from.
             _failure_mode: What to do with dependents when this job fails
                 (``"hold"`` or ``"cancel"``).
             **kwargs: Keyword arguments forwarded to *func*.
@@ -338,7 +348,7 @@ class Werk:
             repeat_remaining=repeat_remaining,
             repeat_interval_secs=repeat_interval_secs,
             repeat_intervals=encode(self.serializer, repeat_intervals),
-            cron_name=_cron_name,
+            schedule_name=_schedule_name,
             dep_ids=dep_ids,
         )
 
@@ -350,6 +360,34 @@ class Werk:
                 job = await self.run_sync(job)
 
         return job
+
+    async def enqueue_at(
+        self,
+        at: datetime,
+        func: Callable | str,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Job | None:
+        """Enqueue *func* to become eligible at wall-clock time ``at``.
+
+        Thin wrapper over :meth:`enqueue` that sets ``_at``. All other
+        enqueue options pass through as ``_``-prefixed kwargs.
+        """
+        return await self.enqueue(func, *args, _at=at, **kwargs)
+
+    async def enqueue_in(
+        self,
+        delay_secs: int,
+        func: Callable | str,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Job | None:
+        """Enqueue *func* to become eligible ``delay_secs`` from now.
+
+        Thin wrapper over :meth:`enqueue` that sets ``_delay``. All other
+        enqueue options pass through as ``_``-prefixed kwargs.
+        """
+        return await self.enqueue(func, *args, _delay=delay_secs, **kwargs)
 
     async def enqueue_many(
         self, specs: list[EnqueueParams], *, _conn: AsyncConnection | None = None
@@ -425,7 +463,7 @@ class Werk:
                     repeat_remaining=spec.repeat.times if spec.repeat else None,
                     repeat_interval_secs=spec.repeat.interval if spec.repeat and not spec.repeat.intervals else None,
                     repeat_intervals=encode(self.serializer, spec.repeat.intervals if spec.repeat else None),
-                    cron_name=spec.cron_name,
+                    schedule_name=spec.schedule_name,
                     dep_ids=dep_ids,
                 )
             )
@@ -706,6 +744,7 @@ class Werk:
         status: str | None = None,
         worker_id: str | None = None,
         search: str | None = None,
+        schedule_name: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Job]:
@@ -716,6 +755,7 @@ class Werk:
             status: Restrict to this status string (e.g. ``"queued"``).
             worker_id: Restrict to jobs claimed by this worker.
             search: Full-text search term matched against job function/key.
+            schedule_name: Restrict to jobs enqueued by this schedule.
             limit: Maximum number of rows to return.
             offset: Number of rows to skip for pagination.
 
@@ -723,7 +763,8 @@ class Werk:
             List of matching :class:`Job` objects.
         """
         return await self._job_repo.list_jobs(
-            queue=queue, status=status, worker_id=worker_id, search=search, limit=limit, offset=offset
+            queue=queue, status=status, worker_id=worker_id, search=search,
+            schedule_name=schedule_name, limit=limit, offset=offset
         )
 
     async def cancel_job(self, job_id: str) -> bool:
@@ -837,28 +878,62 @@ class Werk:
         return await self._job_repo.purge(statuses=statuses, older_than_days=older_than_days)
 
     # ------------------------------------------------------------------
-    # Cron
+    # Schedules
     # ------------------------------------------------------------------
 
-    async def list_cron_stats(self) -> list[dict[str, Any]]:
-        """Return per-cron-job statistics from the database.
+    async def create_schedule(self, schedule: Schedule) -> Schedule:
+        """Insert a new schedule row. Raises ``ScheduleAlreadyExists`` if the name is taken."""
+        return await self._schedule_repo.insert(schedule)
 
-        Returns:
-            List of dicts with keys ``name``, ``last_enqueued_at``, and
-            ``total_enqueued``.
+    async def list_schedules(self) -> list[Schedule]:
+        """Return every row in ``_pgwerk_schedules``."""
+        return await self._schedule_repo.list_all()
+
+    async def get_schedule(self, name: str) -> Schedule | None:
+        """Return a single schedule by name, or ``None``."""
+        return await self._schedule_repo.get(name)
+
+    async def list_schedule_stats(self) -> list[dict[str, Any]]:
+        """Return per-schedule aggregate job statistics.
+
+        Derived from the ``_pgwerk_jobs`` table grouped by ``schedule_name``.
         """
-        return await self._job_repo.list_cron_stats()
+        return await self._job_repo.list_schedule_stats()
 
-    async def trigger_cron_job(self, name: str) -> Job | None:
-        """Immediately enqueue a cron job, bypassing its schedule.
+    async def trigger_schedule(self, name: str) -> Schedule | None:
+        """Force the named schedule to become due immediately.
 
-        Args:
-            name: The registered cron-job name (``module.qualname`` by default).
-
-        Returns:
-            The newly created Job, or ``None`` if deduplication prevented enqueue.
+        The next scheduler tick will enqueue a job for it.
         """
-        return await self._job_repo.trigger_cron(name)
+        return await self._schedule_repo.trigger(name)
+
+    async def pause_schedule(self, name: str) -> Schedule | None:
+        """Set ``paused=True`` on the named schedule.
+
+        Returns the updated schedule, or ``None`` if the name does not exist.
+        """
+        schedule = await self._schedule_repo.get(name)
+        if schedule is None:
+            return None
+        return await self._schedule_repo.update(name, paused=True)
+
+    async def resume_schedule(self, name: str) -> Schedule | None:
+        """Set ``paused=False`` on the named schedule.
+
+        Returns the updated schedule, or ``None`` if the name does not exist.
+        """
+        schedule = await self._schedule_repo.get(name)
+        if schedule is None:
+            return None
+        return await self._schedule_repo.update(name, paused=False)
+
+    async def delete_schedule(self, name: str) -> bool:
+        """Permanently remove a schedule row.
+
+        Returns ``True`` if the row existed and was deleted, ``False`` if it
+        was not found.
+        """
+        return await self._schedule_repo.delete(name)
 
     async def reschedule_stuck(self) -> int:
         """Move scheduled jobs whose ``scheduled_at`` has passed back to ``queued``.
@@ -939,14 +1014,15 @@ class Werk:
         """
         return await self._stats_repo.get_queue_depth_history(minutes)
 
-    async def get_server_info(self) -> tuple[str, int, list[dict[str, Any]]]:
+    async def get_server_info(self) -> tuple[str, int, int, str | None, list[dict[str, Any]]]:
         """Return Postgres version, database size, and table metadata.
 
         Returns:
-            A tuple of ``(pg_version, db_size_bytes, table_rows)`` where
-            ``table_rows`` contains size and row-count info for each wrk table.
+            A tuple of ``(pg_version, db_size_bytes, pgwerk_size_bytes, schema, table_rows)``
+            where ``table_rows`` contains size and row-count info for each wrk table.
         """
-        return await self._stats_repo.get_server_info(self.prefix)
+        pg_version, db_size_bytes, pgwerk_size_bytes, table_rows = await self._stats_repo.get_server_info(self.prefix)
+        return pg_version, db_size_bytes, pgwerk_size_bytes, self.schema, table_rows
 
     # ------------------------------------------------------------------
     # Maintenance
@@ -972,7 +1048,7 @@ class Werk:
         async with await self._connect() as conn:
             await conn.execute(
                 SQL("""
-                    TRUNCATE {jobs}, {executions}, {worker}, {worker_jobs}, {deps}
+                    TRUNCATE {jobs}, {executions}, {worker}, {worker_jobs}, {deps}, {schedules}
                     RESTART IDENTITY CASCADE
                 """).format(
                     jobs=self._t["jobs"],
@@ -980,6 +1056,7 @@ class Werk:
                     worker=self._t["worker"],
                     worker_jobs=self._t["worker_jobs"],
                     deps=self._t["deps"],
+                    schedules=self._t["schedules"],
                 )
             )
 
@@ -1036,6 +1113,7 @@ class Werk:
         self.__job_repo = JobRepository(self._connect, self._t, self.prefix, get_serializer)
         self.__worker_repo = WorkerRepository(self._connect, self._t, self.prefix, get_serializer, self.__job_repo)
         self.__stats_repo = StatsRepository(self._connect, self._t)
+        self.__schedule_repo = ScheduleRepository(self._connect, self._t, self.prefix, get_serializer)
 
         self._sync_worker = AsyncWorker(app=self, queues=[], concurrency=1)
         await self._sync_worker._setup_executor()
@@ -1059,6 +1137,7 @@ class Werk:
         self.__job_repo = None
         self.__worker_repo = None
         self.__stats_repo = None
+        self.__schedule_repo = None
 
     async def __aenter__(self) -> Werk:
         """Connect on entering the async context manager.

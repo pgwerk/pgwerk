@@ -9,24 +9,28 @@ from litestar import Router
 from .auth import Guard
 from litestar import Response
 from litestar import Controller
+from litestar import delete
 from litestar import get
 from litestar import post
-from litestar import delete
 from litestar.di import Provide
 from litestar.params import Parameter
 from litestar.response import File
 from litestar.exceptions import ClientException
 from litestar.exceptions import NotFoundException
 
+import psycopg
+
 from .spa import resolve_spa_file
 from .exporter import get_exporter
 from ..app import Werk
+from ..repos import ScheduleAlreadyExists
 from ..exporter import WerkExporter
 from .models import TableInfo
 from .models import QueueStats
 from .models import ServerInfo
 from .models import JobResponse
-from .models import CronJobStats
+from .models import ScheduleStats
+from .models import ScheduleResponse
 from .models import PurgeRequest
 from .models import StatsResponse
 from .models import EnqueueRequest
@@ -34,6 +38,7 @@ from .models import WorkerResponse
 from .models import QueueDepthPoint
 from .models import BulkCancelRequest
 from .models import ExecutionResponse
+from .models import CreateScheduleBody
 from .models import BulkRequeueRequest
 from .models import WorkerThroughputPoint
 from ..exceptions import JobNotFound
@@ -58,6 +63,7 @@ class JobController(Controller):
         status: Annotated[str | None, Parameter(query="status")] = None,
         worker_id: Annotated[str | None, Parameter(query="worker_id")] = None,
         search: Annotated[str | None, Parameter(query="search")] = None,
+        schedule_name: Annotated[str | None, Parameter(query="schedule_name")] = None,
         limit: Annotated[int, Parameter(query="limit", ge=1, le=500)] = 50,
         offset: Annotated[int, Parameter(query="offset", ge=0)] = 0,
     ) -> list[JobResponse]:
@@ -69,6 +75,7 @@ class JobController(Controller):
             status: Filter by job status (e.g. pending, running, complete).
             worker_id: Filter by the worker currently holding the job.
             search: Full-text search against function name or payload.
+            schedule_name: Filter to jobs enqueued by a specific schedule.
             limit: Maximum number of results to return (1–500).
             offset: Number of results to skip for pagination.
 
@@ -76,7 +83,8 @@ class JobController(Controller):
             List of matching jobs.
         """
         jobs = await werk.list_jobs(
-            queue=queue, status=status, worker_id=worker_id, search=search, limit=limit, offset=offset
+            queue=queue, status=status, worker_id=worker_id, search=search,
+            schedule_name=schedule_name, limit=limit, offset=offset
         )
         return [JobResponse.from_job(j) for j in jobs]
 
@@ -94,20 +102,25 @@ class JobController(Controller):
         Raises:
             ClientException: If the job could not be created.
         """
-        job = await werk.enqueue(
-            data.function,
-            *data.args,
-            _queue=data.queue,
-            _priority=data.priority,
-            _key=data.key,
-            _delay=data.delay,
-            _at=data.scheduled_at,
-            _retry=data.max_attempts,
-            _timeout=data.timeout_secs,
-            _meta=data.meta,
-            _cron_name=data.cron_name,
-            **data.kwargs,
-        )
+        try:
+            job = await werk.enqueue(
+                data.function,
+                *data.args,
+                _queue=data.queue,
+                _priority=data.priority,
+                _key=data.key,
+                _delay=data.delay,
+                _at=data.scheduled_at,
+                _retry=data.max_attempts,
+                _timeout=data.timeout_secs,
+                _meta=data.meta,
+                _schedule_name=data.schedule_name,
+                **data.kwargs,
+            )
+        except psycopg.errors.ForeignKeyViolation:
+            raise NotFoundException(
+                detail=f"Schedule {data.schedule_name!r} not found"
+            )
         if job is None:
             raise ClientException(detail="Job could not be created")
         return JobResponse.from_job(job)
@@ -419,44 +432,148 @@ class StatsController(Controller):
 
 
 # ---------------------------------------------------------------------------
-# Cron
+# Schedules
 # ---------------------------------------------------------------------------
 
 
-class CronController(Controller):
-    path = "/cron"
+class SchedulesController(Controller):
+    path = "/schedules"
 
-    @get("")
-    async def list_cron_jobs(self, werk: Werk) -> list[CronJobStats]:
-        """List all registered cron jobs and their last-run statistics.
-
-        Args:
-            werk: Werk application instance.
-
-        Returns:
-            List of cron job entries with name, schedule, and execution stats.
-        """
-        rows = await werk.list_cron_stats()
-        return [CronJobStats.from_row(r) for r in rows]
-
-    @post("/{name:str}/trigger", status_code=201)
-    async def trigger_cron_job(self, werk: Werk, name: str) -> JobResponse:
-        """Manually trigger a cron job by name, bypassing its schedule.
+    @post("")
+    async def create_schedule(self, werk: Werk, data: CreateScheduleBody) -> ScheduleResponse:
+        """Create a new schedule.
 
         Args:
             werk: Werk application instance.
-            name: Registered cron job name.
-
-        Returns:
-            The enqueued job created for this trigger.
+            data: Schedule definition.
 
         Raises:
-            NotFoundException: If no cron job with the given name is registered.
+            ClientException: If a schedule with the same name already exists, or
+                neither ``cron`` nor ``interval_secs`` is provided.
         """
-        job = await werk.trigger_cron_job(name)
-        if job is None:
-            raise NotFoundException(detail=f"Cron job {name!r} not found")
-        return JobResponse.from_job(job)
+        from ..schemas import Schedule
+
+        if not data.cron and not data.interval_secs:
+            raise ClientException(detail="provide either 'cron' or 'interval_secs'")
+        try:
+            schedule = await werk.create_schedule(
+                Schedule(
+                    name=data.name,
+                    function=data.function,
+                    queue=data.queue,
+                    cron=data.cron,
+                    interval_secs=data.interval_secs,
+                    kwargs=data.kwargs,
+                )
+            )
+        except ScheduleAlreadyExists as exc:
+            raise ClientException(detail=str(exc)) from exc
+        return ScheduleResponse.from_schedule(schedule)
+
+    @get("")
+    async def list_schedules(self, werk: Werk) -> list[ScheduleResponse]:
+        """List every registered schedule row.
+
+        Includes schedules that have never fired. Use ``GET /schedules/stats``
+        for per-schedule aggregate job statistics.
+
+        Args:
+            werk: Werk application instance.
+        """
+        rows = await werk.list_schedules()
+        return [ScheduleResponse.from_schedule(s) for s in rows]
+
+    @get("/stats")
+    async def list_schedule_stats(self, werk: Werk) -> list[ScheduleStats]:
+        """Per-schedule aggregate job statistics.
+
+        Derived from ``_pgwerk_jobs`` grouped by ``schedule_name``; schedules
+        that have never enqueued a job will not appear.
+
+        Args:
+            werk: Werk application instance.
+        """
+        rows = await werk.list_schedule_stats()
+        return [ScheduleStats.from_row(r) for r in rows]
+
+    @get("/{name:str}")
+    async def get_schedule(self, werk: Werk, name: str) -> ScheduleResponse:
+        """Return a single schedule by name.
+
+        Args:
+            werk: Werk application instance.
+            name: Registered schedule name.
+
+        Raises:
+            NotFoundException: If no schedule with the given name exists.
+        """
+        schedule = await werk.get_schedule(name)
+        if schedule is None:
+            raise NotFoundException(detail=f"Schedule {name!r} not found")
+        return ScheduleResponse.from_schedule(schedule)
+
+    @post("/{name:str}/trigger")
+    async def trigger_schedule(self, werk: Werk, name: str) -> ScheduleResponse:
+        """Force the named schedule to become due on the next tick.
+
+        Args:
+            werk: Werk application instance.
+            name: Registered schedule name.
+
+        Raises:
+            NotFoundException: If no schedule with the given name exists.
+        """
+        schedule = await werk.trigger_schedule(name)
+        if schedule is None:
+            raise NotFoundException(detail=f"Schedule {name!r} not found")
+        return ScheduleResponse.from_schedule(schedule)
+
+    @delete("/{name:str}", status_code=204)
+    async def delete_schedule(self, werk: Werk, name: str) -> None:
+        """Permanently delete a schedule by name.
+
+        Args:
+            werk: Werk application instance.
+            name: Registered schedule name.
+
+        Raises:
+            NotFoundException: If no schedule with the given name exists.
+        """
+        deleted = await werk.delete_schedule(name)
+        if not deleted:
+            raise NotFoundException(detail=f"Schedule {name!r} not found")
+
+    @post("/{name:str}/pause")
+    async def pause_schedule(self, werk: Werk, name: str) -> ScheduleResponse:
+        """Pause the named schedule so it is skipped on each tick.
+
+        Args:
+            werk: Werk application instance.
+            name: Registered schedule name.
+
+        Raises:
+            NotFoundException: If no schedule with the given name exists.
+        """
+        schedule = await werk.pause_schedule(name)
+        if schedule is None:
+            raise NotFoundException(detail=f"Schedule {name!r} not found")
+        return ScheduleResponse.from_schedule(schedule)
+
+    @post("/{name:str}/resume")
+    async def resume_schedule(self, werk: Werk, name: str) -> ScheduleResponse:
+        """Resume a paused schedule.
+
+        Args:
+            werk: Werk application instance.
+            name: Registered schedule name.
+
+        Raises:
+            NotFoundException: If no schedule with the given name exists.
+        """
+        schedule = await werk.resume_schedule(name)
+        if schedule is None:
+            raise NotFoundException(detail=f"Schedule {name!r} not found")
+        return ScheduleResponse.from_schedule(schedule)
 
 
 # ---------------------------------------------------------------------------
@@ -477,9 +594,15 @@ class ServerController(Controller):
         Returns:
             Postgres version, total database size, and per-table row counts and sizes.
         """
-        pg_version, db_size_bytes, table_rows = await werk.get_server_info()
+        pg_version, db_size_bytes, pgwerk_size_bytes, schema, table_rows = await werk.get_server_info()
         tables = [TableInfo(name=r["name"], size_bytes=r["size_bytes"], row_count=r["row_count"]) for r in table_rows]
-        return ServerInfo(pg_version=pg_version, db_size_bytes=db_size_bytes, tables=tables)
+        return ServerInfo(
+            pg_version=pg_version,
+            db_size_bytes=db_size_bytes,
+            pgwerk_size_bytes=pgwerk_size_bytes,
+            schema=schema,
+            tables=tables,
+        )
 
     @post("/sweep")
     async def run_sweep(self, werk: Werk) -> dict[str, Any]:
@@ -598,7 +721,7 @@ def make_router(guards: list[Guard] | None = None) -> Router:
             JobController,
             WorkerController,
             StatsController,
-            CronController,
+            SchedulesController,
             ServerController,
             CoreController,
         ],
