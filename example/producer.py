@@ -16,6 +16,8 @@ import logging
 
 from typing import Callable
 
+from pgwerk import Werk
+from pgwerk import Retry
 from example.tasks import export_report
 from example.tasks import process_webhook
 from example.tasks import transcode_video
@@ -28,9 +30,6 @@ from example.tasks import send_password_reset
 from example.tasks import refresh_search_index
 from example.tasks import send_push_notification
 from example.tasks import cleanup_expired_sessions
-
-from pgwerk import Werk
-from pgwerk import Retry
 
 
 app = Werk(os.environ.get("PGWERK_DSN", "postgresql://pgwerk:pgwerk@localhost/pgwerk"))
@@ -199,7 +198,7 @@ async def main() -> None:
             except Exception as exc:
                 logger.error("Failed to enqueue job: %s", exc)
 
-            delay = random.uniform(0.05, 0.1)
+            delay = random.uniform(0.05, 0.5)
             try:
                 await asyncio.wait_for(_stop.wait(), timeout=delay)
             except asyncio.TimeoutError:

@@ -92,3 +92,20 @@ async def cleanup_expired_sessions(ctx: Context, older_than_days: int = 30) -> d
     await asyncio.sleep(random.uniform(0.5, 1.5))
     deleted = random.randint(0, 500)
     return {"deleted": deleted}
+
+
+async def heartbeat_ping(ctx: Context) -> dict:
+    logger.info("[job %s] heartbeat ping", ctx.job.id)
+    return {"ok": True}
+
+
+async def flush_metrics(ctx: Context) -> dict:
+    logger.info("[job %s] flushing metrics", ctx.job.id)
+    await asyncio.sleep(random.uniform(0.1, 0.5))
+    return {"flushed": random.randint(10, 500)}
+
+
+async def daily_report(ctx: Context) -> dict:
+    logger.info("[job %s] generating daily report", ctx.job.id)
+    await asyncio.sleep(random.uniform(0.5, 2.0))
+    return {"report_url": f"https://app.example.com/reports/daily/{ctx.job.id}.csv"}
