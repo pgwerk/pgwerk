@@ -145,6 +145,7 @@ class WorkerResponse:
         name: Human-readable ``hostname.pid`` identifier.
         queue: Primary queue the worker is consuming.
         status: Current worker status (e.g. ``"idle"``, ``"busy"``).
+        role: Process role — ``"worker"`` or ``"scheduler"``.
         metadata: JSON blob with runtime info (PID, concurrency, strategy, etc.).
         heartbeat_at: Timestamp of the last heartbeat.
         started_at: When the worker registered.
@@ -155,6 +156,7 @@ class WorkerResponse:
     name: str
     queue: str
     status: str
+    role: str = "worker"
     metadata: dict[str, Any] | None = None
     heartbeat_at: datetime | None = None
     started_at: datetime | None = None
@@ -175,6 +177,7 @@ class WorkerResponse:
             name=r["name"],
             queue=r["queue"],
             status=r["status"],
+            role=r.get("role", "worker"),
             metadata=r["metadata"],
             heartbeat_at=r["heartbeat_at"],
             started_at=r["started_at"],

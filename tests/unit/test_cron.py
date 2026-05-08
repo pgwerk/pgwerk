@@ -292,15 +292,81 @@ class TestCronSchedulerDynamicControl:
         assert cj.name == "my_job"
         assert "my_job" in scheduler
 
-    def test_register_replaces_existing_name(self):
+    def test_register_raises_on_duplicate_name(self):
         app = MagicMock()
         app.prefix = "_pgwerk"
         scheduler = CronScheduler(app)
-        cj1 = scheduler.register(lambda: None, interval=60, name="job")
-        cj2 = scheduler.register(lambda: None, interval=120, name="job")
-        assert len(scheduler) == 1
-        assert scheduler.get("job") is cj2
-        assert cj1 is not cj2
+        scheduler.register(lambda: None, interval=60, name="job")
+        with pytest.raises(ValueError, match="already registered"):
+            scheduler.register(lambda: None, interval=120, name="job")
+
+    def test_update_queue(self):
+        app = MagicMock()
+        app.prefix = "_pgwerk"
+        scheduler = CronScheduler(app)
+        scheduler.register(lambda: None, interval=60, name="job", queue="default")
+        scheduler.update("job", queue="priority")
+        assert scheduler.get("job").queue == "priority"
+
+    def test_update_interval(self):
+        app = MagicMock()
+        app.prefix = "_pgwerk"
+        scheduler = CronScheduler(app)
+        scheduler.register(lambda: None, interval=60, name="job")
+        scheduler.update("job", interval=120)
+        assert scheduler.get("job").interval == 120
+
+    def test_update_clears_cron_when_interval_set(self):
+        app = MagicMock()
+        app.prefix = "_pgwerk"
+        scheduler = CronScheduler(app)
+        scheduler.register(lambda: None, cron="* * * * *", name="job")
+        scheduler.update("job", interval=300)
+        cjob = scheduler.get("job")
+        assert cjob.interval == 300
+        assert cjob.cron is None
+
+    def test_update_clears_interval_when_cron_set(self):
+        app = MagicMock()
+        app.prefix = "_pgwerk"
+        scheduler = CronScheduler(app)
+        scheduler.register(lambda: None, interval=60, name="job")
+        scheduler.update("job", cron="0 9 * * *")
+        cjob = scheduler.get("job")
+        assert cjob.cron == "0 9 * * *"
+        assert cjob.interval is None
+
+    def test_update_recomputes_next_run_at_for_cron(self):
+        app = MagicMock()
+        app.prefix = "_pgwerk"
+        scheduler = CronScheduler(app)
+        scheduler.register(lambda: None, cron="* * * * *", name="job")
+        old_next = scheduler.get("job").next_run_at
+        scheduler.update("job", cron="0 9 * * *")
+        assert scheduler.get("job").next_run_at != old_next
+
+    def test_update_missing_raises(self):
+        app = MagicMock()
+        app.prefix = "_pgwerk"
+        scheduler = CronScheduler(app)
+        with pytest.raises(KeyError):
+            scheduler.update("nonexistent", interval=60)
+
+    def test_update_returns_job(self):
+        app = MagicMock()
+        app.prefix = "_pgwerk"
+        scheduler = CronScheduler(app)
+        cj = scheduler.register(lambda: None, interval=60, name="job")
+        result = scheduler.update("job", interval=120)
+        assert result is cj
+
+    def test_update_meta(self):
+        app = MagicMock()
+        app.prefix = "_pgwerk"
+        scheduler = CronScheduler(app)
+        scheduler.register(lambda: None, interval=60, name="job")
+        scheduler.update("job", meta={"env": "prod"})
+        assert scheduler.get("job").meta == {"env": "prod"}
 
     async def test_tick_skips_paused_job(self):
         from unittest.mock import AsyncMock

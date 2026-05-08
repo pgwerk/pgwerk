@@ -631,20 +631,21 @@ class WorkerRepository:
     # Registration & heartbeat
     # ------------------------------------------------------------------
 
-    async def register(self, worker_id: str, name: str, queues: list[str], metadata: str) -> None:
+    async def register(self, worker_id: str, name: str, queues: list[str], metadata: str, role: str = "worker") -> None:
         async with await self._connect() as conn, conn.transaction():
             await conn.execute(
                 SQL("""
-                    INSERT INTO {worker} (id, name, queue, status, metadata, heartbeat_at)
-                    VALUES (%(id)s, %(name)s, %(queue)s, 'active', %(meta)s, NOW())
+                    INSERT INTO {worker} (id, name, queue, status, role, metadata, heartbeat_at)
+                    VALUES (%(id)s, %(name)s, %(queue)s, 'active', %(role)s, %(meta)s, NOW())
                     ON CONFLICT (id) DO UPDATE
                         SET name = EXCLUDED.name,
                             queue = EXCLUDED.queue,
                             status = 'active',
+                            role = EXCLUDED.role,
                             metadata = EXCLUDED.metadata,
                             heartbeat_at = NOW()
                 """).format(worker=self._t["worker"]),
-                {"id": worker_id, "name": name, "queue": ",".join(queues), "meta": metadata},
+                {"id": worker_id, "name": name, "queue": ",".join(queues), "role": role, "meta": metadata},
             )
 
     async def deregister(self, worker_id: str) -> None:

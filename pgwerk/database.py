@@ -56,6 +56,7 @@ class DatabaseManager:
                 "    name         TEXT        NOT NULL,"
                 "    queue        TEXT        NOT NULL DEFAULT 'default',"
                 "    status       TEXT        NOT NULL DEFAULT 'idle',"
+                "    role         TEXT        NOT NULL DEFAULT 'worker',"
                 "    metadata     JSONB,"
                 "    heartbeat_at TIMESTAMPTZ,"
                 "    expires_at   TIMESTAMPTZ"
@@ -205,6 +206,14 @@ class DatabaseManager:
                         "(queue, worker_id, heartbeat_secs, touched_at, started_at) "
                         "WHERE status = 'active'"
                     ).format(idx=idx("jobs_active_recovery_idx"), jobs=t("jobs")),
+                ],
+            ),
+            (
+                5,
+                [
+                    SQL(
+                        "ALTER TABLE {worker} ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'worker'"
+                    ).format(worker=t("worker")),
                 ],
             ),
         ]

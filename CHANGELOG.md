@@ -9,6 +9,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- `CronScheduler` now registers itself in `_pgwerk_worker` with `role = 'scheduler'`, runs a heartbeat loop, and deregisters on shutdown — giving the same observability as job workers
+- `role` column on `_pgwerk_worker` (`'worker'` or `'scheduler'`, default `'worker'`) to distinguish job workers from scheduler instances; existing databases are migrated automatically (schema version 5)
+
 ## [0.1.9] - 2026-05-07
 
 ### Added
