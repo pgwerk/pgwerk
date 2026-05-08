@@ -4,7 +4,8 @@ import type {
   ExecutionResponse,
   WorkerResponse,
   SweepResponse,
-  CronJobStats,
+  ScheduleResponse,
+  ScheduleStats,
   EnqueueRequest,
   WorkerThroughputPoint,
   QueueDepthPoint,
@@ -38,6 +39,7 @@ export const api = {
     status?: string
     worker_id?: string
     search?: string
+    schedule_name?: string
     limit?: number
     offset?: number
   }) => {
@@ -46,6 +48,7 @@ export const api = {
     if (params.status) q.set('status', params.status)
     if (params.worker_id) q.set('worker_id', params.worker_id)
     if (params.search) q.set('search', params.search)
+    if (params.schedule_name) q.set('schedule_name', params.schedule_name)
     if (params.limit != null) q.set('limit', String(params.limit))
     if (params.offset != null) q.set('offset', String(params.offset))
     return req<JobResponse[]>(`/api/jobs?${q}`)
@@ -94,13 +97,35 @@ export const api = {
   getQueueDepthHistory: (minutes = 1440) =>
     req<QueueDepthPoint[]>(`/api/stats/queue-depth?minutes=${minutes}`),
 
-  listCronJobs: () => req<CronJobStats[]>('/api/cron'),
+  createSchedule: (data: {
+    name: string
+    function: string
+    queue?: string
+    cron?: string
+    interval_secs?: number
+    kwargs?: Record<string, unknown>
+  }) => req<ScheduleResponse>('/api/schedules', { method: 'POST', body: JSON.stringify(data) }),
+
+  listSchedules: () => req<ScheduleResponse[]>('/api/schedules'),
+
+  listScheduleStats: () => req<ScheduleStats[]>('/api/schedules/stats'),
+
+  getSchedule: (name: string) => req<ScheduleResponse>(`/api/schedules/${encodeURIComponent(name)}`),
+
+  triggerSchedule: (name: string) =>
+    req<ScheduleResponse>(`/api/schedules/${encodeURIComponent(name)}/trigger`, { method: 'POST' }),
+
+  pauseSchedule: (name: string) =>
+    req<ScheduleResponse>(`/api/schedules/${encodeURIComponent(name)}/pause`, { method: 'POST' }),
+
+  resumeSchedule: (name: string) =>
+    req<ScheduleResponse>(`/api/schedules/${encodeURIComponent(name)}/resume`, { method: 'POST' }),
+
+  deleteSchedule: (name: string) =>
+    req<void>(`/api/schedules/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 
   enqueueJob: (data: EnqueueRequest) =>
     req<JobResponse>('/api/jobs', { method: 'POST', body: JSON.stringify(data) }),
-
-  triggerCronJob: (name: string) =>
-    req<JobResponse>(`/api/cron/${encodeURIComponent(name)}/trigger`, { method: 'POST' }),
 
   sweep: () => req<SweepResponse>('/api/sweep', { method: 'POST' }),
 

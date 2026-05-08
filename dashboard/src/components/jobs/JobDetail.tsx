@@ -5,10 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { StatusBadge } from '@/components/StatusBadge'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
 import { ExecutionHistory } from './ExecutionHistory'
 import { api } from '@/lib/api'
 import { relativeTime, formatTimestamp, formatDuration, truncateId } from '@/lib/utils'
 import type { JobResponse } from '@/types'
+import { useState } from 'react'
 
 interface FieldProps {
   label: string
@@ -32,6 +36,7 @@ interface JobDetailProps {
 }
 
 export function JobDetail({ job, open, onClose }: JobDetailProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const qc = useQueryClient()
 
   const invalidate = () => {
@@ -70,6 +75,7 @@ export function JobDetail({ job, open, onClose }: JobDetailProps) {
   const canRequeue = job.status === 'failed' || job.status === 'aborted' || job.status === 'complete'
 
   return (
+    <>
     <Sheet open={open} onOpenChange={v => !v && onClose()}>
       <SheetContent className="flex w-[480px] flex-col gap-0 p-0 sm:max-w-[480px]">
         <SheetHeader className="border-b border-border p-5">
@@ -106,7 +112,7 @@ export function JobDetail({ job, open, onClose }: JobDetailProps) {
             size="sm"
             variant="ghost"
             className="ml-auto text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => remove.mutate()}
+            onClick={() => setConfirmDelete(true)}
             disabled={remove.isPending}
           >
             Delete
@@ -177,5 +183,30 @@ export function JobDetail({ job, open, onClose }: JobDetailProps) {
         </Tabs>
       </SheetContent>
     </Sheet>
+
+    <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold">Delete Job</DialogTitle>
+          <DialogDescription className="text-xs">
+            Permanently delete job <span className="font-mono font-medium">{truncateId(job.id)}</span>. This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)} disabled={remove.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => { setConfirmDelete(false); remove.mutate() }}
+            disabled={remove.isPending}
+          >
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

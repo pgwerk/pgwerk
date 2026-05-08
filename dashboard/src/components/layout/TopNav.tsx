@@ -11,11 +11,12 @@ import { Logo } from '@/components/layout/Logo'
 const nav = [
   { to: '/', label: 'Overview', end: true },
   { to: '/jobs', label: 'Jobs', end: false },
+  { to: '/schedules', label: 'Schedules', end: false },
   { to: '/workers', label: 'Workers', end: false },
-  { to: '/cron', label: 'Cron', end: false },
 ]
 
-function formatBytes(bytes: number): string {
+function formatBytes(bytes: number | undefined | null): string {
+  if (bytes == null || !Number.isFinite(bytes)) return '—'
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -89,7 +90,9 @@ export function TopNav() {
               <>
                 <span className="font-mono">{shortPgVersion(serverInfo.pg_version)}</span>
                 <span className="text-border">·</span>
-                <span className="font-mono">{formatBytes(serverInfo.db_size_bytes)}</span>
+                <span className="font-mono" title={`DB total: ${formatBytes(serverInfo.db_size_bytes)}`}>
+                  {formatBytes(serverInfo.pgwerk_size_bytes ?? serverInfo.db_size_bytes)}
+                </span>
               </>
             ) : dbError ? (
               <span>unreachable</span>

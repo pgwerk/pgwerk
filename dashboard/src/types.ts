@@ -35,6 +35,7 @@ export interface ExecutionResponse {
   status: string
   worker_id?: string
   error?: string
+  result?: unknown
   started_at?: string
   completed_at?: string
 }
@@ -44,6 +45,7 @@ export interface WorkerResponse {
   name: string
   queue: string
   status: string
+  role?: string
   metadata?: Record<string, unknown>
   heartbeat_at?: string
   started_at?: string
@@ -97,10 +99,29 @@ export interface EnqueueRequest {
   max_attempts?: number
   timeout_secs?: number
   meta?: Record<string, unknown>
-  cron_name?: string
+  schedule_name?: string
 }
 
-export interface CronJobStats {
+export interface ScheduleResponse {
+  name: string
+  function: string
+  queue: string
+  args: unknown[]
+  kwargs: Record<string, unknown>
+  interval_secs: number | null
+  cron: string | null
+  timeout_secs: number | null
+  result_ttl: number | null
+  failure_ttl: number | null
+  meta: Record<string, unknown> | null
+  paused: boolean
+  next_run_at: string | null
+  last_run_at: string | null
+  last_registered_at: string | null
+  created_at: string | null
+}
+
+export interface ScheduleStats {
   name: string
   function: string
   queue: string
@@ -120,6 +141,8 @@ export interface TableInfo {
 export interface ServerInfo {
   pg_version: string
   db_size_bytes: number
+  pgwerk_size_bytes: number
+  schema: string | null
   tables: TableInfo[]
 }
 

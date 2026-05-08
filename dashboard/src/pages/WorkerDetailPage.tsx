@@ -11,7 +11,7 @@ import { cn, formatDuration, formatTimestamp, relativeTime, shortFn, truncateId 
 import type { JobResponse } from '@/types'
 import { useQuery } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
-import { ArrowLeft, Cpu, RefreshCw } from 'lucide-react'
+import { ArrowLeft, CalendarClock, Cpu, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts'
@@ -83,6 +83,7 @@ export function WorkerDetailPage() {
   }
 
   const alive = isAlive(worker.heartbeat_at)
+  const isScheduler = worker.role === 'scheduler'
   const uptime = worker.started_at
     ? formatDistanceToNow(new Date(worker.started_at), { addSuffix: false })
     : null
@@ -121,15 +122,24 @@ export function WorkerDetailPage() {
               <div className={cn(
                 'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border',
                 alive
-                  ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                  ? isScheduler
+                    ? 'border-violet-500/30 bg-violet-500/10 text-violet-400'
+                    : 'border-green-500/30 bg-green-500/10 text-green-400'
                   : 'border-border bg-muted/40 text-muted-foreground/50',
               )}>
-                <Cpu className="h-3.5 w-3.5" />
+                {isScheduler ? <CalendarClock className="h-3.5 w-3.5" /> : <Cpu className="h-3.5 w-3.5" />}
               </div>
               <div className="min-w-0">
-                <h2 className="truncate font-mono text-base font-semibold text-foreground">
-                  {worker.name}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate font-mono text-base font-semibold text-foreground">
+                    {worker.name}
+                  </h2>
+                  {isScheduler && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 leading-none shrink-0">
+                      scheduler
+                    </span>
+                  )}
+                </div>
                 <p className="mt-0.5 font-mono text-xs text-muted-foreground">{worker.id}</p>
               </div>
             </div>
@@ -171,6 +181,7 @@ export function WorkerDetailPage() {
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             <Field label="Queue" value={worker.queue} mono />
             <Field label="Status" value={worker.status} mono />
+            {worker.role && <Field label="Role" value={worker.role} mono />}
             {uptime && <Field label="Uptime" value={uptime} />}
             <Field label="Started" value={formatTimestamp(worker.started_at)} mono />
             <Field label="Last heartbeat" value={relativeTime(worker.heartbeat_at)} />

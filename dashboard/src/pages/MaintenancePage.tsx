@@ -18,7 +18,8 @@ import { toast } from 'sonner'
 const TERMINAL_STATUSES = ['complete', 'failed', 'aborted'] as const
 type TerminalStatus = (typeof TERMINAL_STATUSES)[number]
 
-function fmtBytes(bytes: number): string {
+function fmtBytes(bytes: number | undefined | null): string {
+  if (bytes == null || !Number.isFinite(bytes)) return '—'
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -137,6 +138,14 @@ export function MaintenancePage() {
                     <div>
                       <p className="text-xs text-muted-foreground mb-0.5">Version</p>
                       <p className="font-mono font-medium">{fmtPgVersion(serverInfo.data.pg_version)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Schema</p>
+                      <p className="font-mono font-medium">{serverInfo.data.schema ?? 'public'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">wrk size</p>
+                      <p className="font-mono font-medium">{fmtBytes(serverInfo.data.pgwerk_size_bytes)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-0.5">Database size</p>

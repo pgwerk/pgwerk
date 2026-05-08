@@ -1,5 +1,5 @@
 import { api } from '@/lib/api'
-import type { CronJobStats } from '@/types'
+import type { ScheduleResponse } from '@/types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -13,48 +13,49 @@ import {
 } from '@/components/ui/dialog'
 import { shortFn } from '@/lib/utils'
 
-interface TriggerCronDialogProps {
-  job: CronJobStats | null
+interface TriggerScheduleDialogProps {
+  schedule: ScheduleResponse | null
   onOpenChange: (open: boolean) => void
 }
 
-export function TriggerCronDialog({ job, onOpenChange }: TriggerCronDialogProps) {
+export function TriggerScheduleDialog({ schedule, onOpenChange }: TriggerScheduleDialogProps) {
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
-    mutationFn: () => api.triggerCronJob(job!.name),
+    mutationFn: () => api.triggerSchedule(schedule!.name),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedules'] })
       queryClient.invalidateQueries({ queryKey: ['jobs'] })
       queryClient.invalidateQueries({ queryKey: ['stats'] })
-      toast.success('Cron job triggered')
+      toast.success('Schedule triggered')
       onOpenChange(false)
     },
     onError: (err: Error) => toast.error(err.message),
   })
 
   return (
-    <Dialog open={job !== null} onOpenChange={onOpenChange}>
+    <Dialog open={schedule !== null} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle className="text-sm font-semibold">Trigger Cron Job</DialogTitle>
+          <DialogTitle className="text-sm font-semibold">Trigger Schedule</DialogTitle>
           <DialogDescription className="text-xs">
-            Enqueue a one-off run of this cron job immediately.
+            Force this schedule to become due on the next tick.
           </DialogDescription>
         </DialogHeader>
 
-        {job && (
+        {schedule && (
           <div className="space-y-2 rounded-md border border-border bg-muted/40 px-3 py-2.5 text-xs">
             <div className="flex gap-2">
               <span className="w-20 shrink-0 text-muted-foreground">Name</span>
-              <span className="font-mono font-medium truncate" title={job.name}>{shortFn(job.name)}</span>
+              <span className="font-mono font-medium truncate" title={schedule.name}>{shortFn(schedule.name)}</span>
             </div>
             <div className="flex gap-2">
               <span className="w-20 shrink-0 text-muted-foreground">Function</span>
-              <span className="font-mono truncate text-muted-foreground" title={job.function}>{shortFn(job.function)}</span>
+              <span className="font-mono truncate text-muted-foreground" title={schedule.function}>{shortFn(schedule.function)}</span>
             </div>
             <div className="flex gap-2">
               <span className="w-20 shrink-0 text-muted-foreground">Queue</span>
-              <span className="font-mono">{job.queue}</span>
+              <span className="font-mono">{schedule.queue}</span>
             </div>
           </div>
         )}
@@ -74,7 +75,7 @@ export function TriggerCronDialog({ job, onOpenChange }: TriggerCronDialogProps)
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending}
           >
-            {mutation.isPending ? 'Triggering…' : 'Run Now'}
+            {mutation.isPending ? 'Triggering…' : 'Trigger Now'}
           </Button>
         </DialogFooter>
       </DialogContent>
