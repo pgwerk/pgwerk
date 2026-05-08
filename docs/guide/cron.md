@@ -1,3 +1,9 @@
+---
+title: Cron scheduler — pgwerk Postgres job queue
+description: Schedule recurring background jobs in Python using pgwerk's CronScheduler. Supports cron expressions and fixed intervals with Postgres advisory locking for HA deployments.
+keywords: python cron job postgres, recurring background jobs python, scheduled tasks python, pgwerk cron
+---
+
 # Cron
 
 `CronScheduler` enqueues recurring jobs on a fixed interval or a cron expression. A Postgres advisory lock ensures only one scheduler instance is active at a time — competing instances enter standby and automatically promote if the primary's connection drops.

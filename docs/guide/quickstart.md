@@ -1,3 +1,9 @@
+---
+title: Quickstart — pgwerk Postgres job queue
+description: Get started with pgwerk in minutes. Install, connect to Postgres, define handlers, enqueue jobs, and run a worker. No Redis or broker required.
+keywords: pgwerk quickstart, postgres job queue python tutorial, background jobs python example
+---
+
 # Quickstart
 
 ## Install

@@ -1,8 +1,13 @@
 site_name: pgwerk
-site_description: Postgres-backed job queue. Durable, visible, transactional.
+site_description: Postgres-backed job queue for Python. No Redis, no broker — just your existing Postgres instance. pip install pgwerk.
 site_url: https://pgwerk.github.io/pgwerk
 repo_url: https://github.com/pgwerk/pgwerk
 repo_name: pgwerk/pgwerk
+site_author: pgwerk
+copyright: pgwerk — MIT License
+
+hooks:
+  - docs/hooks.py
 
 theme:
   name: shadcn

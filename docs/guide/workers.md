@@ -1,3 +1,9 @@
+---
+title: Workers — pgwerk Postgres job queue
+description: Run background jobs with pgwerk workers. Choose from AsyncWorker (asyncio), ThreadWorker, ProcessWorker, or ForkWorker. Configure concurrency, queues, and lifecycle hooks.
+keywords: pgwerk worker, asyncio worker python, background job worker postgres, concurrent job processing python
+---
+
 # Workers
 
 Workers dequeue jobs from Postgres and execute them. `werk` ships with four worker types, all sharing the same base behaviour.

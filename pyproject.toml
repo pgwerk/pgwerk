@@ -12,12 +12,20 @@ authors = [{ name = "pgwerk", email = "21188280+ccrvlh@users.noreply.github.com"
 requires-python = ">=3.11"
 keywords = [
     "postgres",
+    "postgresql",
     "job queue",
     "task queue",
     "worker",
     "background jobs",
     "asyncio",
-    "postgresql",
+    "celery alternative",
+    "no redis",
+    "transactional job queue",
+    "skip locked",
+    "select for update",
+    "pgqueue",
+    "background tasks",
+    "distributed jobs",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -29,6 +37,10 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries",
     "Topic :: System :: Distributed Computing",
+    "Framework :: AsyncIO",
+    "Topic :: Database",
+    "Topic :: Internet",
+    "Typing :: Typed",
 ]
 dependencies = ["psycopg[async]>=3.1", "click>=8.0"]
 

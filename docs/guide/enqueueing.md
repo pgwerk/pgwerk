@@ -1,3 +1,9 @@
+---
+title: Enqueueing jobs — pgwerk Postgres job queue
+description: Enqueue background jobs in pgwerk with retry, delay, priority, idempotency, and dependency options. Transactional enqueue using your existing Postgres connection.
+keywords: enqueue job python, background job retry, delayed jobs python, job priority queue postgres, transactional enqueue
+---
+
 # Enqueueing
 
 ## Basic enqueue
