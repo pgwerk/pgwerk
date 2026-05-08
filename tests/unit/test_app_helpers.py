@@ -461,3 +461,38 @@ class TestNormalizeRetryExtra:
 
     def test_retry_empty_list(self):
         assert normalize_retry(Retry(max=3, intervals=[])) == (3, None)
+
+
+# ---------------------------------------------------------------------------
+# Werk.enqueue_at / enqueue_in wrappers
+# ---------------------------------------------------------------------------
+
+
+class TestEnqueueAtAndIn:
+    async def test_enqueue_at_forwards_at_kwarg(self):
+        from unittest.mock import AsyncMock
+
+        wrk = Werk("postgresql://localhost/test")
+        when = datetime(2030, 1, 1, tzinfo=timezone.utc)
+
+        with patch.object(wrk, "enqueue", new=AsyncMock(return_value=None)) as m:
+            await wrk.enqueue_at(when, "m.f", 1, x=2, _queue="q")
+            m.assert_awaited_once_with("m.f", 1, _at=when, x=2, _queue="q")
+
+    async def test_enqueue_in_forwards_delay_kwarg(self):
+        from unittest.mock import AsyncMock
+
+        wrk = Werk("postgresql://localhost/test")
+
+        with patch.object(wrk, "enqueue", new=AsyncMock(return_value=None)) as m:
+            await wrk.enqueue_in(300, "m.f", _queue="q", _retry=2)
+            m.assert_awaited_once_with("m.f", _delay=300, _queue="q", _retry=2)
+
+    async def test_enqueue_at_returns_job_from_enqueue(self):
+        from unittest.mock import AsyncMock
+
+        wrk = Werk("postgresql://localhost/test")
+        sentinel = MagicMock(name="job")
+        with patch.object(wrk, "enqueue", new=AsyncMock(return_value=sentinel)):
+            result = await wrk.enqueue_at(datetime.now(timezone.utc), "m.f")
+            assert result is sentinel

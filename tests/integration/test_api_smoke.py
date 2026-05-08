@@ -36,8 +36,19 @@ class TestApiSmoke:
         done = await app.get_job(job["id"])
         assert done.status == JobStatus.Aborted
 
-    async def test_stats_workers_cron_and_sweep_endpoints(self, app):
-        cron_seed = await app.enqueue(noop, _cron_name="nightly.noop")
+    async def test_stats_workers_schedule_and_sweep_endpoints(self, app):
+        # Create the schedule first so the FK from jobs.schedule_name is satisfied.
+        from pgwerk.schemas import Schedule
+
+        await app._schedule_repo.insert(
+            Schedule(
+                name="nightly.noop",
+                function="tests.integration.tasks.noop",
+                queue="default",
+                interval_secs=3600,
+            )
+        )
+        await app.enqueue(noop, _schedule_name="nightly.noop")
         test_worker = make_worker(app)
         await test_worker._register()
 
@@ -60,13 +71,25 @@ class TestApiSmoke:
             assert stats.status_code == 200
             assert stats.json()["total_jobs"] >= 1
 
-            cron = await client.get("/api/cron")
-            assert cron.status_code == 200
-            assert any(item["name"] == "nightly.noop" for item in cron.json())
+            schedules = await client.get("/api/schedules")
+            assert schedules.status_code == 200
+            assert any(item["name"] == "nightly.noop" for item in schedules.json())
 
-            trigger = await client.post("/api/cron/nightly.noop/trigger")
+            stats = await client.get("/api/schedules/stats")
+            assert stats.status_code == 200
+            assert any(item["name"] == "nightly.noop" for item in stats.json())
+
+            detail = await client.get("/api/schedules/nightly.noop")
+            assert detail.status_code == 200
+            assert detail.json()["interval_secs"] == 3600
+
+            detail_missing = await client.get("/api/schedules/does-not-exist")
+            assert detail_missing.status_code == 404
+
+            trigger = await client.post("/api/schedules/nightly.noop/trigger")
             assert trigger.status_code == 201
-            assert trigger.json()["function"] == "tests.integration.tasks.noop"
+            assert trigger.json()["name"] == "nightly.noop"
+            assert trigger.json()["next_run_at"] is not None
 
             sweep = await client.post("/api/server/sweep")
             assert sweep.status_code == 201
@@ -78,5 +101,18 @@ class TestApiSmoke:
 
         await test_worker._deregister()
 
-        original = await app.get_job(cron_seed.id)
-        assert original.status == JobStatus.Queued
+    async def test_enqueue_with_missing_schedule_returns_404(self, app):
+        api = create_app(WerkConfig(dsn=app.dsn, prefix=app.prefix))
+        async with AsyncTestClient(app=api) as client:
+            resp = await client.post(
+                "/api/jobs",
+                json={
+                    "function": "tests.integration.tasks.noop",
+                    "queue": "default",
+                    "args": [],
+                    "kwargs": {},
+                    "schedule_name": "does-not-exist",
+                },
+            )
+            assert resp.status_code == 404
+            assert "does-not-exist" in resp.json()["detail"]

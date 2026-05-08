@@ -193,40 +193,38 @@ class TestProdPaths:
         finally:
             await app.disconnect()
 
-    async def test_cron_failover_deduplicates_same_tick(self):
+    async def test_concurrent_schedulers_do_not_double_fire(self):
+        """Two schedulers racing on the same due row must fire exactly once per tick."""
         prefix = _unique_prefix("cron")
-        app_a = Werk(
-            _TEST_DSN,
-            prefix=prefix,
-            config={"prefix": prefix, "cron_standby_retry_interval": 0.05},
-        )
-        app_b = Werk(
-            _TEST_DSN,
-            prefix=prefix,
-            config={"prefix": prefix, "cron_standby_retry_interval": 0.05},
-        )
+        app_a = Werk(_TEST_DSN, prefix=prefix)
+        app_b = Werk(_TEST_DSN, prefix=prefix)
         await app_a.connect()
         await app_b.connect()
         try:
-            scheduler_a = CronScheduler(app_a)
-            scheduler_b = CronScheduler(app_b)
-            scheduler_a.register(noop, name="cron.failover.noop", interval=3600)
-            scheduler_b.register(noop, name="cron.failover.noop", interval=3600)
+            # Seed a schedule that is already due (interval=1h but set next_run_at=NOW).
+            from pgwerk.schemas import Schedule
 
-            task_a = asyncio.create_task(scheduler_a.run())
-            task_b = asyncio.create_task(scheduler_b.run())
+            await app_a._schedule_repo.insert(
+                Schedule(
+                    name="cron.failover.noop",
+                    function="tests.integration.tasks.noop",
+                    queue="default",
+                    interval_secs=3600,
+                )
+            )
+            await app_a._schedule_repo.trigger("cron.failover.noop")
 
-            await asyncio.sleep(0.2)
-            scheduler_a.stop()
-            await asyncio.wait_for(task_a, timeout=5.0)
+            scheduler_a = CronScheduler(app_a, on_unregistered="keep")
+            scheduler_b = CronScheduler(app_b, on_unregistered="keep")
 
-            await asyncio.sleep(0.2)
-            scheduler_b.stop()
-            await asyncio.wait_for(task_b, timeout=5.0)
+            # Run a single tick concurrently — SKIP LOCKED should make exactly one win.
+            fired_a, fired_b = await asyncio.gather(
+                scheduler_a._tick(), scheduler_b._tick()
+            )
+            assert fired_a + fired_b == 1
 
             jobs = await app_a.list_jobs(limit=20)
-            cron_jobs = [j for j in jobs if j.cron_name == "cron.failover.noop"]
-            assert scheduler_b.get("cron.failover.noop").last_run_at is not None
+            cron_jobs = [j for j in jobs if j.schedule_name == "cron.failover.noop"]
             assert len(cron_jobs) == 1
         finally:
             await app_a.disconnect()
