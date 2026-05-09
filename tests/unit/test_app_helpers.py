@@ -388,10 +388,10 @@ class TestWrkInit:
         wrk = Werk("postgresql://localhost/test", schema="myschema")
         assert wrk.schema == "myschema"
 
-    def test_not_connected_raises_on_job_repo(self):
+    def test_job_repo_available_without_connect(self):
         wrk = Werk("postgresql://localhost/test")
-        with pytest.raises(RuntimeError, match="connect"):
-            _ = wrk._job_repo
+        assert wrk._job_repo is not None
+        assert wrk._job_repo is wrk._job_repo
 
     def test_register_before_enqueue(self):
         wrk = Werk("postgresql://localhost/test")

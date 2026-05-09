@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- `Werk` no longer requires `connect()` to access the queue. Repositories are constructed lazily on first access, so `Werk(dsn).enqueue(...)` works from any process (e.g. an external worker enqueueing into pgwerk) as long as migrations have been run by some process. `connect()` remains the entry point for migrations, the in-process sync worker, and `on_startup` hooks
+
 ## [0.1.11] - 2026-05-08
 
 ### Added

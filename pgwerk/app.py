@@ -123,27 +123,33 @@ class Werk:
             )
 
     @property
+    def _get_serializer(self) -> Callable[[], Serializer]:
+        return lambda: self.serializer
+
+    @property
     def _job_repo(self) -> JobRepository:
         if self.__job_repo is None:
-            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
+            self.__job_repo = JobRepository(self._connect, self._t, self.prefix, self._get_serializer)
         return self.__job_repo
 
     @property
     def _worker_repo(self) -> WorkerRepository:
         if self.__worker_repo is None:
-            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
+            self.__worker_repo = WorkerRepository(
+                self._connect, self._t, self.prefix, self._get_serializer, self._job_repo
+            )
         return self.__worker_repo
 
     @property
     def _stats_repo(self) -> StatsRepository:
         if self.__stats_repo is None:
-            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
+            self.__stats_repo = StatsRepository(self._connect, self._t)
         return self.__stats_repo
 
     @property
     def _schedule_repo(self) -> ScheduleRepository:
         if self.__schedule_repo is None:
-            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
+            self.__schedule_repo = ScheduleRepository(self._connect, self._t, self.prefix, self._get_serializer)
         return self.__schedule_repo
 
     # ------------------------------------------------------------------
@@ -517,9 +523,6 @@ class Werk:
                 finishes.
         """
         terminal = {JobStatus.Complete, JobStatus.Failed, JobStatus.Aborted}
-        if not self._connected:
-            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
-
         job = await self.get_job(job_id)
         if job.status in terminal:
             return job
@@ -1030,8 +1033,6 @@ class Werk:
 
     async def vacuum(self) -> None:
         """Run ``VACUUM ANALYZE`` on all wrk tables outside of a transaction."""
-        if not self._connected:
-            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
         async with await self._connect() as conn:
             for table in self._t.values():
                 await conn.execute(SQL("VACUUM ANALYZE {t}").format(t=table))
@@ -1043,8 +1044,6 @@ class Werk:
             This is a destructive, irreversible operation. All jobs, workers,
             executions, and dependency records will be permanently deleted.
         """
-        if not self._connected:
-            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
         async with await self._connect() as conn:
             await conn.execute(
                 SQL("""
@@ -1109,12 +1108,6 @@ class Werk:
             if self.config.ephemeral_tables:
                 await self._db.alter_ephemeral_tables(conn)
 
-        get_serializer = lambda: self.serializer  # noqa: E731
-        self.__job_repo = JobRepository(self._connect, self._t, self.prefix, get_serializer)
-        self.__worker_repo = WorkerRepository(self._connect, self._t, self.prefix, get_serializer, self.__job_repo)
-        self.__stats_repo = StatsRepository(self._connect, self._t)
-        self.__schedule_repo = ScheduleRepository(self._connect, self._t, self.prefix, get_serializer)
-
         self._sync_worker = AsyncWorker(app=self, queues=[], concurrency=1)
         await self._sync_worker._setup_executor()
 
@@ -1134,10 +1127,6 @@ class Werk:
             await self._sync_worker._teardown_executor()
             self._sync_worker = None
         self._connected = False
-        self.__job_repo = None
-        self.__worker_repo = None
-        self.__stats_repo = None
-        self.__schedule_repo = None
 
     async def __aenter__(self) -> Werk:
         """Connect on entering the async context manager.
