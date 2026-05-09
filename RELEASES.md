@@ -31,6 +31,7 @@ owning schema, while still being protected from a stale binary.
 
 | Library | `schema_version` | `min_compatible` | `max_compatible` | Notes |
 |---|---|---|---|---|
+| 0.1.12 | 6 | 6 | unbounded | Adds version-compat check at `connect()`; lazy repos; API runs with `auto_migrate=False` |
 | 0.1.11 | 6 | 6 | unbounded | Adds `_pgwerk_schedules`; renames `jobs.cron_name` → `jobs.schedule_name`. Breaking against schema ≤ 5 |
 | 0.1.10 | 5 | 5 | unbounded | Adds `worker.role` column for scheduler registration |
 | 0.1.9  | 5 | 5 | unbounded | Default schema isolated to `pgwerk` (was `public`) |
