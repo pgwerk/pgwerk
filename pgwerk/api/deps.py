@@ -22,7 +22,7 @@ async def _create_pgwerk(
     Returns:
         A connected Werk instance.
     """
-    werk = Werk(dsn or os.environ["PGWERK_DSN"], schema=schema, prefix=prefix)
+    werk = Werk(dsn or os.environ["PGWERK_DSN"], schema=schema, prefix=prefix, auto_migrate=False)
     await werk.connect()
     return werk
 

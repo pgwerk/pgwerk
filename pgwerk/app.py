@@ -1107,6 +1107,7 @@ class Werk:
                 await self._db.migrate(conn)
             if self.config.ephemeral_tables:
                 await self._db.alter_ephemeral_tables(conn)
+            await self._db.check_version(conn)
 
         self._sync_worker = AsyncWorker(app=self, queues=[], concurrency=1)
         await self._sync_worker._setup_executor()

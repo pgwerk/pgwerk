@@ -47,6 +47,8 @@ class WerkConfig:
     """
 
     schema_version: ClassVar[int] = 6
+    min_compatible_db_version: ClassVar[int] = 6
+    max_compatible_db_version: ClassVar[int | None] = None
 
     # Connection
     dsn: str | None = None

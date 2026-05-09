@@ -9,6 +9,7 @@ from .connection import AsyncConnection
 
 from . import utils
 from .config import WerkConfig
+from .exceptions import SchemaVersionMismatch
 
 
 logger = logging.getLogger(__name__)
@@ -359,6 +360,38 @@ class DatabaseManager:
                     )
 
         logger.info("werk: schema up to date (version %d)", WerkConfig.schema_version)
+
+    async def check_version(self, conn: AsyncConnection) -> int:
+        """Verify the live DB schema version is compatible with this code.
+
+        Reads the version row from the ``versions`` table and validates it
+        against ``WerkConfig.min_compatible_db_version`` and
+        ``max_compatible_db_version``. Raises :class:`SchemaVersionMismatch`
+        if the DB is too old (needs migration) or too new (code is stale).
+
+        Returns:
+            The current DB schema version.
+        """
+        versions_tbl = self.table("versions")
+        async with conn.cursor() as cur:
+            await cur.execute(SQL("SELECT version FROM {v}").format(v=versions_tbl))
+            row = await cur.fetchone()
+            db_version = row[0] if row else 0
+
+        min_v = WerkConfig.min_compatible_db_version
+        max_v = WerkConfig.max_compatible_db_version
+
+        if db_version < min_v:
+            raise SchemaVersionMismatch(
+                f"DB schema is at version {db_version}, this code requires >= {min_v}. "
+                f"Run `werk migrate` (or restart with auto_migrate=True) to upgrade the schema."
+            )
+        if max_v is not None and db_version > max_v:
+            raise SchemaVersionMismatch(
+                f"DB schema is at version {db_version}, this code only supports <= {max_v}. "
+                f"Upgrade the application to a version that understands schema {db_version}."
+            )
+        return db_version
 
     async def alter_ephemeral_tables(self, conn: AsyncConnection) -> None:
         """ALTER worker/worker_jobs tables to UNLOGGED if they are currently permanent."""

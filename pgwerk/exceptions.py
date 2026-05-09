@@ -18,6 +18,10 @@ class DependencyFailed(WerkError):
     """A job dependency failed, blocking this job from running."""
 
 
+class SchemaVersionMismatch(WerkError):
+    """The DB schema version is outside this code's compatibility range."""
+
+
 class JobError(WerkError):
     """Raised by apply/map when a job fails or is aborted."""
 

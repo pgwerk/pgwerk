@@ -30,10 +30,10 @@ class TestWrkInit:
     def test_log_level_configures_logging(self):
         Werk("postgresql://x/y", log_level="WARNING")
 
-    def test_job_repo_raises_when_not_connected(self):
+    def test_job_repo_available_without_connect(self):
         app = Werk("postgresql://x/y")
-        with pytest.raises(RuntimeError, match="Not connected"):
-            _ = app._job_repo
+        assert app._job_repo is not None
+        assert app._job_repo is app._job_repo
 
 
 class TestSchemaIsolation:

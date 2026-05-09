@@ -9,9 +9,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- `WerkConfig.min_compatible_db_version` and `max_compatible_db_version` class constants — declare the schema-version range this build can safely talk to. `connect()` now validates the live DB version against this range and raises `SchemaVersionMismatch` on mismatch, regardless of `auto_migrate`. Default range is `min = schema_version`, `max = None` (unbounded forward) — matches expand-contract migrations
+- `SchemaVersionMismatch` exception (under `pgwerk.exceptions`) for clear failure when the DB is older than the code requires or newer than the code supports
+
 ### Changed
 
 - `Werk` no longer requires `connect()` to access the queue. Repositories are constructed lazily on first access, so `Werk(dsn).enqueue(...)` works from any process (e.g. an external worker enqueueing into pgwerk) as long as migrations have been run by some process. `connect()` remains the entry point for migrations, the in-process sync worker, and `on_startup` hooks
+- The API/dashboard server (`pgwerk.api`) now constructs `Werk(..., auto_migrate=False)`. The API is no longer the owner of schema migrations — run `werk migrate` (or boot a worker, which still auto-migrates by default) to upgrade. The API will refuse to start with a clear error if it sees an incompatible DB version
 
 ## [0.1.11] - 2026-05-08
 
