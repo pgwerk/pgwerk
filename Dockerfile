@@ -10,6 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpq5 ca-certi
 WORKDIR /app
 COPY . .
 COPY --from=dashboard /app/pgwerk/api/static ./pgwerk/api/static
-RUN pip install --no-cache-dir ".[api]"
+RUN pip install --no-cache-dir ".[api,exporter]"
 EXPOSE 8000
 CMD ["werk", "api", "--host", "0.0.0.0"]
