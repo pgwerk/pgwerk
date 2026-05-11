@@ -66,7 +66,6 @@ def api(
     configure_logging(level=log_level, format=log_format, color=False if no_color else None)
 
     from ..config import WerkConfig
-    from ..api.app import create_app
 
     config = WerkConfig(
         dsn=dsn,
@@ -79,14 +78,12 @@ def api(
         api_token=api_token,
     )
 
-    if reload:
-        uvicorn.run(
-            "pgwerk.api.app:create_app",
-            factory=True,
-            host=host,
-            port=port,
-            reload=True,
-            log_level=log_level.lower(),
-        )
-    else:
-        uvicorn.run(create_app(config), host=host, port=port, log_level=log_level.lower())
+    config.to_env()
+    uvicorn.run(
+        "pgwerk.api.app:create_app",
+        factory=True,
+        host=host,
+        port=port,
+        reload=reload,
+        log_level=log_level.lower(),
+    )

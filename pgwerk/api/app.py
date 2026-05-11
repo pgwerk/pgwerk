@@ -23,7 +23,7 @@ def create_app(config: WerkConfig | None = None) -> Litestar:
         A configured Litestar application instance.
     """
     if config is None:
-        config = WerkConfig()
+        config = WerkConfig.from_env()
 
     state: dict = {}
     dependencies: dict = {}

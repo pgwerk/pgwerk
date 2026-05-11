@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from typing import ClassVar
 from dataclasses import dataclass
 
@@ -79,3 +81,56 @@ class WerkConfig:
     ui: bool = True
     ui_auth: str | None = None
     api_token: str | None = None
+
+    @classmethod
+    def from_env(cls) -> "WerkConfig":
+
+        def _bool(key: str, default: bool) -> bool:
+            v = os.environ.get(key, "").lower()
+            return default if not v else v in ("1", "true", "yes")
+
+        def _float(key: str, default: float) -> float:
+            return float(os.environ.get(key, default))
+
+        def _int(key: str, default: int) -> int:
+            return int(os.environ.get(key, default))
+
+        return cls(
+            dsn=os.environ.get("PGWERK_DSN"),
+            schema=os.environ.get("PGWERK_SCHEMA", "pgwerk"),
+            prefix=os.environ.get("PGWERK_PREFIX", "_pgwerk"),
+            max_active_secs=_int("PGWERK_MAX_ACTIVE_SECS", 3600),
+            heartbeat_interval=_int("PGWERK_HEARTBEAT_INTERVAL", 10),
+            poll_interval=_float("PGWERK_POLL_INTERVAL", 5.0),
+            abort_interval=_float("PGWERK_ABORT_INTERVAL", 1.0),
+            sweep_interval=_float("PGWERK_SWEEP_INTERVAL", 60.0),
+            shutdown_timeout=_float("PGWERK_SHUTDOWN_TIMEOUT", 30.0),
+            sigterm_grace=_int("PGWERK_SIGTERM_GRACE", 5),
+            ephemeral_tables=_bool("PGWERK_EPHEMERAL_TABLES", False),
+            metrics=_bool("PGWERK_METRICS", False),
+            metrics_interval=_float("PGWERK_METRICS_INTERVAL", 15.0),
+            ui=not _bool("PGWERK_NO_UI", False),
+            ui_auth=os.environ.get("PGWERK_UI_AUTH"),
+            api_token=os.environ.get("PGWERK_API_TOKEN"),
+        )
+
+    def to_env(self) -> None:
+
+        os.environ["PGWERK_DSN"] = self.dsn or ""
+        os.environ["PGWERK_SCHEMA"] = self.schema
+        os.environ["PGWERK_PREFIX"] = self.prefix
+        os.environ["PGWERK_MAX_ACTIVE_SECS"] = str(self.max_active_secs)
+        os.environ["PGWERK_HEARTBEAT_INTERVAL"] = str(self.heartbeat_interval)
+        os.environ["PGWERK_POLL_INTERVAL"] = str(self.poll_interval)
+        os.environ["PGWERK_ABORT_INTERVAL"] = str(self.abort_interval)
+        os.environ["PGWERK_SWEEP_INTERVAL"] = str(self.sweep_interval)
+        os.environ["PGWERK_SHUTDOWN_TIMEOUT"] = str(self.shutdown_timeout)
+        os.environ["PGWERK_SIGTERM_GRACE"] = str(self.sigterm_grace)
+        os.environ["PGWERK_EPHEMERAL_TABLES"] = "true" if self.ephemeral_tables else "false"
+        os.environ["PGWERK_METRICS"] = "true" if self.metrics else "false"
+        os.environ["PGWERK_METRICS_INTERVAL"] = str(self.metrics_interval)
+        os.environ["PGWERK_NO_UI"] = "true" if not self.ui else "false"
+        if self.ui_auth:
+            os.environ["PGWERK_UI_AUTH"] = self.ui_auth
+        if self.api_token:
+            os.environ["PGWERK_API_TOKEN"] = self.api_token
