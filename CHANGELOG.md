@@ -7,6 +7,27 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.14] - 2026-05-11
+
+### Fixed
+
+- `WerkExporter.collect()` crashed on every cycle with `UndefinedColumn: column "last_heartbeat" does not exist` — the worker-count query now correctly references `heartbeat_at`
+- Grafana dashboard: "Workers Online" stat always showed 0 because the query filtered on `expires_at > NOW()`, but `expires_at` is only set when a worker stops (active workers have `NULL`). Query now uses `heartbeat_at > NOW() - INTERVAL '60 seconds'`
+- Grafana dashboard: "Success Rate" returned `No data` instead of 100 % when no failed jobs existed in the time window — wrapped in `COALESCE` to default to 100
+- Grafana dashboard: "Jobs by Queue and Status" and "Top Functions by Failure Count" bar charts rendered with the wrong axis — added explicit `xField` so Grafana treats `queue` / `function` as the category axis
+
+### Added
+
+- `WerkConfig.from_env()` — reconstruct a full config from `PGWERK_*` environment variables (covers all fields)
+- `WerkConfig.to_env()` — write the current config back to `PGWERK_*` environment variables; used by the `werk api` CLI so uvicorn's factory-reload mode picks up the correct config
+- Integration test `tests/integration/test_exporter.py` — covers `WerkExporter.collect()` against a real Postgres instance, catching SQL column-name regressions that mypy cannot see
+
+### Changed
+
+- `werk api` now always passes `"pgwerk.api.app:create_app"` as a factory string to uvicorn (with `factory=True`), calling `config.to_env()` first so the factory reconstructs the identical config on every reload
+
+---
+
 ## [0.1.13] - 2026-05-11
 
 ### Changed
