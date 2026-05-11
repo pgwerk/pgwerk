@@ -7,6 +7,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.13] - 2026-05-11
+
+### Changed
+
+- Docker image now includes the `exporter` extra (`prometheus-client`) alongside `api`
+
+---
+
 ## [0.1.12] - 2026-05-08
 
 ### Added
