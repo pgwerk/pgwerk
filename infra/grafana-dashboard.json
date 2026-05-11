@@ -1,52 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_POSTGRES",
-      "label": "PostgreSQL",
-      "description": "pgwerk database",
-      "type": "datasource",
-      "pluginId": "postgres",
-      "pluginName": "PostgreSQL"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "10.0.0"
-    },
-    {
-      "type": "datasource",
-      "id": "postgres",
-      "name": "PostgreSQL",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "timeseries",
-      "name": "Time series",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "stat",
-      "name": "Stat",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "barchart",
-      "name": "Bar chart",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -134,7 +86,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT COUNT(*) AS value FROM _pgwerk_jobs WHERE $__timeFilter(enqueued_at)",
+          "rawSql": "SELECT COUNT(*) AS value FROM pgwerk._pgwerk_jobs WHERE $__timeFilter(enqueued_at)",
           "format": "table",
           "refId": "A"
         }
@@ -200,7 +152,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT COUNT(*) AS value FROM _pgwerk_jobs WHERE status = 'active'",
+          "rawSql": "SELECT COUNT(*) AS value FROM pgwerk._pgwerk_jobs WHERE status = 'active'",
           "format": "table",
           "refId": "A"
         }
@@ -266,7 +218,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT COUNT(*) AS value FROM _pgwerk_jobs WHERE status IN ('queued', 'scheduled')",
+          "rawSql": "SELECT COUNT(*) AS value FROM pgwerk._pgwerk_jobs WHERE status IN ('queued', 'scheduled')",
           "format": "table",
           "refId": "A"
         }
@@ -332,7 +284,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT COUNT(*) AS value FROM _pgwerk_jobs WHERE status = 'failed' AND $__timeFilter(enqueued_at)",
+          "rawSql": "SELECT COUNT(*) AS value FROM pgwerk._pgwerk_jobs WHERE status = 'failed' AND $__timeFilter(enqueued_at)",
           "format": "table",
           "refId": "A"
         }
@@ -400,7 +352,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE status = 'complete') / NULLIF(COUNT(*) FILTER (WHERE status IN ('complete','failed','aborted')), 0), 2) AS value FROM _pgwerk_jobs WHERE $__timeFilter(enqueued_at)",
+          "rawSql": "SELECT COALESCE(ROUND(100.0 * COUNT(*) FILTER (WHERE status = 'complete') / NULLIF(COUNT(*) FILTER (WHERE status IN ('complete','failed','aborted')), 0), 2), 100.0) AS value FROM pgwerk._pgwerk_jobs WHERE $__timeFilter(enqueued_at)",
           "format": "table",
           "refId": "A"
         }
@@ -466,7 +418,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT COUNT(*) AS value FROM _pgwerk_worker WHERE expires_at > NOW() AND role = 'worker'",
+          "rawSql": "SELECT COUNT(*) AS value FROM pgwerk._pgwerk_worker WHERE heartbeat_at > NOW() - INTERVAL '60 seconds' AND role = 'worker'",
           "format": "table",
           "refId": "A"
         }
@@ -539,7 +491,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT\n  time_bucket('$__interval', completed_at) AS time,\n  queue,\n  COUNT(*) AS completed\nFROM _pgwerk_jobs\nWHERE\n  status = 'complete'\n  AND $__timeFilter(completed_at)\n  AND queue IN ($queue)\nGROUP BY 1, 2\nORDER BY 1",
+          "rawSql": "SELECT\n  $__timeGroupAlias(completed_at,$__interval),\n  queue,\n  COUNT(*) AS completed\nFROM pgwerk._pgwerk_jobs\nWHERE\n  status = 'complete'\n  AND $__timeFilter(completed_at)\n  AND queue IN ($queue)\nGROUP BY 1, 2\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
         }
@@ -629,7 +581,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT\n  time_bucket('$__interval', enqueued_at) AS time,\n  COUNT(*) FILTER (WHERE status IN ('queued', 'scheduled')) AS queued,\n  COUNT(*) FILTER (WHERE status = 'active') AS active\nFROM _pgwerk_jobs\nWHERE\n  $__timeFilter(enqueued_at)\n  AND queue IN ($queue)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  $__timeGroupAlias(enqueued_at,$__interval),\n  COUNT(*) FILTER (WHERE status IN ('queued', 'scheduled')) AS queued,\n  COUNT(*) FILTER (WHERE status = 'active') AS active\nFROM pgwerk._pgwerk_jobs\nWHERE\n  $__timeFilter(enqueued_at)\n  AND queue IN ($queue)\nGROUP BY 1\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
         }
@@ -752,6 +704,7 @@
         "barRadius": 0.05,
         "barWidth": 0.7,
         "groupWidth": 0.7,
+        "xField": "queue",
         "legend": {
           "calcs": [],
           "displayMode": "list",
@@ -773,7 +726,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT\n  queue,\n  COUNT(*) FILTER (WHERE status = 'queued')    AS queued,\n  COUNT(*) FILTER (WHERE status = 'active')    AS active,\n  COUNT(*) FILTER (WHERE status = 'scheduled') AS scheduled,\n  COUNT(*) FILTER (WHERE status = 'waiting')   AS waiting,\n  COUNT(*) FILTER (WHERE status = 'complete')  AS complete,\n  COUNT(*) FILTER (WHERE status = 'failed')    AS failed,\n  COUNT(*) FILTER (WHERE status = 'aborted')   AS aborted\nFROM _pgwerk_jobs\nWHERE $__timeFilter(enqueued_at)\n  AND queue IN ($queue)\nGROUP BY queue\nORDER BY queue",
+          "rawSql": "SELECT\n  queue,\n  COUNT(*) FILTER (WHERE status = 'queued')    AS queued,\n  COUNT(*) FILTER (WHERE status = 'active')    AS active,\n  COUNT(*) FILTER (WHERE status = 'scheduled') AS scheduled,\n  COUNT(*) FILTER (WHERE status = 'waiting')   AS waiting,\n  COUNT(*) FILTER (WHERE status = 'complete')  AS complete,\n  COUNT(*) FILTER (WHERE status = 'failed')    AS failed,\n  COUNT(*) FILTER (WHERE status = 'aborted')   AS aborted\nFROM pgwerk._pgwerk_jobs\nWHERE $__timeFilter(enqueued_at)\n  AND queue IN ($queue)\nGROUP BY queue\nORDER BY queue",
           "format": "table",
           "refId": "A"
         }
@@ -839,6 +792,7 @@
         "barRadius": 0.05,
         "barWidth": 0.7,
         "groupWidth": 0.7,
+        "xField": "function",
         "legend": {
           "calcs": [],
           "displayMode": "list",
@@ -860,7 +814,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT\n  function,\n  COUNT(*) FILTER (WHERE status = 'complete') AS complete,\n  COUNT(*) FILTER (WHERE status = 'failed')   AS failed\nFROM _pgwerk_jobs\nWHERE $__timeFilter(enqueued_at)\n  AND queue IN ($queue)\nGROUP BY function\nORDER BY failed DESC\nLIMIT 20",
+          "rawSql": "SELECT\n  function,\n  COUNT(*) FILTER (WHERE status = 'complete') AS complete,\n  COUNT(*) FILTER (WHERE status = 'failed')   AS failed\nFROM pgwerk._pgwerk_jobs\nWHERE $__timeFilter(enqueued_at)\n  AND queue IN ($queue)\nGROUP BY function\nORDER BY failed DESC\nLIMIT 20",
           "format": "table",
           "refId": "A"
         }
@@ -930,7 +884,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT\n  time_bucket('$__interval', completed_at) AS time,\n  PERCENTILE_CONT(0.5)  WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (completed_at - started_at))) AS p50,\n  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (completed_at - started_at))) AS p95,\n  PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (completed_at - started_at))) AS p99\nFROM _pgwerk_jobs\nWHERE\n  status = 'complete'\n  AND started_at IS NOT NULL\n  AND completed_at IS NOT NULL\n  AND $__timeFilter(completed_at)\n  AND queue IN ($queue)\nGROUP BY 1\nORDER BY 1",
+          "rawSql": "SELECT\n  $__timeGroupAlias(completed_at,$__interval),\n  PERCENTILE_CONT(0.5)  WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (completed_at - started_at))) AS p50,\n  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (completed_at - started_at))) AS p95,\n  PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (completed_at - started_at))) AS p99\nFROM pgwerk._pgwerk_jobs\nWHERE\n  status = 'complete'\n  AND started_at IS NOT NULL\n  AND completed_at IS NOT NULL\n  AND $__timeFilter(completed_at)\n  AND queue IN ($queue)\nGROUP BY 1\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
         }
@@ -988,7 +942,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT\n  time_bucket('$__interval', started_at) AS time,\n  queue,\n  PERCENTILE_CONT(0.5)  WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (started_at - enqueued_at))) AS p50_wait,\n  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (started_at - enqueued_at))) AS p95_wait\nFROM _pgwerk_jobs\nWHERE\n  started_at IS NOT NULL\n  AND $__timeFilter(started_at)\n  AND queue IN ($queue)\nGROUP BY 1, 2\nORDER BY 1",
+          "rawSql": "SELECT\n  $__timeGroupAlias(started_at,$__interval),\n  queue,\n  PERCENTILE_CONT(0.5)  WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (started_at - enqueued_at))) AS p50_wait,\n  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (started_at - enqueued_at))) AS p95_wait\nFROM pgwerk._pgwerk_jobs\nWHERE\n  started_at IS NOT NULL\n  AND $__timeFilter(started_at)\n  AND queue IN ($queue)\nGROUP BY 1, 2\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
         }
@@ -1182,7 +1136,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT\n  w.name,\n  w.queue,\n  w.status,\n  w.role,\n  ROUND(EXTRACT(EPOCH FROM (NOW() - w.heartbeat_at))::numeric, 1) AS heartbeat_lag_s,\n  ROUND(EXTRACT(EPOCH FROM (w.expires_at - NOW()))::numeric, 1)  AS expires_in_s,\n  COUNT(wj.job_id)                                               AS claimed_jobs\nFROM _pgwerk_worker w\nLEFT JOIN _pgwerk_worker_jobs wj ON w.id = wj.worker_id\nGROUP BY w.id, w.name, w.queue, w.status, w.role, w.heartbeat_at, w.expires_at\nORDER BY heartbeat_lag_s DESC",
+          "rawSql": "SELECT\n  w.name,\n  w.queue,\n  w.status,\n  w.role,\n  ROUND(EXTRACT(EPOCH FROM (NOW() - w.heartbeat_at))::numeric, 1) AS heartbeat_lag_s,\n  ROUND(EXTRACT(EPOCH FROM (w.expires_at - NOW()))::numeric, 1)  AS expires_in_s,\n  COUNT(wj.job_id)                                               AS claimed_jobs\nFROM pgwerk._pgwerk_worker w\nLEFT JOIN pgwerk._pgwerk_worker_jobs wj ON w.id = wj.worker_id\nGROUP BY w.id, w.name, w.queue, w.status, w.role, w.heartbeat_at, w.expires_at\nORDER BY heartbeat_lag_s DESC",
           "format": "table",
           "refId": "A"
         }
@@ -1242,7 +1196,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT\n  time_bucket('$__interval', j.completed_at) AS time,\n  COALESCE(w.name, 'unknown')               AS worker,\n  COUNT(*)                                  AS jobs\nFROM _pgwerk_jobs j\nLEFT JOIN _pgwerk_worker w ON j.worker_id = w.id\nWHERE\n  j.status = 'complete'\n  AND $__timeFilter(j.completed_at)\n  AND j.queue IN ($queue)\nGROUP BY 1, 2\nORDER BY 1",
+          "rawSql": "SELECT\n  $__timeGroupAlias(j.completed_at,$__interval),\n  COALESCE(w.name, 'unknown')               AS worker,\n  COUNT(*)                                  AS jobs\nFROM pgwerk._pgwerk_jobs j\nLEFT JOIN pgwerk._pgwerk_worker w ON j.worker_id = w.id\nWHERE\n  j.status = 'complete'\n  AND $__timeFilter(j.completed_at)\n  AND j.queue IN ($queue)\nGROUP BY 1, 2\nORDER BY 1",
           "format": "time_series",
           "refId": "A"
         }
@@ -1352,7 +1306,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT\n  j.id,\n  j.queue,\n  j.function,\n  j.attempts,\n  j.max_attempts,\n  j.enqueued_at,\n  e.error\nFROM _pgwerk_jobs j\nLEFT JOIN LATERAL (\n  SELECT error FROM _pgwerk_jobs_executions\n  WHERE job_id = j.id\n  ORDER BY attempt DESC\n  LIMIT 1\n) e ON true\nWHERE j.status = 'failed'\n  AND $__timeFilter(j.enqueued_at)\n  AND j.queue IN ($queue)\nORDER BY j.enqueued_at DESC\nLIMIT 50",
+          "rawSql": "SELECT\n  j.id,\n  j.queue,\n  j.function,\n  j.attempts,\n  j.max_attempts,\n  j.enqueued_at,\n  e.error\nFROM pgwerk._pgwerk_jobs j\nLEFT JOIN LATERAL (\n  SELECT error FROM pgwerk._pgwerk_jobs_executions\n  WHERE job_id = j.id\n  ORDER BY attempt DESC\n  LIMIT 1\n) e ON true\nWHERE j.status = 'failed'\n  AND $__timeFilter(j.enqueued_at)\n  AND j.queue IN ($queue)\nORDER BY j.enqueued_at DESC\nLIMIT 50",
           "format": "table",
           "refId": "A"
         }
@@ -1484,7 +1438,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT\n  function,\n  queue,\n  COUNT(*) FILTER (WHERE status = 'complete') AS complete,\n  COUNT(*) FILTER (WHERE status = 'failed')   AS failed,\n  ROUND(AVG(attempts)::numeric, 2)            AS avg_attempts,\n  MAX(attempts)                               AS max_attempts_seen\nFROM _pgwerk_jobs\nWHERE $__timeFilter(enqueued_at)\n  AND queue IN ($queue)\nGROUP BY function, queue\nORDER BY failed DESC, avg_attempts DESC\nLIMIT 30",
+          "rawSql": "SELECT\n  function,\n  queue,\n  COUNT(*) FILTER (WHERE status = 'complete') AS complete,\n  COUNT(*) FILTER (WHERE status = 'failed')   AS failed,\n  ROUND(AVG(attempts)::numeric, 2)            AS avg_attempts,\n  MAX(attempts)                               AS max_attempts_seen\nFROM pgwerk._pgwerk_jobs\nWHERE $__timeFilter(enqueued_at)\n  AND queue IN ($queue)\nGROUP BY function, queue\nORDER BY failed DESC, avg_attempts DESC\nLIMIT 30",
           "format": "table",
           "refId": "A"
         }
@@ -1652,7 +1606,7 @@
             "type": "postgres",
             "uid": "${DS_POSTGRES}"
           },
-          "rawSql": "SELECT\n  s.name,\n  s.function,\n  s.queue,\n  COALESCE(s.cron, s.interval_secs::text || 's') AS schedule,\n  s.paused,\n  s.last_run_at,\n  ROUND(EXTRACT(EPOCH FROM (s.next_run_at - NOW()))::numeric, 0) AS next_run_in_s,\n  COUNT(j.id) FILTER (WHERE j.status = 'complete') AS completed_runs,\n  COUNT(j.id) FILTER (WHERE j.status = 'failed')   AS failed_runs,\n  ROUND(\n    COUNT(j.id) FILTER (WHERE j.status = 'failed')::numeric /\n    NULLIF(COUNT(j.id) FILTER (WHERE j.status IN ('complete','failed')), 0),\n    4\n  ) AS failure_rate\nFROM _pgwerk_schedules s\nLEFT JOIN _pgwerk_jobs j\n  ON j.schedule_name = s.name\n  AND $__timeFilter(j.enqueued_at)\nGROUP BY s.name, s.function, s.queue, s.cron, s.interval_secs, s.paused, s.last_run_at, s.next_run_at\nORDER BY s.name",
+          "rawSql": "SELECT\n  s.name,\n  s.function,\n  s.queue,\n  COALESCE(s.cron, s.interval_secs::text || 's') AS schedule,\n  s.paused,\n  s.last_run_at,\n  ROUND(EXTRACT(EPOCH FROM (s.next_run_at - NOW()))::numeric, 0) AS next_run_in_s,\n  COUNT(j.id) FILTER (WHERE j.status = 'complete') AS completed_runs,\n  COUNT(j.id) FILTER (WHERE j.status = 'failed')   AS failed_runs,\n  ROUND(\n    COUNT(j.id) FILTER (WHERE j.status = 'failed')::numeric /\n    NULLIF(COUNT(j.id) FILTER (WHERE j.status IN ('complete','failed')), 0),\n    4\n  ) AS failure_rate\nFROM pgwerk._pgwerk_schedules s\nLEFT JOIN pgwerk._pgwerk_jobs j\n  ON j.schedule_name = s.name\n  AND $__timeFilter(j.enqueued_at)\nGROUP BY s.name, s.function, s.queue, s.cron, s.interval_secs, s.paused, s.last_run_at, s.next_run_at\nORDER BY s.name",
           "format": "table",
           "refId": "A"
         }
@@ -1670,18 +1624,31 @@
     "list": [
       {
         "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data Source",
+        "multi": false,
+        "name": "DS_POSTGRES",
+        "options": [],
+        "query": "postgres",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "current": {},
         "datasource": {
           "type": "postgres",
           "uid": "${DS_POSTGRES}"
         },
-        "definition": "SELECT DISTINCT queue FROM _pgwerk_jobs ORDER BY queue",
+        "definition": "SELECT DISTINCT queue FROM pgwerk._pgwerk_jobs ORDER BY queue",
         "hide": 0,
         "includeAll": true,
         "label": "Queue",
         "multi": true,
         "name": "queue",
         "options": [],
-        "query": "SELECT DISTINCT queue FROM _pgwerk_jobs ORDER BY queue",
+        "query": "SELECT DISTINCT queue FROM pgwerk._pgwerk_jobs ORDER BY queue",
         "refresh": 2,
         "regex": "",
         "sort": 1,

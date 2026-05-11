@@ -167,7 +167,7 @@ class WerkExporter:
                     SQL("""
                         SELECT
                             COUNT(*) AS total,
-                            COUNT(*) FILTER (WHERE last_heartbeat > NOW() - INTERVAL '30 seconds') AS online
+                            COUNT(*) FILTER (WHERE heartbeat_at > NOW() - INTERVAL '30 seconds') AS online
                         FROM {worker}
                     """).format(worker=t["worker"])
                 )
@@ -181,7 +181,7 @@ class WerkExporter:
                     SQL("""
                         SELECT
                             queue,
-                            AVG(EXTRACT(EPOCH FROM (started_at - scheduled_at)))    AS avg_wait,
+                            AVG(EXTRACT(EPOCH FROM (started_at - enqueued_at)))    AS avg_wait,
                             AVG(EXTRACT(EPOCH FROM (completed_at - started_at)))    AS avg_duration,
                             COUNT(*) FILTER (WHERE status = 'complete')             AS completed,
                             COUNT(*) FILTER (WHERE status IN ('failed', 'aborted')) AS failed
