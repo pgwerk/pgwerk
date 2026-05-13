@@ -218,23 +218,47 @@ def fn_path(func: Callable) -> str:
     return f"{func.__module__}.{qualname}"
 
 
-def normalize_retry(retry: "Retry | int | None") -> tuple[int, list[int] | None]:
+_DEFAULT_BACKOFF_BASE = 2
+_DEFAULT_BACKOFF_CAP = 300
+
+
+def default_backoff_intervals(max_attempts: int) -> list[int] | None:
+    """Generate an exponential backoff schedule for ``max_attempts`` total attempts.
+
+    Produces ``max_attempts - 1`` delays of ``base * 2**i`` seconds, capped at
+    :data:`_DEFAULT_BACKOFF_CAP`. Returns ``None`` when no retries are possible.
+    """
+    n = max_attempts - 1
+    if n <= 0:
+        return None
+    return [min(_DEFAULT_BACKOFF_BASE * (2**i), _DEFAULT_BACKOFF_CAP) for i in range(n)]
+
+
+def normalize_retry(
+    retry: "Retry | int | None",
+    default_backoff: bool = True,
+) -> tuple[int, list[int] | None]:
     """Normalise a ``retry`` argument to ``(max_attempts, intervals_or_None)``.
 
     Args:
         retry: A :class:`~wrk.schemas.Retry` object, a plain integer (max
-            attempts with no delay), or ``None`` (use library defaults).
+            attempts), or ``None`` (use library defaults).
+        default_backoff: When ``True`` and ``retry`` is ``None`` or a plain
+            integer, synthesize an exponential backoff schedule. Set to
+            ``False`` to preserve the legacy immediate-retry behavior. An
+            explicit :class:`Retry` always wins — its intervals are used
+            verbatim.
 
     Returns:
         A tuple of ``(max_attempts, retry_intervals)`` where ``retry_intervals``
         is a list of per-attempt delays in seconds, or ``None`` for immediate retry.
     """
     if retry is None:
-        return 3, None  # default: 3 attempts, saner than 1 for transient failures
+        return 3, default_backoff_intervals(3) if default_backoff else None
     if retry == 0:
         return 1, None
     if isinstance(retry, int):
-        return retry, None
+        return retry, default_backoff_intervals(retry) if default_backoff else None
     if isinstance(retry.intervals, list):
         return retry.max, retry.intervals if retry.intervals else None
     if retry.intervals:  # uniform int > 0

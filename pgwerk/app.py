@@ -306,7 +306,7 @@ class Werk:
         elif _delay is not None:
             scheduled_at = datetime.now(timezone.utc) + timedelta(seconds=_delay)
 
-        max_attempts, retry_intervals = normalize_retry(_retry)
+        max_attempts, retry_intervals = normalize_retry(_retry, default_backoff=self.config.default_retry_backoff)
         on_success_path, on_success_timeout = normalize_callback(_on_success)
         on_failure_path, on_failure_timeout = normalize_callback(_on_failure)
         on_stopped_path, on_stopped_timeout = normalize_callback(_on_stopped)
@@ -424,7 +424,7 @@ class Werk:
             elif spec.delay is not None:
                 scheduled_at = datetime.now(timezone.utc) + timedelta(seconds=spec.delay)
 
-            max_attempts, retry_intervals = normalize_retry(spec.retry)
+            max_attempts, retry_intervals = normalize_retry(spec.retry, default_backoff=self.config.default_retry_backoff)
             on_success_path, on_success_timeout = normalize_callback(spec.on_success)
             on_failure_path, on_failure_timeout = normalize_callback(spec.on_failure)
             on_stopped_path, on_stopped_timeout = normalize_callback(spec.on_stopped)

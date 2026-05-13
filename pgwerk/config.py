@@ -46,6 +46,9 @@ class WerkConfig:
         ui: Serve the SPA dashboard (requires built static files).
         ui_auth: Basic Auth for the SPA as ``user:password``.
         api_token: Bearer token for all ``/api/*`` routes.
+        default_retry_backoff: When ``True`` (default), passing a plain integer
+            to ``_retry`` synthesizes an exponential backoff schedule rather
+            than retrying immediately. An explicit :class:`Retry` always wins.
     """
 
     schema_version: ClassVar[int] = 6
@@ -82,6 +85,9 @@ class WerkConfig:
     ui_auth: str | None = None
     api_token: str | None = None
 
+    # Retry behavior
+    default_retry_backoff: bool = True
+
     @classmethod
     def from_env(cls) -> "WerkConfig":
 
@@ -112,6 +118,7 @@ class WerkConfig:
             ui=not _bool("PGWERK_NO_UI", False),
             ui_auth=os.environ.get("PGWERK_UI_AUTH"),
             api_token=os.environ.get("PGWERK_API_TOKEN"),
+            default_retry_backoff=_bool("PGWERK_DEFAULT_RETRY_BACKOFF", True),
         )
 
     def to_env(self) -> None:
@@ -134,3 +141,4 @@ class WerkConfig:
             os.environ["PGWERK_UI_AUTH"] = self.ui_auth
         if self.api_token:
             os.environ["PGWERK_API_TOKEN"] = self.api_token
+        os.environ["PGWERK_DEFAULT_RETRY_BACKOFF"] = "true" if self.default_retry_backoff else "false"

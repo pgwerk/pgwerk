@@ -28,14 +28,23 @@ from pgwerk.serializers import get_default
 
 
 class TestNormalizeRetry:
-    def test_none(self):
-        assert normalize_retry(None) == (3, None)
+    def test_none_default_backoff(self):
+        assert normalize_retry(None) == (3, [2, 4])
+
+    def test_none_no_backoff(self):
+        assert normalize_retry(None, default_backoff=False) == (3, None)
 
     def test_zero(self):
         assert normalize_retry(0) == (1, None)
 
-    def test_int(self):
-        assert normalize_retry(5) == (5, None)
+    def test_int_default_backoff(self):
+        assert normalize_retry(5) == (5, [2, 4, 8, 16])
+
+    def test_int_no_backoff(self):
+        assert normalize_retry(5, default_backoff=False) == (5, None)
+
+    def test_int_one_no_intervals(self):
+        assert normalize_retry(1) == (1, None)
 
     def test_retry_object_uniform(self):
         assert normalize_retry(Retry(max=3, intervals=10)) == (3, [10])
