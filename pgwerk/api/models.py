@@ -38,6 +38,26 @@ class JobResponse:
         completed_at: When the job reached a terminal state.
         worker_id: UUID of the worker currently or last executing this job.
         meta: User-supplied metadata.
+        args: Positional arguments forwarded to the handler.
+        kwargs: Keyword arguments forwarded to the handler.
+        result: Decoded final return value, if the job succeeded.
+        touched_at: Last heartbeat timestamp from the executing worker.
+        expires_at: When this row becomes eligible for garbage collection.
+        result_ttl: Seconds to retain the job row after success.
+        failure_ttl: Seconds to retain the job row after failure.
+        ttl: Maximum seconds the job may wait in the queue before being dropped.
+        retry_intervals: Per-attempt retry delays in seconds.
+        repeat_remaining: Number of additional repeats still pending.
+        repeat_interval_secs: Uniform delay between repeats in seconds.
+        repeat_intervals: Per-run repeat delays in seconds.
+        schedule_name: Name of the Schedule that created this job, if any.
+        failure_mode: What to do on terminal failure (e.g. ``hold`` / ``delete``).
+        on_success: Dotted path of the success callback.
+        on_failure: Dotted path of the failure callback.
+        on_stopped: Dotted path of the abort/stop callback.
+        on_success_timeout: Timeout in seconds for the success callback.
+        on_failure_timeout: Timeout in seconds for the failure callback.
+        on_stopped_timeout: Timeout in seconds for the abort/stop callback.
     """
 
     id: str
@@ -58,6 +78,26 @@ class JobResponse:
     completed_at: datetime | None = None
     worker_id: str | None = None
     meta: dict[str, Any] | None = None
+    args: list[Any] = dataclasses.field(default_factory=list)
+    kwargs: dict[str, Any] = dataclasses.field(default_factory=dict)
+    result: Any = None
+    touched_at: datetime | None = None
+    expires_at: datetime | None = None
+    result_ttl: int | None = None
+    failure_ttl: int | None = None
+    ttl: int | None = None
+    retry_intervals: list[int] | None = None
+    repeat_remaining: int | None = None
+    repeat_interval_secs: int | None = None
+    repeat_intervals: list[int] | None = None
+    schedule_name: str | None = None
+    failure_mode: str = "hold"
+    on_success: str | None = None
+    on_failure: str | None = None
+    on_stopped: str | None = None
+    on_success_timeout: int | None = None
+    on_failure_timeout: int | None = None
+    on_stopped_timeout: int | None = None
 
     @classmethod
     def from_job(cls, job: "Job") -> "JobResponse":
@@ -88,6 +128,26 @@ class JobResponse:
             completed_at=job.completed_at,
             worker_id=job.worker_id,
             meta=job.meta,
+            args=list(job.payload.get("args") or []) if job.payload else [],
+            kwargs=dict(job.payload.get("kwargs") or {}) if job.payload else {},
+            result=job.result,
+            touched_at=job.touched_at,
+            expires_at=job.expires_at,
+            result_ttl=job.result_ttl,
+            failure_ttl=job.failure_ttl,
+            ttl=job.ttl,
+            retry_intervals=job.retry_intervals,
+            repeat_remaining=job.repeat_remaining,
+            repeat_interval_secs=job.repeat_interval_secs,
+            repeat_intervals=job.repeat_intervals,
+            schedule_name=job.schedule_name,
+            failure_mode=job.failure_mode,
+            on_success=job.on_success,
+            on_failure=job.on_failure,
+            on_stopped=job.on_stopped,
+            on_success_timeout=job.on_success_timeout,
+            on_failure_timeout=job.on_failure_timeout,
+            on_stopped_timeout=job.on_stopped_timeout,
         )
 
 
@@ -337,17 +397,22 @@ class ServerInfo:
 
     Attributes:
         pg_version: Postgres server version string.
+        pgwerk_version: Installed pgwerk package version.
         db_size_bytes: Total size of the entire Postgres database in bytes.
         pgwerk_size_bytes: Combined size of all wrk tables in bytes.
         schema: Postgres schema that qualifies wrk table names, or ``None`` for the default search path.
         tables: Per-table size and row-count metadata.
+        truncate_enabled: Whether the truncate-all-tables endpoint is enabled
+            via the ``PGWERK_ALLOW_TRUNCATE`` environment variable.
     """
 
     pg_version: str
+    pgwerk_version: str
     db_size_bytes: int
     pgwerk_size_bytes: int
     schema: str | None
     tables: list[TableInfo]
+    truncate_enabled: bool = False
 
 
 @dataclasses.dataclass
