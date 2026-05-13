@@ -8,6 +8,7 @@ import psycopg
 import pytest_asyncio
 
 from pgwerk.app import Werk
+from pgwerk.config import WerkConfig
 from pgwerk.worker import AsyncWorker
 
 
@@ -44,7 +45,7 @@ def _reset_pgwerk_logger_propagation():
 
 @pytest_asyncio.fixture
 async def app():
-    a = Werk(_TEST_DSN, prefix=_TEST_PREFIX)
+    a = Werk(_TEST_DSN, prefix=_TEST_PREFIX, config=WerkConfig(default_retry_backoff=False))
     await a.connect()
 
     async with await psycopg.AsyncConnection.connect(_TEST_DSN, autocommit=True) as conn:
