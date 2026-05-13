@@ -20,6 +20,12 @@ interface FieldProps {
   mono?: boolean
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">{children}</p>
+  )
+}
+
 function Field({ label, value, mono }: FieldProps) {
   return (
     <div className="flex flex-col gap-0.5">
@@ -135,33 +141,123 @@ export function JobDetail({ job, open, onClose }: JobDetailProps) {
           </TabsList>
 
           <TabsContent value="details" className="flex-1 overflow-y-auto p-5">
+            <SectionLabel>Identity</SectionLabel>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Queue" value={job.queue} mono />
               <Field label="Priority" value={job.priority} mono />
+              <Field label="Function" value={job.function} mono />
+              <Field label="Status" value={job.status} mono />
+              {job.key && <Field label="Key" value={job.key} mono />}
+              {job.group_key && <Field label="Group" value={job.group_key} mono />}
+              {job.schedule_name && <Field label="Schedule" value={job.schedule_name} mono />}
+              {job.failure_mode && <Field label="On failure" value={job.failure_mode} mono />}
+            </div>
+
+            <Separator className="my-4" />
+            <SectionLabel>Lifecycle</SectionLabel>
+            <div className="grid grid-cols-2 gap-4">
               <Field label="Attempts" value={`${job.attempts} / ${job.max_attempts}`} mono />
               <Field label="Timeout" value={job.timeout_secs ? `${job.timeout_secs}s` : null} mono />
-              <Field label="Enqueued" value={relativeTime(job.enqueued_at)} />
-              <Field label="Scheduled" value={formatTimestamp(job.scheduled_at)} mono />
-              <Field label="Started" value={formatTimestamp(job.started_at)} mono />
-              <Field label="Completed" value={formatTimestamp(job.completed_at)} mono />
-              <Field
-                label="Duration"
-                value={formatDuration(job.started_at, job.completed_at)}
-                mono
-              />
+              <Field label="Heartbeat" value={job.heartbeat_secs ? `${job.heartbeat_secs}s` : null} mono />
               <Field
                 label="Worker"
                 value={job.worker_id ? truncateId(job.worker_id) : null}
                 mono
               />
-              {job.key && <Field label="Key" value={job.key} mono />}
-              {job.group_key && <Field label="Group" value={job.group_key} mono />}
+              <Field label="Enqueued" value={relativeTime(job.enqueued_at)} />
+              <Field label="Scheduled" value={formatTimestamp(job.scheduled_at)} mono />
+              <Field label="Started" value={formatTimestamp(job.started_at)} mono />
+              <Field label="Completed" value={formatTimestamp(job.completed_at)} mono />
+              <Field label="Last heartbeat" value={formatTimestamp(job.touched_at)} mono />
+              <Field label="Expires" value={formatTimestamp(job.expires_at)} mono />
+              <Field
+                label="Duration"
+                value={formatDuration(job.started_at, job.completed_at)}
+                mono
+              />
             </div>
+
+            {(job.retry_intervals?.length || job.repeat_remaining != null || job.repeat_interval_secs != null || job.repeat_intervals?.length) && (
+              <>
+                <Separator className="my-4" />
+                <SectionLabel>Retry / repeat</SectionLabel>
+                <div className="grid grid-cols-2 gap-4">
+                  {job.retry_intervals?.length ? (
+                    <Field label="Retry intervals" value={job.retry_intervals.map(s => `${s}s`).join(', ')} mono />
+                  ) : null}
+                  {job.repeat_remaining != null && <Field label="Repeats left" value={job.repeat_remaining} mono />}
+                  {job.repeat_interval_secs != null && <Field label="Repeat every" value={`${job.repeat_interval_secs}s`} mono />}
+                  {job.repeat_intervals?.length ? (
+                    <Field label="Repeat intervals" value={job.repeat_intervals.map(s => `${s}s`).join(', ')} mono />
+                  ) : null}
+                </div>
+              </>
+            )}
+
+            {(job.ttl != null || job.result_ttl != null || job.failure_ttl != null) && (
+              <>
+                <Separator className="my-4" />
+                <SectionLabel>TTL</SectionLabel>
+                <div className="grid grid-cols-2 gap-4">
+                  {job.ttl != null && <Field label="Queue TTL" value={`${job.ttl}s`} mono />}
+                  {job.result_ttl != null && <Field label="Result TTL" value={`${job.result_ttl}s`} mono />}
+                  {job.failure_ttl != null && <Field label="Failure TTL" value={`${job.failure_ttl}s`} mono />}
+                </div>
+              </>
+            )}
+
+            {(job.on_success || job.on_failure || job.on_stopped) && (
+              <>
+                <Separator className="my-4" />
+                <SectionLabel>Callbacks</SectionLabel>
+                <div className="grid grid-cols-2 gap-4">
+                  {job.on_success && <Field label="On success" value={job.on_success} mono />}
+                  {job.on_success_timeout != null && <Field label="…timeout" value={`${job.on_success_timeout}s`} mono />}
+                  {job.on_failure && <Field label="On failure" value={job.on_failure} mono />}
+                  {job.on_failure_timeout != null && <Field label="…timeout" value={`${job.on_failure_timeout}s`} mono />}
+                  {job.on_stopped && <Field label="On stopped" value={job.on_stopped} mono />}
+                  {job.on_stopped_timeout != null && <Field label="…timeout" value={`${job.on_stopped_timeout}s`} mono />}
+                </div>
+              </>
+            )}
+
+            {((job.args && job.args.length > 0) || (job.kwargs && Object.keys(job.kwargs).length > 0)) && (
+              <>
+                <Separator className="my-4" />
+                {job.args && job.args.length > 0 && (
+                  <>
+                    <SectionLabel>Args</SectionLabel>
+                    <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs text-foreground">
+                      {JSON.stringify(job.args, null, 2)}
+                    </pre>
+                  </>
+                )}
+                {job.kwargs && Object.keys(job.kwargs).length > 0 && (
+                  <>
+                    <div className="mt-3" />
+                    <SectionLabel>Kwargs</SectionLabel>
+                    <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs text-foreground">
+                      {JSON.stringify(job.kwargs, null, 2)}
+                    </pre>
+                  </>
+                )}
+              </>
+            )}
+
+            {job.result != null && (
+              <>
+                <Separator className="my-4" />
+                <SectionLabel>Result</SectionLabel>
+                <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs text-foreground">
+                  {JSON.stringify(job.result, null, 2)}
+                </pre>
+              </>
+            )}
 
             {job.meta && Object.keys(job.meta).length > 0 && (
               <>
                 <Separator className="my-4" />
-                <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">Meta</p>
+                <SectionLabel>Meta</SectionLabel>
                 <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs text-foreground">
                   {JSON.stringify(job.meta, null, 2)}
                 </pre>

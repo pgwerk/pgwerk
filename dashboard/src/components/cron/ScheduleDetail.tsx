@@ -228,24 +228,54 @@ export function ScheduleDetail({ schedule, open, onClose }: ScheduleDetailProps)
             </TabsList>
 
             <TabsContent value="details" className="flex-1 overflow-y-auto p-5">
+              <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">Identity</p>
               <div className="grid grid-cols-2 gap-4">
+                <Field label="Name" value={schedule.name} mono />
                 <Field label="Queue" value={schedule.queue} mono />
-                <Field label="Schedule" value={formatScheduleExpr(schedule)} mono />
-                <Field label="Next Run" value={relativeTime(schedule.next_run_at ?? undefined)} />
-                <Field label="Last Run" value={relativeTime(schedule.last_run_at ?? undefined)} />
-                <Field label="Timeout" value={schedule.timeout_secs ? `${schedule.timeout_secs}s` : null} mono />
-                <Field label="Registered" value={formatTimestamp(schedule.last_registered_at ?? undefined)} mono />
-                <Field label="Created" value={formatTimestamp(schedule.created_at ?? undefined)} mono />
-                {schedule.result_ttl != null && <Field label="Result TTL" value={`${schedule.result_ttl}s`} mono />}
-                {schedule.failure_ttl != null && <Field label="Failure TTL" value={`${schedule.failure_ttl}s`} mono />}
+                <Field label="Function" value={schedule.function} mono />
+                <Field label="State" value={schedule.paused ? 'paused' : 'active'} mono />
               </div>
 
-              {(schedule.args.length > 0 || Object.keys(schedule.kwargs).length > 0) && (
+              <Separator className="my-4" />
+              <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">Schedule</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Expression" value={formatScheduleExpr(schedule)} mono />
+                {schedule.cron && <Field label="Cron" value={schedule.cron} mono />}
+                {schedule.interval_secs != null && <Field label="Interval" value={`${schedule.interval_secs}s`} mono />}
+                <Field label="Next Run" value={relativeTime(schedule.next_run_at ?? undefined)} />
+                <Field label="Last Run" value={relativeTime(schedule.last_run_at ?? undefined)} />
+                <Field label="Registered" value={formatTimestamp(schedule.last_registered_at ?? undefined)} mono />
+                <Field label="Created" value={formatTimestamp(schedule.created_at ?? undefined)} mono />
+              </div>
+
+              {(schedule.timeout_secs != null || schedule.result_ttl != null || schedule.failure_ttl != null) && (
                 <>
                   <Separator className="my-4" />
-                  <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">Arguments</p>
+                  <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">Limits</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {schedule.timeout_secs != null && <Field label="Timeout" value={`${schedule.timeout_secs}s`} mono />}
+                    {schedule.result_ttl != null && <Field label="Result TTL" value={`${schedule.result_ttl}s`} mono />}
+                    {schedule.failure_ttl != null && <Field label="Failure TTL" value={`${schedule.failure_ttl}s`} mono />}
+                  </div>
+                </>
+              )}
+
+              {schedule.args.length > 0 && (
+                <>
+                  <Separator className="my-4" />
+                  <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">Args</p>
                   <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs text-foreground">
-                    {JSON.stringify({ args: schedule.args, kwargs: schedule.kwargs }, null, 2)}
+                    {JSON.stringify(schedule.args, null, 2)}
+                  </pre>
+                </>
+              )}
+
+              {Object.keys(schedule.kwargs).length > 0 && (
+                <>
+                  <Separator className="my-4" />
+                  <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">Kwargs</p>
+                  <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs text-foreground">
+                    {JSON.stringify(schedule.kwargs, null, 2)}
                   </pre>
                 </>
               )}

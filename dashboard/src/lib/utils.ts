@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { formatDistanceToNow, differenceInSeconds, format } from 'date-fns'
+import { formatDistanceToNow, format } from 'date-fns'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -30,11 +30,14 @@ export function formatDuration(
 ): string {
   if (!startStr) return '—'
   try {
-    const start = new Date(startStr)
-    const end = endStr ? new Date(endStr) : new Date()
-    const secs = differenceInSeconds(end, start)
-    if (secs < 60) return `${secs}s`
-    if (secs < 3600) return `${Math.floor(secs / 60)}m ${secs % 60}s`
+    const start = new Date(startStr).getTime()
+    const end = endStr ? new Date(endStr).getTime() : Date.now()
+    const ms = end - start
+    if (!Number.isFinite(ms) || ms < 0) return '—'
+    if (ms < 1000) return `${Math.round(ms)}ms`
+    const secs = ms / 1000
+    if (secs < 60) return `${secs.toFixed(1)}s`
+    if (secs < 3600) return `${Math.floor(secs / 60)}m ${Math.floor(secs % 60)}s`
     return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`
   } catch {
     return '—'

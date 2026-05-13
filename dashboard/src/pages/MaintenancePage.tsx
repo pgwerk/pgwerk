@@ -140,6 +140,10 @@ export function MaintenancePage() {
                       <p className="font-mono font-medium">{fmtPgVersion(serverInfo.data.pg_version)}</p>
                     </div>
                     <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">pgwerk</p>
+                      <p className="font-mono font-medium">v{serverInfo.data.pgwerk_version}</p>
+                    </div>
+                    <div>
                       <p className="text-xs text-muted-foreground mb-0.5">Schema</p>
                       <p className="font-mono font-medium">{serverInfo.data.schema ?? 'public'}</p>
                     </div>
@@ -368,12 +372,22 @@ export function MaintenancePage() {
                 <p className="text-xs text-muted-foreground max-w-prose">
                   Delete every row from all wrk tables — jobs, workers, executions, and dependencies.
                   Instant and irreversible. Use only in dev or to fully reset a deployment.
+                  {!serverInfo.data?.truncate_enabled && (
+                    <>
+                      {' '}
+                      <span className="text-destructive">Disabled.</span>{' '}
+                      Set <span className="font-mono">allow_truncate=True</span>{' '}
+                      (or <span className="font-mono">PGWERK_ALLOW_TRUNCATE=1</span>) to enable.
+                    </>
+                  )}
                 </p>
                 <Button
                   variant="destructive"
                   size="sm"
                   className="gap-2 shrink-0"
                   onClick={() => setConfirm('truncate')}
+                  disabled={!serverInfo.data?.truncate_enabled}
+                  title={!serverInfo.data?.truncate_enabled ? 'Set allow_truncate=True or PGWERK_ALLOW_TRUNCATE=1' : undefined}
                 >
                   <AlertTriangle className="h-3.5 w-3.5" />
                   Truncate

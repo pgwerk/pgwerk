@@ -26,6 +26,26 @@ export interface JobResponse {
   completed_at?: string
   worker_id?: string
   meta?: Record<string, unknown>
+  args?: unknown[]
+  kwargs?: Record<string, unknown>
+  result?: unknown
+  touched_at?: string
+  expires_at?: string
+  result_ttl?: number
+  failure_ttl?: number
+  ttl?: number
+  retry_intervals?: number[]
+  repeat_remaining?: number
+  repeat_interval_secs?: number
+  repeat_intervals?: number[]
+  schedule_name?: string
+  failure_mode?: string
+  on_success?: string
+  on_failure?: string
+  on_stopped?: string
+  on_success_timeout?: number
+  on_failure_timeout?: number
+  on_stopped_timeout?: number
 }
 
 export interface ExecutionResponse {
@@ -140,10 +160,12 @@ export interface TableInfo {
 
 export interface ServerInfo {
   pg_version: string
+  pgwerk_version: string
   db_size_bytes: number
   pgwerk_size_bytes: number
   schema: string | null
   tables: TableInfo[]
+  truncate_enabled: boolean
 }
 
 export interface PurgeRequest {
