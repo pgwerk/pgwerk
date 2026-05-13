@@ -7,6 +7,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.16] - 2026-05-13
+
+### Changed
+
+- Retry behavior: passing a plain int to `_retry` (e.g. `_retry=3`) now synthesizes an exponential backoff schedule (`2, 4, 8, …` seconds, capped at 300s, length `max_attempts - 1`) instead of retrying immediately. An explicit `Retry(...)` is always honored verbatim.
+
+### Added
+
+- `WerkConfig.default_retry_backoff` (default `True`) — set to `False` (or `PGWERK_DEFAULT_RETRY_BACKOFF=false`) to restore the previous immediate-retry behavior for plain int `_retry`.
+
+---
+
 ## [0.1.15] - 2026-05-13
 
 ### Added
