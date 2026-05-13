@@ -82,8 +82,11 @@ class JobController(Controller):
         Returns:
             List of matching jobs.
         """
+        queue_filter: str | list[str] | None = queue
+        if queue and "," in queue:
+            queue_filter = [q for q in (s.strip() for s in queue.split(",")) if q]
         jobs = await werk.list_jobs(
-            queue=queue, status=status, worker_id=worker_id, search=search,
+            queue=queue_filter, status=status, worker_id=worker_id, search=search,
             schedule_name=schedule_name, limit=limit, offset=offset
         )
         return [JobResponse.from_job(j) for j in jobs]

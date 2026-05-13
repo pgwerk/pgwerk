@@ -1,14 +1,16 @@
-import { Search } from 'lucide-react'
+import { ChevronDown, Search } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export interface JobFiltersState {
-  queue: string
+  queues: string[]
   status: string
   search: string
 }
@@ -19,7 +21,22 @@ interface JobFiltersProps {
   onChange: (f: Partial<JobFiltersState>) => void
 }
 
+function queueButtonLabel(selected: string[], all: string[]): string {
+  if (selected.length === 0 || selected.length === all.length) return 'All queues'
+  if (selected.length === 1) return selected[0]
+  return `${selected.length} queues`
+}
+
 export function JobFilters({ filters, queues, onChange }: JobFiltersProps) {
+  const selected = filters.queues
+  const isSelected = (q: string) => selected.length === 0 || selected.includes(q)
+
+  function toggleQueue(q: string) {
+    const current = selected.length === 0 ? queues : selected
+    const next = current.includes(q) ? current.filter(x => x !== q) : [...current, q]
+    onChange({ queues: next.length === queues.length ? [] : next })
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="relative">
@@ -34,20 +51,33 @@ export function JobFilters({ filters, queues, onChange }: JobFiltersProps) {
       </div>
 
       {queues.length > 0 && (
-        <Select
-          value={filters.queue || 'all'}
-          onValueChange={v => onChange({ queue: v === 'all' ? '' : v })}
-        >
-          <SelectTrigger className="h-8 w-36 text-sm">
-            <SelectValue placeholder="All queues" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All queues</SelectItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 w-40 justify-between text-sm font-normal">
+              <span className="truncate">{queueButtonLabel(selected, queues)}</span>
+              <ChevronDown className="ml-2 h-3.5 w-3.5 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem
+              onSelect={e => { e.preventDefault(); onChange({ queues: [] }) }}
+              className="text-xs"
+            >
+              Select all
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             {queues.map(q => (
-              <SelectItem key={q} value={q}>{q}</SelectItem>
+              <DropdownMenuCheckboxItem
+                key={q}
+                checked={isSelected(q)}
+                onSelect={e => e.preventDefault()}
+                onCheckedChange={() => toggleQueue(q)}
+              >
+                {q}
+              </DropdownMenuCheckboxItem>
             ))}
-          </SelectContent>
-        </Select>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   )

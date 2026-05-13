@@ -6,6 +6,7 @@ import logging
 from typing import Any
 from typing import cast
 from typing import Callable
+from typing import Sequence
 from datetime import datetime
 from datetime import timezone
 from datetime import timedelta
@@ -743,7 +744,7 @@ class Werk:
 
     async def list_jobs(
         self,
-        queue: str | None = None,
+        queue: str | Sequence[str] | None = None,
         status: str | None = None,
         worker_id: str | None = None,
         search: str | None = None,

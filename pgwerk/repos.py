@@ -8,6 +8,7 @@ from typing import cast
 from typing import Callable
 from typing import LiteralString
 from typing import AsyncGenerator
+from typing import Sequence
 from datetime import datetime
 from datetime import timezone
 from datetime import timedelta
@@ -157,7 +158,7 @@ class JobRepository:
 
     async def list_jobs(
         self,
-        queue: str | None = None,
+        queue: str | Sequence[str] | None = None,
         status: str | None = None,
         worker_id: str | None = None,
         search: str | None = None,
@@ -168,8 +169,12 @@ class JobRepository:
         filters = []
         params: dict[str, Any] = {"limit": limit, "offset": offset}
         if queue:
-            filters.append("queue = %(queue)s")
-            params["queue"] = queue
+            if isinstance(queue, str):
+                filters.append("queue = %(queue)s")
+                params["queue"] = queue
+            else:
+                filters.append("queue = ANY(%(queue)s)")
+                params["queue"] = list(queue)
         if status:
             filters.append("status = %(status)s")
             params["status"] = status

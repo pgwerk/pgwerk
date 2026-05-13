@@ -7,6 +7,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.15] - 2026-05-13
+
+### Added
+
+- Dashboard `/jobs` screen: queue filter is now a multi-select checkbox dropdown, so individual queues can be toggled in and out of the list view (empty selection means "all queues")
+- `GET /api/jobs` `queue` query param accepts a comma-separated list of queue names; the repo-level `list_jobs(queue=...)` now also takes `Sequence[str]` and translates it to a `queue = ANY(...)` filter
+
+---
+
 ## [0.1.14] - 2026-05-11
 
 ### Fixed

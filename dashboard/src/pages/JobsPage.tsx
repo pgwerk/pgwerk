@@ -30,7 +30,7 @@ function sumStatus(queues: QueueStats[], status: JobStatus | ''): number {
 export function JobsPage() {
   const [page, setPage] = useState(0)
   const [sendDialogOpen, setSendDialogOpen] = useState(false)
-  const [filters, setFilters] = useState<JobFiltersState>({ queue: '', status: '', search: '' })
+  const [filters, setFilters] = useState<JobFiltersState>({ queues: [], status: '', search: '' })
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -46,10 +46,11 @@ export function JobsPage() {
   const { data: stats } = useQuery({ queryKey: ['stats'], queryFn: api.getStats, refetchInterval: 5_000 })
   const queues = useMemo(() => stats?.queues.map(q => q.queue) ?? [], [stats])
 
+  const queueParam = filters.queues.length > 0 ? filters.queues.join(',') : undefined
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['jobs', filters.queue, filters.status, debouncedSearch, page],
+    queryKey: ['jobs', queueParam, filters.status, debouncedSearch, page],
     queryFn: () => api.listJobs({
-      queue: filters.queue || undefined,
+      queue: queueParam,
       status: filters.status || undefined,
       search: debouncedSearch || undefined,
       limit: PAGE_SIZE + 1,
@@ -87,7 +88,7 @@ export function JobsPage() {
       <SendJobDialog
         open={sendDialogOpen}
         onOpenChange={setSendDialogOpen}
-        defaultQueue={filters.queue || undefined}
+        defaultQueue={filters.queues.length === 1 ? filters.queues[0] : undefined}
       />
 
       {/* Status tabs */}
