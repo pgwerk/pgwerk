@@ -4,43 +4,46 @@ import logging
 
 from typing import Any
 from typing import Annotated
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
+
+import psycopg
 
 from litestar import Router
-from .auth import Guard
 from litestar import Response
 from litestar import Controller
-from litestar import delete
 from litestar import get
 from litestar import post
+from litestar import delete
 from litestar.di import Provide
 from litestar.params import Parameter
 from litestar.response import File
 from litestar.exceptions import ClientException
 from litestar.exceptions import NotFoundException
-
-import psycopg
+from litestar.exceptions import PermissionDeniedException
 
 from .spa import resolve_spa_file
-from .exporter import get_exporter
 from ..app import Werk
+from .auth import Guard
 from ..repos import ScheduleAlreadyExists
-from ..exporter import WerkExporter
 from .models import TableInfo
 from .models import QueueStats
 from .models import ServerInfo
 from .models import JobResponse
-from .models import ScheduleStats
-from .models import ScheduleResponse
 from .models import PurgeRequest
+from .models import ScheduleStats
 from .models import StatsResponse
 from .models import EnqueueRequest
 from .models import WorkerResponse
 from .models import QueueDepthPoint
+from .models import ScheduleResponse
 from .models import BulkCancelRequest
 from .models import ExecutionResponse
-from .models import CreateScheduleBody
 from .models import BulkRequeueRequest
+from .models import CreateScheduleBody
 from .models import WorkerThroughputPoint
+from .exporter import get_exporter
+from ..exporter import WerkExporter
 from ..exceptions import JobNotFound
 
 
@@ -86,8 +89,13 @@ class JobController(Controller):
         if queue and "," in queue:
             queue_filter = [q for q in (s.strip() for s in queue.split(",")) if q]
         jobs = await werk.list_jobs(
-            queue=queue_filter, status=status, worker_id=worker_id, search=search,
-            schedule_name=schedule_name, limit=limit, offset=offset
+            queue=queue_filter,
+            status=status,
+            worker_id=worker_id,
+            search=search,
+            schedule_name=schedule_name,
+            limit=limit,
+            offset=offset,
         )
         return [JobResponse.from_job(j) for j in jobs]
 
@@ -121,9 +129,7 @@ class JobController(Controller):
                 **data.kwargs,
             )
         except psycopg.errors.ForeignKeyViolation:
-            raise NotFoundException(
-                detail=f"Schedule {data.schedule_name!r} not found"
-            )
+            raise NotFoundException(detail=f"Schedule {data.schedule_name!r} not found")
         if job is None:
             raise ClientException(detail="Job could not be created")
         return JobResponse.from_job(job)
@@ -599,12 +605,18 @@ class ServerController(Controller):
         """
         pg_version, db_size_bytes, pgwerk_size_bytes, schema, table_rows = await werk.get_server_info()
         tables = [TableInfo(name=r["name"], size_bytes=r["size_bytes"], row_count=r["row_count"]) for r in table_rows]
+        try:
+            pgwerk_version = _pkg_version("pgwerk")
+        except PackageNotFoundError:
+            pgwerk_version = "unknown"
         return ServerInfo(
             pg_version=pg_version,
+            pgwerk_version=pgwerk_version,
             db_size_bytes=db_size_bytes,
             pgwerk_size_bytes=pgwerk_size_bytes,
             schema=schema,
             tables=tables,
+            truncate_enabled=werk.config.allow_truncate,
         )
 
     @post("/sweep")
@@ -650,12 +662,22 @@ class ServerController(Controller):
     async def truncate_tables(self, werk: Werk) -> dict[str, Any]:
         """Truncate all wrk tables, removing all jobs and worker records.
 
+        Gated by the ``PGWERK_ALLOW_TRUNCATE`` environment variable. Set it to
+        ``1`` (or ``true``/``yes``/``on``) to enable this endpoint.
+
         Args:
             werk: Werk application instance.
 
         Returns:
             Confirmation that truncation completed.
+
+        Raises:
+            ClientException: If ``PGWERK_ALLOW_TRUNCATE`` is not set.
         """
+        if not werk.config.allow_truncate:
+            raise PermissionDeniedException(
+                detail="Truncate is disabled. Set allow_truncate=True (or PGWERK_ALLOW_TRUNCATE=1) to enable this endpoint.",
+            )
         await werk.truncate()
         return {"truncated": True}
 

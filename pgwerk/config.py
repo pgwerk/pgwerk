@@ -88,6 +88,9 @@ class WerkConfig:
     # Retry behavior
     default_retry_backoff: bool = True
 
+    # Dangerous operations
+    allow_truncate: bool = False
+
     @classmethod
     def from_env(cls) -> "WerkConfig":
 
@@ -119,6 +122,7 @@ class WerkConfig:
             ui_auth=os.environ.get("PGWERK_UI_AUTH"),
             api_token=os.environ.get("PGWERK_API_TOKEN"),
             default_retry_backoff=_bool("PGWERK_DEFAULT_RETRY_BACKOFF", True),
+            allow_truncate=_bool("PGWERK_ALLOW_TRUNCATE", False),
         )
 
     def to_env(self) -> None:
@@ -142,3 +146,4 @@ class WerkConfig:
         if self.api_token:
             os.environ["PGWERK_API_TOKEN"] = self.api_token
         os.environ["PGWERK_DEFAULT_RETRY_BACKOFF"] = "true" if self.default_retry_backoff else "false"
+        os.environ["PGWERK_ALLOW_TRUNCATE"] = "true" if self.allow_truncate else "false"
