@@ -7,6 +7,24 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.17] - 2026-05-13
+
+### Added
+
+- `ServerInfo` now exposes `pgwerk_version` (installed package version) and `truncate_enabled` (whether the truncate endpoint is allowed); both surfaced on the Maintenance / Server Info card
+- `WerkConfig.allow_truncate` (default `False`, env `PGWERK_ALLOW_TRUNCATE`) gates `POST /api/server/truncate` — it returns `403` unless explicitly enabled, and the dashboard disables the Truncate button accordingly
+- `JobResponse` now includes `args`, `kwargs`, `result`, `touched_at`, `expires_at`, `result_ttl`, `failure_ttl`, `ttl`, `retry_intervals`, `repeat_remaining`, `repeat_interval_secs`, `repeat_intervals`, `schedule_name`, `failure_mode`, and the `on_success` / `on_failure` / `on_stopped` callbacks plus their timeouts
+- Dashboard job drawer: details tab is now sectioned (Identity / Lifecycle / Retry & repeat / TTL / Callbacks / Args / Kwargs / Result / Meta) and surfaces every new field
+- Dashboard schedule drawer: sectioned layout exposing cron + interval as raw fields and splitting args/kwargs/meta into separate blocks
+- Execution cards in the job drawer are now always clickable and show full per-execution details (id, attempt, status, worker, started/ended, duration, error, result)
+
+### Fixed
+
+- `init_werk` (Litestar dependency wiring) was constructing the `Werk` dependency from `dsn/schema/prefix` only, silently dropping the rest of `WerkConfig`. It now threads the full `WerkConfig` through so config-driven endpoint behavior (e.g. `allow_truncate`) actually takes effect.
+- `formatDuration` in the dashboard now renders sub-second durations in `ms` and `<60s` durations as `X.Xs`, matching how short jobs actually behave instead of rounding to whole seconds.
+
+---
+
 ## [0.1.16] - 2026-05-13
 
 ### Changed
