@@ -26,18 +26,18 @@ def _cfg(**kwargs) -> WerkConfig:
 class TestInitWerk:
     def test_registers_werk_dependency(self):
         state, deps, startup, shutdown = {}, {}, [], []
-        init_werk("postgresql://localhost/test", None, None, state, deps, startup, shutdown)
+        init_werk(_cfg(), state, deps, startup, shutdown)
         assert "werk" in deps
 
     def test_registers_one_startup_and_one_shutdown_hook(self):
         state, deps, startup, shutdown = {}, {}, [], []
-        init_werk("postgresql://localhost/test", None, None, state, deps, startup, shutdown)
+        init_werk(_cfg(), state, deps, startup, shutdown)
         assert len(startup) == 1
         assert len(shutdown) == 1
 
     async def test_shutdown_is_noop_when_werk_not_in_state(self):
         state, deps, startup, shutdown = {}, {}, [], []
-        init_werk("postgresql://localhost/test", None, None, state, deps, startup, shutdown)
+        init_werk(_cfg(), state, deps, startup, shutdown)
         await shutdown[0]()
 
 

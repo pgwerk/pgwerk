@@ -35,7 +35,7 @@ def create_app(config: WerkConfig | None = None) -> Litestar:
         api_guards.append(make_bearer_guard(config.api_token))
     route_handlers: list = [make_router(guards=api_guards)]
 
-    init_werk(config.dsn, config.schema, config.prefix, state, dependencies, on_startup, on_shutdown)
+    init_werk(config, state, dependencies, on_startup, on_shutdown)
 
     if config.metrics:
         init_exporter(config.metrics_interval, state, on_startup, on_shutdown)

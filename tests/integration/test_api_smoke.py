@@ -101,6 +101,61 @@ class TestApiSmoke:
 
         await test_worker._deregister()
 
+    async def test_server_info_exposes_version_and_truncate_flag(self, app):
+        api = create_app(WerkConfig(dsn=app.dsn, prefix=app.prefix))
+        async with AsyncTestClient(app=api) as client:
+            resp = await client.get("/api/server")
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body["pgwerk_version"]  # non-empty
+            assert body["truncate_enabled"] is False
+
+    async def test_truncate_disabled_by_default_returns_403(self, app):
+        api = create_app(WerkConfig(dsn=app.dsn, prefix=app.prefix))
+        async with AsyncTestClient(app=api) as client:
+            resp = await client.post("/api/server/truncate")
+            assert resp.status_code == 403
+            assert "PGWERK_ALLOW_TRUNCATE" in resp.json()["detail"]
+
+    async def test_truncate_succeeds_when_allowed(self, app):
+        api = create_app(WerkConfig(dsn=app.dsn, prefix=app.prefix, allow_truncate=True))
+        async with AsyncTestClient(app=api) as client:
+            srv = await client.get("/api/server")
+            assert srv.json()["truncate_enabled"] is True
+            resp = await client.post("/api/server/truncate")
+            assert resp.status_code == 201
+            assert resp.json()["truncated"] is True
+
+    async def test_job_response_exposes_args_kwargs_and_extras(self, app):
+        api = create_app(WerkConfig(dsn=app.dsn, prefix=app.prefix))
+        async with AsyncTestClient(app=api) as client:
+            resp = await client.post(
+                "/api/jobs",
+                json={
+                    "function": "tests.integration.tasks.noop",
+                    "queue": "default",
+                    "args": [1, "two"],
+                    "kwargs": {"k": "v"},
+                    "meta": {"trace": "abc"},
+                },
+            )
+            assert resp.status_code == 201
+            job = resp.json()
+            assert job["args"] == [1, "two"]
+            assert job["kwargs"] == {"k": "v"}
+            assert job["meta"] == {"trace": "abc"}
+            # New surfaced fields should be present (None/defaults are fine).
+            for key in (
+                "result", "touched_at", "expires_at",
+                "result_ttl", "failure_ttl", "ttl",
+                "retry_intervals", "repeat_remaining", "repeat_interval_secs", "repeat_intervals",
+                "schedule_name", "failure_mode",
+                "on_success", "on_failure", "on_stopped",
+                "on_success_timeout", "on_failure_timeout", "on_stopped_timeout",
+            ):
+                assert key in job, f"missing {key} in JobResponse"
+            assert job["failure_mode"] == "hold"
+
     async def test_enqueue_with_missing_schedule_returns_404(self, app):
         api = create_app(WerkConfig(dsn=app.dsn, prefix=app.prefix))
         async with AsyncTestClient(app=api) as client:
