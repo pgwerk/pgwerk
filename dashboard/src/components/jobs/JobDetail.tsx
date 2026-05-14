@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -72,6 +72,12 @@ export function JobDetail({ job, open, onClose }: JobDetailProps) {
     mutationFn: () => api.deleteJob(job!.id),
     onSuccess: () => { toast.success('Job deleted'); invalidate(); onClose() },
     onError: (e: Error) => toast.error(e.message),
+  })
+
+  const { data: dependencies } = useQuery({
+    queryKey: ['job-dependencies', job?.id],
+    queryFn: () => api.getJobDependencies(job!.id),
+    enabled: job?.status === 'waiting',
   })
 
   if (!job) return null
@@ -152,6 +158,18 @@ export function JobDetail({ job, open, onClose }: JobDetailProps) {
               {job.schedule_name && <Field label="Schedule" value={job.schedule_name} mono />}
               {job.failure_mode && <Field label="On failure" value={job.failure_mode} mono />}
             </div>
+
+            {dependencies && dependencies.length > 0 && (
+              <>
+                <Separator className="my-4" />
+                <SectionLabel>Waiting on</SectionLabel>
+                <div className="flex flex-col gap-1">
+                  {dependencies.map(id => (
+                    <span key={id} className="font-mono text-xs text-muted-foreground">{id}</span>
+                  ))}
+                </div>
+              </>
+            )}
 
             <Separator className="my-4" />
             <SectionLabel>Lifecycle</SectionLabel>
