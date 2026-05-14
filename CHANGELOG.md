@@ -7,6 +7,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.18] - 2026-05-14
+
+### Added
+
+- Dashboard job drawer: `waiting` jobs now show a "Waiting on" section listing the IDs of all unresolved dependency jobs
+
+---
+
 ## [0.1.17] - 2026-05-13
 
 ### Added
