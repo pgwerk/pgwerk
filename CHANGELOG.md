@@ -7,6 +7,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.19] - 2026-05-14
+
+### Added
+
+- `TypedJSONSerializer` — a JSON serializer that round-trips primitive Python types not natively supported by JSON: `uuid.UUID`, `datetime.datetime`, `datetime.date`, `datetime.timedelta`, `decimal.Decimal`, `bytes`, `tuple`, and `set`. Types are preserved on the way out of the database, unlike the default `JSONSerializer` which returns them as strings. Use it by passing `serializer=TypedJSONSerializer()` to `Werk(...)`.
+
+### Fixed
+
+- `decode()` now correctly invokes `serializer.loads()` when the stored value deserializes to a non-string (dict or list), ensuring custom serializers that rely on `json.loads` hooks (such as `TypedJSONSerializer`) reconstruct types from the database. Previously the raw parsed value was returned directly, leaving type tags in place.
+
+---
+
 ## [0.1.18] - 2026-05-14
 
 ### Added
