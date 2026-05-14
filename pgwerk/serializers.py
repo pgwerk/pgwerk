@@ -116,6 +116,77 @@ class PickleSerializer:
         return pickle.loads(base64.b64decode(s))
 
 
+_T = "__t__"
+
+
+class TypedJSONSerializer:
+    """JSON serializer that round-trips primitive Python types not native to JSON.
+
+    Handles: UUID, datetime, date, timedelta, Decimal, bytes, tuple, set.
+    """
+
+    def dumps(self, obj: Any) -> str:
+        return json.dumps(self._prepare(obj), default=self._encode)
+
+    def loads(self, s: str | bytes) -> Any:
+        return json.loads(s, object_hook=self._decode)
+
+    def _prepare(self, obj: Any) -> Any:
+        """Recursively tag tuple and set values before JSON encoding.
+
+        ``json.dumps`` natively converts tuples to arrays and rejects sets,
+        so ``default()`` never sees them. Pre-tagging them as typed dicts
+        preserves the distinction on the way out.
+        """
+        if isinstance(obj, dict):
+            return {k: self._prepare(v) for k, v in obj.items()}
+        if isinstance(obj, tuple):
+            return {_T: "tuple", "v": [self._prepare(i) for i in obj]}
+        if isinstance(obj, (set, frozenset)):
+            return {_T: "set", "v": [self._prepare(i) for i in obj]}
+        if isinstance(obj, list):
+            return [self._prepare(i) for i in obj]
+        return obj
+
+    def _encode(self, o: Any) -> Any:
+        if isinstance(o, uuid.UUID):
+            return {_T: "uuid", "v": str(o)}
+        if isinstance(o, datetime.datetime):
+            return {_T: "datetime", "v": o.isoformat()}
+        if isinstance(o, datetime.date):
+            return {_T: "date", "v": o.isoformat()}
+        if isinstance(o, datetime.timedelta):
+            return {_T: "timedelta", "v": o.total_seconds()}
+        if isinstance(o, decimal.Decimal):
+            return {_T: "decimal", "v": str(o)}
+        if isinstance(o, bytes):
+            return {_T: "bytes", "v": base64.b64encode(o).decode()}
+        raise TypeError(f"not serializable: {type(o)!r}")
+
+    def _decode(self, d: dict) -> Any:
+        t = d.get(_T)
+        if t is None:
+            return d
+        v = d["v"]
+        if t == "uuid":
+            return uuid.UUID(v)
+        if t == "datetime":
+            return datetime.datetime.fromisoformat(v)
+        if t == "date":
+            return datetime.date.fromisoformat(v)
+        if t == "timedelta":
+            return datetime.timedelta(seconds=v)
+        if t == "decimal":
+            return decimal.Decimal(v)
+        if t == "bytes":
+            return base64.b64decode(v)
+        if t == "tuple":
+            return tuple(v)
+        if t == "set":
+            return set(v)
+        return d
+
+
 _default: JSONSerializer | None = None
 
 
@@ -163,7 +234,10 @@ def decode(serializer: "Serializer", value: Any) -> Any:
                 return serializer.loads(parsed)
             except Exception:
                 return parsed
-        return parsed
+        try:
+            return serializer.loads(value)
+        except Exception:
+            return parsed
     return value
 
 

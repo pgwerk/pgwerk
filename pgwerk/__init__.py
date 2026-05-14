@@ -28,6 +28,7 @@ from .exceptions import DependencyFailed
 from .serializers import Serializer
 from .serializers import JSONSerializer
 from .serializers import PickleSerializer
+from .serializers import TypedJSONSerializer
 
 
 __all__ = [
@@ -59,6 +60,7 @@ __all__ = [
     "Serializer",
     "JSONSerializer",
     "PickleSerializer",
+    "TypedJSONSerializer",
     # Logging
     "configure_logging",
     # Exceptions

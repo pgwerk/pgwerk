@@ -6,6 +6,7 @@ import pytest
 
 from pgwerk.commons import JobStatus
 from pgwerk.serializers import PickleSerializer
+from pgwerk.serializers import TypedJSONSerializer
 
 from .tasks import Box
 from .tasks import add
@@ -71,6 +72,38 @@ class TestWorkerExecution:
         assert stored.payload == {"args": [], "kwargs": {"value": value}}
         assert done.result == value
         assert execs[0].result == value
+
+    async def test_typed_json_serializer_round_trips_payload_and_result(self, app):
+        import uuid
+        import datetime
+        import decimal
+
+        app.serializer = TypedJSONSerializer()
+
+        uid = uuid.uuid4()
+        at = datetime.datetime(2024, 6, 1, 12, 0, 0)
+        amount = decimal.Decimal("9.99")
+
+        job = await app.enqueue(echo, value={"id": uid, "at": at, "amount": amount})
+        stored = await app.get_job(job.id)
+        await make_worker(app).run()
+        done = await app.get_job(job.id)
+        execs = await app.get_executions(job.id)
+
+        payload_kwargs = stored.payload["kwargs"]["value"]
+        assert payload_kwargs["id"] == uid
+        assert isinstance(payload_kwargs["id"], uuid.UUID)
+        assert payload_kwargs["at"] == at
+        assert isinstance(payload_kwargs["at"], datetime.datetime)
+        assert payload_kwargs["amount"] == amount
+        assert isinstance(payload_kwargs["amount"], decimal.Decimal)
+
+        result = done.result
+        assert result["id"] == uid
+        assert isinstance(result["id"], uuid.UUID)
+        assert result["at"] == at
+        assert result["amount"] == amount
+        assert execs[0].result == result
 
     async def test_worker_auto_touches_long_running_jobs(self, app):
         job = await app.enqueue(async_slow, seconds=1.6, _heartbeat=2)

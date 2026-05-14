@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import datetime
+import decimal
+import uuid
+
 from pgwerk.serializers import Serializer
 from pgwerk.serializers import JSONSerializer
 from pgwerk.serializers import PickleSerializer
+from pgwerk.serializers import TypedJSONSerializer
 from pgwerk.serializers import get_default
 
 
@@ -88,6 +93,80 @@ class TestPickleSerializer:
 
     def test_implements_protocol(self):
         assert isinstance(PickleSerializer(), Serializer)
+
+
+class TestTypedJSONSerializer:
+    def setup_method(self):
+        self.s = TypedJSONSerializer()
+
+    def rt(self, v):
+        return self.s.loads(self.s.dumps(v))
+
+    def test_implements_protocol(self):
+        assert isinstance(self.s, Serializer)
+
+    def test_plain_dict(self):
+        assert self.rt({"a": 1, "b": "x"}) == {"a": 1, "b": "x"}
+
+    def test_uuid(self):
+        v = uuid.uuid4()
+        assert self.rt(v) == v
+        assert isinstance(self.rt(v), uuid.UUID)
+
+    def test_datetime(self):
+        v = datetime.datetime(2024, 6, 1, 12, 30, 45)
+        assert self.rt(v) == v
+        assert isinstance(self.rt(v), datetime.datetime)
+
+    def test_date(self):
+        v = datetime.date(2024, 6, 1)
+        assert self.rt(v) == v
+        assert isinstance(self.rt(v), datetime.date)
+        assert not isinstance(self.rt(v), datetime.datetime)
+
+    def test_timedelta(self):
+        v = datetime.timedelta(hours=2, minutes=30)
+        assert self.rt(v) == v
+        assert isinstance(self.rt(v), datetime.timedelta)
+
+    def test_decimal(self):
+        v = decimal.Decimal("9.99")
+        assert self.rt(v) == v
+        assert isinstance(self.rt(v), decimal.Decimal)
+
+    def test_bytes(self):
+        v = b"\x00\xff\xab"
+        assert self.rt(v) == v
+        assert isinstance(self.rt(v), bytes)
+
+    def test_tuple(self):
+        v = (1, "two", None)
+        assert self.rt(v) == v
+        assert isinstance(self.rt(v), tuple)
+
+    def test_set(self):
+        v = {1, 2, 3}
+        assert self.rt(v) == v
+        assert isinstance(self.rt(v), set)
+
+    def test_nested_types_in_dict(self):
+        v = {"id": uuid.UUID("12345678-1234-5678-1234-567812345678"), "at": datetime.date(2024, 1, 1)}
+        result = self.rt(v)
+        assert result == v
+        assert isinstance(result["id"], uuid.UUID)
+        assert isinstance(result["at"], datetime.date)
+
+    def test_tuple_with_typed_elements(self):
+        uid = uuid.uuid4()
+        v = (uid, decimal.Decimal("1.5"))
+        result = self.rt(v)
+        assert result == v
+        assert isinstance(result[0], uuid.UUID)
+        assert isinstance(result[1], decimal.Decimal)
+
+    def test_loads_bytes_input(self):
+        v = {"x": 1}
+        assert self.s.loads(self.s.dumps(v).encode()) == v
 
 
 class TestGetDefault:
