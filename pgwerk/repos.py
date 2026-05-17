@@ -101,6 +101,9 @@ class JobRepository:
                     """).format(deps=self._t["deps"]),
                     [(str(job.id), dep_id, allow_failure) for dep_id, allow_failure in data.dep_ids],
                 )
+                if await self._check_dependencies(cur, str(job.id)):
+                    for q in await self.settle_dependents(cur, data.dep_ids[0][0]):
+                        await c.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{q}")))
             else:
                 await c.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{data.queue}")))
 
@@ -133,6 +136,8 @@ class JobRepository:
                         """).format(deps=self._t["deps"]),
                         [(str(job.id), dep_id, af) for dep_id, af in data.dep_ids],
                     )
+                    if await self._check_dependencies(cur, str(job.id)):
+                        notify_queues.update(await self.settle_dependents(cur, data.dep_ids[0][0]))
                 else:
                     notify_queues.add(data.queue)
 
@@ -402,8 +407,39 @@ class JobRepository:
             await conn.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{job.queue}")))
 
     # ------------------------------------------------------------------
-    # Shared graph helper (also used by WorkerRepository)
+    # Shared graph helpers (also used by WorkerRepository)
     # ------------------------------------------------------------------
+
+    async def _check_dependencies(self, cur: Any, job_id: str) -> bool:
+        """Check whether all dependencies of a job are in a terminal state.
+
+        Used after inserting dep rows to detect the race where a dep completed
+        before the dependent job was inserted — in that case settle_dependents
+        already ran and will never fire again, so the caller must settle immediately.
+
+        Args:
+            cur: Open database cursor to execute the check against.
+            job_id: UUID string of the waiting job whose deps are being checked.
+
+        Returns:
+            True if every dependency is complete, failed, or aborted; False if
+            any dependency is still in a non-terminal state.
+        """
+        await cur.execute(
+            SQL("""
+                SELECT NOT EXISTS (
+                    SELECT 1 FROM {deps} d
+                    JOIN {jobs} jd ON jd.id = d.depends_on
+                    WHERE d.job_id = %(jid)s::uuid
+                      AND jd.status NOT IN ('complete', 'failed', 'aborted')
+                ) AS all_settled
+            """).format(deps=self._t["deps"], jobs=self._t["jobs"]),
+            {"jid": job_id},
+        )
+        row = await cur.fetchone()
+        if row is None:
+            return False
+        return bool(row["all_settled"] if isinstance(row, dict) else row[0])
 
     async def delete(self, job_id: str) -> None:
         async with await self._connect() as conn:

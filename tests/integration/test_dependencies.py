@@ -200,6 +200,23 @@ class TestDependencies:
         assert (await app.get_job(a.id)).status == JobStatus.Waiting
         assert (await app.get_job(b.id)).status == JobStatus.Waiting
 
+    async def test_dependent_enqueued_after_parent_already_complete(self, app):
+        parent = await app.enqueue(noop)
+        await make_worker(app).run()
+        assert (await app.get_job(parent.id)).status == JobStatus.Complete
+
+        child = await app.enqueue(noop, _depends_on=parent)
+        assert (await app.get_job(child.id)).status == JobStatus.Queued
+
+    async def test_dependent_enqueued_after_parent_already_complete_runs(self, app):
+        parent = await app.enqueue(noop)
+        await make_worker(app).run()
+
+        child = await app.enqueue(noop, _depends_on=parent)
+        await make_worker(app).run()
+
+        assert (await app.get_job(child.id)).status == JobStatus.Complete
+
     async def test_self_dependency_stays_waiting(self, app):
         a = await app.enqueue(noop)
         import psycopg
