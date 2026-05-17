@@ -7,6 +7,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.20] - 2026-05-17
+
+### Fixed
+
+- Waiting jobs whose dependencies completed before the job was inserted are now immediately settled rather than stuck in `waiting` forever. Previously, `settle_dependents` ran at dependency-completion time and found no waiting jobs (they didn't exist yet); the newly inserted waiting job had no future trigger to unblock it. The fix checks dependency state at insert time and calls `settle_dependents` immediately if all deps are already terminal.
+
+---
+
 ## [0.1.19] - 2026-05-14
 
 ### Added
