@@ -7,6 +7,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.21] - 2026-05-17
+
+### Changed
+
+- `CronScheduler` renamed to `Scheduler` — it handles both cron-expression and interval-based schedules, and the old name was misleading
+- `pgwerk/cron.py` renamed to `pgwerk/scheduler.py` to match
+- `Scheduler.register()` and the `schedule()` / `schedule_at()` / `schedule_in()` imperative methods now use the `_`-prefix convention for library routing kwargs (`_queue`, `_name`, `_timeout`, `_result_ttl`, `_failure_ttl`, `_meta`), consistent with `Werk.enqueue()`
+- New `Scheduler.cron(cron_string, func, *args, **kwargs)` method for cron-expression schedules
+- New `Scheduler.interval(secs, func, *args, **kwargs)` method for interval-based schedules
+
+---
+
 ## [0.1.20] - 2026-05-17
 
 ### Fixed
