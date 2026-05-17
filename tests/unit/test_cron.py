@@ -11,8 +11,8 @@ import pytest
 
 croniter = pytest.importorskip("croniter", reason="croniter not installed")
 
-from pgwerk.cron import CronScheduler  # noqa: E402
-from pgwerk.cron import ON_UNREGISTERED  # noqa: E402
+from pgwerk.scheduler import Scheduler  # noqa: E402
+from pgwerk.scheduler import ON_UNREGISTERED  # noqa: E402
 from pgwerk.schemas import Schedule  # noqa: E402
 from pgwerk.utils import compute_next_run  # noqa: E402
 from pgwerk.utils import schedule_tick_key  # noqa: E402
@@ -103,42 +103,42 @@ class TestScheduleTickKey:
 
 
 # ---------------------------------------------------------------------------
-# CronScheduler: construction & validation
+# Scheduler: construction & validation
 # ---------------------------------------------------------------------------
 
 
-class TestCronSchedulerInit:
+class TestSchedulerInit:
     def test_rejects_invalid_on_unregistered(self):
         with pytest.raises(ValueError, match="on_unregistered"):
-            CronScheduler(MagicMock(), on_unregistered="bogus")
+            Scheduler(MagicMock(), on_unregistered="bogus")
 
     def test_default_policy_is_pause(self):
-        assert CronScheduler(MagicMock()).on_unregistered == "pause"
+        assert Scheduler(MagicMock()).on_unregistered == "pause"
 
     def test_accepts_keep_pause_delete(self):
         for policy in ON_UNREGISTERED:
-            assert CronScheduler(MagicMock(), on_unregistered=policy).on_unregistered == policy
+            assert Scheduler(MagicMock(), on_unregistered=policy).on_unregistered == policy
 
     def test_has_unique_id(self):
-        a = CronScheduler(MagicMock())
-        b = CronScheduler(MagicMock())
+        a = Scheduler(MagicMock())
+        b = Scheduler(MagicMock())
         assert a.id != b.id
 
     def test_name_includes_pid(self):
         import os
 
-        s = CronScheduler(MagicMock())
+        s = Scheduler(MagicMock())
         assert str(os.getpid()) in s.name
 
 
 # ---------------------------------------------------------------------------
-# CronScheduler: register / unregister
+# Scheduler: register / unregister
 # ---------------------------------------------------------------------------
 
 
-class TestCronSchedulerRegister:
+class TestSchedulerRegister:
     def test_register_stages_in_memory(self):
-        scheduler = CronScheduler(MagicMock())
+        scheduler = Scheduler(MagicMock())
         scheduler.register(_noop, interval=60)
         assert len(scheduler._pending) == 1
         sched = next(iter(scheduler._pending.values()))
@@ -147,43 +147,43 @@ class TestCronSchedulerRegister:
         assert sched.function.endswith("._noop")
 
     def test_register_returns_the_function(self):
-        scheduler = CronScheduler(MagicMock())
+        scheduler = Scheduler(MagicMock())
         returned = scheduler.register(_noop, interval=60)
         assert returned is _noop
 
     def test_register_supports_decorator_call_shape(self):
-        scheduler = CronScheduler(MagicMock())
-        decorator = scheduler.register(interval=60, name="decorated")
+        scheduler = Scheduler(MagicMock())
+        decorator = scheduler.register(interval=60, _name="decorated")
         assert callable(decorator)
         result = decorator(_noop)
         assert result is _noop
         assert "decorated" in scheduler._pending
 
     def test_register_rejects_both_interval_and_cron(self):
-        scheduler = CronScheduler(MagicMock())
+        scheduler = Scheduler(MagicMock())
         with pytest.raises(ValueError, match="not both"):
             scheduler.register(_noop, interval=60, cron="* * * * *")
 
     def test_register_rejects_neither(self):
-        scheduler = CronScheduler(MagicMock())
+        scheduler = Scheduler(MagicMock())
         with pytest.raises(ValueError, match="not both"):
             scheduler.register(_noop)
 
     def test_register_duplicate_name_raises(self):
-        scheduler = CronScheduler(MagicMock())
-        scheduler.register(_noop, interval=60, name="dup")
+        scheduler = Scheduler(MagicMock())
+        scheduler.register(_noop, interval=60, _name="dup")
         with pytest.raises(ValueError, match="already registered"):
-            scheduler.register(_noop2, interval=120, name="dup")
+            scheduler.register(_noop2, interval=120, _name="dup")
 
     def test_register_explicit_name(self):
-        scheduler = CronScheduler(MagicMock())
-        scheduler.register(_noop, interval=60, name="my-schedule")
+        scheduler = Scheduler(MagicMock())
+        scheduler.register(_noop, interval=60, _name="my-schedule")
         assert "my-schedule" in scheduler._pending
 
     def test_register_stores_args_kwargs_queue_meta(self):
-        scheduler = CronScheduler(MagicMock())
+        scheduler = Scheduler(MagicMock())
         scheduler.register(
-            _noop, interval=60, queue="q1", args=(1, 2), kwargs={"k": "v"}, meta={"env": "test"}
+            _noop, interval=60, _queue="q1", args=(1, 2), kwargs={"k": "v"}, _meta={"env": "test"}
         )
         sched = next(iter(scheduler._pending.values()))
         assert sched.queue == "q1"
@@ -192,9 +192,9 @@ class TestCronSchedulerRegister:
         assert sched.meta == {"env": "test"}
 
     def test_register_stores_timeout_and_ttls(self):
-        scheduler = CronScheduler(MagicMock())
+        scheduler = Scheduler(MagicMock())
         scheduler.register(
-            _noop, interval=60, timeout=30, result_ttl=3600, failure_ttl=86400
+            _noop, interval=60, _timeout=30, _result_ttl=3600, _failure_ttl=86400
         )
         sched = next(iter(scheduler._pending.values()))
         assert sched.timeout_secs == 30
@@ -202,27 +202,27 @@ class TestCronSchedulerRegister:
         assert sched.failure_ttl == 86400
 
     def test_register_rejects_lambda(self):
-        scheduler = CronScheduler(MagicMock())
+        scheduler = Scheduler(MagicMock())
         with pytest.raises(ValueError, match="module-level"):
             scheduler.register(lambda: None, interval=60)
 
     def test_unregister_removes_from_pending(self):
-        scheduler = CronScheduler(MagicMock())
-        scheduler.register(_noop, interval=60, name="x")
+        scheduler = Scheduler(MagicMock())
+        scheduler.register(_noop, interval=60, _name="x")
         scheduler.unregister("x")
         assert "x" not in scheduler._pending
 
     def test_unregister_missing_is_noop(self):
-        scheduler = CronScheduler(MagicMock())
+        scheduler = Scheduler(MagicMock())
         scheduler.unregister("nope")  # must not raise
 
 
 # ---------------------------------------------------------------------------
-# CronScheduler: sync()
+# Scheduler: sync()
 # ---------------------------------------------------------------------------
 
 
-class TestCronSchedulerSync:
+class TestSchedulerSync:
     async def test_sync_inserts_new_and_reconciles(self):
         """Fresh registrations insert; orphans are reconciled per policy."""
         app = MagicMock()
@@ -231,8 +231,8 @@ class TestCronSchedulerSync:
         app._schedule_repo.update = AsyncMock()
         app._schedule_repo.reconcile = AsyncMock(return_value=["orphan-a"])
 
-        scheduler = CronScheduler(app, on_unregistered="pause")
-        scheduler.register(_noop, interval=60, name="known")
+        scheduler = Scheduler(app, on_unregistered="pause")
+        scheduler.register(_noop, interval=60, _name="known")
 
         inserted, updated, reconciled = await scheduler.sync()
         assert inserted == 1
@@ -249,8 +249,8 @@ class TestCronSchedulerSync:
         app._schedule_repo.update = AsyncMock()
         app._schedule_repo.reconcile = AsyncMock(return_value=[])
 
-        scheduler = CronScheduler(app)
-        scheduler.register(_noop, interval=60, name="known")
+        scheduler = Scheduler(app)
+        scheduler.register(_noop, interval=60, _name="known")
 
         inserted, updated, _ = await scheduler.sync()
         assert inserted == 0
@@ -263,9 +263,9 @@ class TestCronSchedulerSync:
         app._schedule_repo.insert = AsyncMock()
         app._schedule_repo.reconcile = AsyncMock(return_value=[])
 
-        scheduler = CronScheduler(app, on_unregistered="delete")
-        scheduler.register(_noop, interval=60, name="a")
-        scheduler.register(_noop2, interval=120, name="b")
+        scheduler = Scheduler(app, on_unregistered="delete")
+        scheduler.register(_noop, interval=60, _name="a")
+        scheduler.register(_noop2, interval=120, _name="b")
         await scheduler.sync()
         app._schedule_repo.reconcile.assert_awaited_once_with(
             ["a", "b"], on_unregistered="delete"
@@ -273,11 +273,11 @@ class TestCronSchedulerSync:
 
 
 # ---------------------------------------------------------------------------
-# CronScheduler: update / pause / resume / delete / trigger / list / get
+# Scheduler: update / pause / resume / delete / trigger / list / get
 # ---------------------------------------------------------------------------
 
 
-class TestCronSchedulerCrud:
+class TestSchedulerCrud:
     def _setup(self):
         app = MagicMock()
         app._schedule_repo = MagicMock()
@@ -290,19 +290,19 @@ class TestCronSchedulerCrud:
 
     async def test_update_translates_interval_kwarg(self):
         app = self._setup()
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         await scheduler.update("x", interval=300)
         app._schedule_repo.update.assert_awaited_once_with("x", interval_secs=300)
 
     async def test_update_translates_timeout_kwarg(self):
         app = self._setup()
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         await scheduler.update("x", timeout=10)
         app._schedule_repo.update.assert_awaited_once_with("x", timeout_secs=10)
 
     async def test_update_passes_through_other_fields(self):
         app = self._setup()
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         await scheduler.update("x", queue="q2", cron="* * * * *", paused=True)
         app._schedule_repo.update.assert_awaited_once_with(
             "x", queue="q2", cron="* * * * *", paused=True
@@ -310,74 +310,74 @@ class TestCronSchedulerCrud:
 
     async def test_pause_sets_paused_true(self):
         app = self._setup()
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         await scheduler.pause("x")
         app._schedule_repo.update.assert_awaited_once_with("x", paused=True)
 
     async def test_resume_sets_paused_false(self):
         app = self._setup()
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         await scheduler.resume("x")
         app._schedule_repo.update.assert_awaited_once_with("x", paused=False)
 
     async def test_delete_proxies_to_repo(self):
         app = self._setup()
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         result = await scheduler.delete("x")
         assert result is True
         app._schedule_repo.delete.assert_awaited_once_with("x")
 
     async def test_trigger_proxies_to_repo(self):
         app = self._setup()
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         await scheduler.trigger("x")
         app._schedule_repo.trigger.assert_awaited_once_with("x")
 
     async def test_list_schedules_proxies(self):
         app = self._setup()
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         await scheduler.list_schedules()
         app._schedule_repo.list_all.assert_awaited_once()
 
     async def test_get_proxies(self):
         app = self._setup()
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         await scheduler.get("x")
         app._schedule_repo.get.assert_awaited_once_with("x")
 
 
 # ---------------------------------------------------------------------------
-# CronScheduler: tick
+# Scheduler: tick
 # ---------------------------------------------------------------------------
 
 
-class TestCronSchedulerTick:
+class TestSchedulerTick:
     async def test_tick_returns_count_from_repo(self):
         app = MagicMock()
         app._schedule_repo = MagicMock()
         app._schedule_repo.tick_once = AsyncMock(return_value=3)
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         assert await scheduler._tick() == 3
 
     async def test_tick_swallows_errors_and_returns_zero(self):
         app = MagicMock()
         app._schedule_repo = MagicMock()
         app._schedule_repo.tick_once = AsyncMock(side_effect=RuntimeError("db down"))
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         assert await scheduler._tick() == 0
 
     async def test_tick_passes_enqueue_due_callback(self):
         app = MagicMock()
         app._schedule_repo = MagicMock()
         app._schedule_repo.tick_once = AsyncMock(return_value=0)
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         await scheduler._tick()
         app._schedule_repo.tick_once.assert_awaited_once_with(scheduler._enqueue_due)
 
     async def test_enqueue_due_calls_app_enqueue(self):
         app = MagicMock()
         app.enqueue = AsyncMock()
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         sched = Schedule(
             name="x",
             function="m.f",
@@ -406,26 +406,26 @@ class TestCronSchedulerTick:
     async def test_enqueue_due_sets_dedupe_key(self):
         app = MagicMock()
         app.enqueue = AsyncMock()
-        scheduler = CronScheduler(app)
+        scheduler = Scheduler(app)
         sched = Schedule(name="x", function="m.f", interval_secs=60)
         await scheduler._enqueue_due(sched)
         assert app.enqueue.call_args.kwargs["_key"].startswith("_pgwerk_sched:x:interval:")
 
 
 # ---------------------------------------------------------------------------
-# CronScheduler: stop
+# Scheduler: stop
 # ---------------------------------------------------------------------------
 
 
-class TestCronSchedulerStop:
+class TestSchedulerStop:
     def test_stop_sets_running_false(self):
-        scheduler = CronScheduler(MagicMock())
+        scheduler = Scheduler(MagicMock())
         scheduler._running = True
         scheduler.stop()
         assert scheduler._running is False
 
     def test_stop_is_idempotent(self):
-        scheduler = CronScheduler(MagicMock())
+        scheduler = Scheduler(MagicMock())
         scheduler.stop()
         scheduler.stop()
         assert scheduler._running is False

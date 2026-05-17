@@ -12,7 +12,7 @@ import psycopg
 from psycopg.sql import SQL
 
 from pgwerk.app import Werk
-from pgwerk.cron import CronScheduler
+from pgwerk.scheduler import Scheduler
 from pgwerk.worker import AsyncWorker
 from pgwerk.commons import JobStatus
 from pgwerk.schemas import Retry
@@ -214,8 +214,8 @@ class TestProdPaths:
             )
             await app_a._schedule_repo.trigger("cron.failover.noop")
 
-            scheduler_a = CronScheduler(app_a, on_unregistered="keep")
-            scheduler_b = CronScheduler(app_b, on_unregistered="keep")
+            scheduler_a = Scheduler(app_a, on_unregistered="keep")
+            scheduler_b = Scheduler(app_b, on_unregistered="keep")
 
             # Run a single tick concurrently — SKIP LOCKED should make exactly one win.
             fired_a, fired_b = await asyncio.gather(

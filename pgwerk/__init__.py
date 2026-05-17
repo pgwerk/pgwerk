@@ -1,5 +1,5 @@
 from .app import Werk
-from .cron import CronScheduler
+from .scheduler import Scheduler
 from .schemas import Schedule
 from .config import WerkConfig
 from .worker import BaseWorker
@@ -55,7 +55,7 @@ __all__ = [
     "FailureMode",
     # Scheduler
     "Schedule",
-    "CronScheduler",
+    "Scheduler",
     # Serializers
     "Serializer",
     "JSONSerializer",

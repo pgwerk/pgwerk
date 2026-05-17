@@ -7,7 +7,7 @@ from datetime import timedelta
 
 import pytest
 
-from pgwerk.cron import CronScheduler
+from pgwerk.scheduler import Scheduler
 from pgwerk.schemas import Schedule
 from pgwerk.repos import ScheduleAlreadyExists
 from pgwerk.repos import ScheduleNotFound
@@ -289,14 +289,14 @@ class TestScheduleJobForeignKey:
 
 
 # ---------------------------------------------------------------------------
-# CronScheduler end-to-end
+# Scheduler end-to-end
 # ---------------------------------------------------------------------------
 
 
-class TestCronSchedulerSync:
+class TestSchedulerSync:
     async def test_sync_inserts_registered_schedules(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        scheduler.register(noop, interval=60, name="via-sync")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        scheduler.register(noop, interval=60, _name="via-sync")
         inserted, updated, reconciled = await scheduler.sync()
         assert inserted == 1
         assert updated == 0
@@ -308,13 +308,13 @@ class TestCronSchedulerSync:
 
     async def test_sync_updates_on_second_registration(self, app):
         # First sync registers.
-        s1 = CronScheduler(app, on_unregistered="keep")
-        s1.register(noop, interval=60, name="renewed")
+        s1 = Scheduler(app, on_unregistered="keep")
+        s1.register(noop, interval=60, _name="renewed")
         await s1.sync()
 
         # Second sync with the same name but a different interval upserts via update().
-        s2 = CronScheduler(app, on_unregistered="keep")
-        s2.register(noop, interval=30, name="renewed")
+        s2 = Scheduler(app, on_unregistered="keep")
+        s2.register(noop, interval=30, _name="renewed")
         inserted, updated, _ = await s2.sync()
         assert inserted == 0
         assert updated == 1
@@ -325,8 +325,8 @@ class TestCronSchedulerSync:
         await app._schedule_repo.insert(
             Schedule(name="orphan", function="tests.integration.tasks.noop", interval_secs=60)
         )
-        scheduler = CronScheduler(app)  # default on_unregistered="pause"
-        scheduler.register(noop, interval=60, name="keep-me")
+        scheduler = Scheduler(app)  # default on_unregistered="pause"
+        scheduler.register(noop, interval=60, _name="keep-me")
         _, _, reconciled = await scheduler.sync()
         assert reconciled == ["orphan"]
         assert (await app._schedule_repo.get("orphan")).paused is True
@@ -335,7 +335,7 @@ class TestCronSchedulerSync:
         await app._schedule_repo.insert(
             Schedule(name="orphan", function="tests.integration.tasks.noop", interval_secs=60)
         )
-        scheduler = CronScheduler(app, on_unregistered="delete")
+        scheduler = Scheduler(app, on_unregistered="delete")
         _, _, reconciled = await scheduler.sync()
         assert reconciled == ["orphan"]
         assert await app._schedule_repo.get("orphan") is None
@@ -344,16 +344,16 @@ class TestCronSchedulerSync:
         await app._schedule_repo.insert(
             Schedule(name="orphan", function="tests.integration.tasks.noop", interval_secs=60)
         )
-        scheduler = CronScheduler(app, on_unregistered="keep")
+        scheduler = Scheduler(app, on_unregistered="keep")
         _, _, reconciled = await scheduler.sync()
         assert reconciled == []
         assert (await app._schedule_repo.get("orphan")).paused is False
 
 
-class TestCronSchedulerTick:
+class TestSchedulerTick:
     async def test_tick_fires_and_enqueues_job(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        scheduler.register(noop, interval=3600, name="tick-one")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        scheduler.register(noop, interval=3600, _name="tick-one")
         await scheduler.sync()
         await app._schedule_repo.trigger("tick-one")
 
@@ -367,8 +367,8 @@ class TestCronSchedulerTick:
 
     async def test_tick_dedups_same_bucket(self, app):
         """Two _tick() calls in the same interval bucket collapse via jobs.key UNIQUE."""
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        scheduler.register(noop, interval=3600, name="dedup")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        scheduler.register(noop, interval=3600, _name="dedup")
         await scheduler.sync()
 
         await app._schedule_repo.trigger("dedup")
@@ -382,10 +382,10 @@ class TestCronSchedulerTick:
         assert len(sched_jobs) == 1
 
 
-class TestCronSchedulerCrud:
+class TestSchedulerCrud:
     async def test_pause_prevents_tick_from_firing(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        scheduler.register(noop, interval=3600, name="p")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        scheduler.register(noop, interval=3600, _name="p")
         await scheduler.sync()
         await app._schedule_repo.trigger("p")
         await scheduler.pause("p")
@@ -394,8 +394,8 @@ class TestCronSchedulerCrud:
         assert fired == 0
 
     async def test_resume_allows_tick_to_fire(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        scheduler.register(noop, interval=3600, name="r")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        scheduler.register(noop, interval=3600, _name="r")
         await scheduler.sync()
         await scheduler.pause("r")
         await app._schedule_repo.trigger("r")
@@ -405,26 +405,26 @@ class TestCronSchedulerCrud:
         assert fired == 1
 
     async def test_delete_removes_row(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        scheduler.register(noop, interval=3600, name="d")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        scheduler.register(noop, interval=3600, _name="d")
         await scheduler.sync()
         removed = await scheduler.delete("d")
         assert removed is True
         assert await app._schedule_repo.get("d") is None
 
     async def test_trigger_makes_schedule_due_now(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        scheduler.register(noop, interval=3600, name="t")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        scheduler.register(noop, interval=3600, _name="t")
         await scheduler.sync()
         triggered = await scheduler.trigger("t")
         assert triggered is not None
         assert triggered.next_run_at <= datetime.now(timezone.utc)
 
 
-class TestCronSchedulerImperative:
+class TestSchedulerImperative:
     async def test_schedule_inserts_row(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        sched = await scheduler.schedule(noop, interval=60, name="imp")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        sched = await scheduler.schedule(noop, interval=60, _name="imp")
         assert sched.name == "imp"
         assert sched.interval_secs == 60
         stored = await app._schedule_repo.get("imp")
@@ -432,27 +432,27 @@ class TestCronSchedulerImperative:
         assert stored.next_run_at is not None
 
     async def test_schedule_is_upsert(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        await scheduler.schedule(noop, interval=60, name="upsert")
-        updated = await scheduler.schedule(noop, interval=30, queue="priority", name="upsert")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        await scheduler.schedule(noop, interval=60, _name="upsert")
+        updated = await scheduler.schedule(noop, interval=30, _queue="priority", _name="upsert")
         assert updated.interval_secs == 30
         assert updated.queue == "priority"
         assert (await app._schedule_repo.get("upsert")).interval_secs == 30
 
     async def test_schedule_default_name_from_function(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
+        scheduler = Scheduler(app, on_unregistered="keep")
         sched = await scheduler.schedule(noop, interval=60)
         assert sched.name == "tests.integration.tasks.noop"
 
     async def test_schedule_rejects_both_interval_and_cron(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
+        scheduler = Scheduler(app, on_unregistered="keep")
         with pytest.raises(ValueError, match="not both"):
-            await scheduler.schedule(noop, interval=60, cron="* * * * *", name="x")
+            await scheduler.schedule(noop, interval=60, cron="* * * * *", _name="x")
 
     async def test_schedule_at_sets_first_run_explicitly(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
+        scheduler = Scheduler(app, on_unregistered="keep")
         when = datetime.now(timezone.utc) + timedelta(days=1)
-        sched = await scheduler.schedule_at(noop, when, interval=60, name="at")
+        sched = await scheduler.schedule_at(noop, when, interval=60, _name="at")
         assert sched.next_run_at is not None
         # Allow a small sub-second drift from the DB round-trip.
         assert abs((sched.next_run_at - when).total_seconds()) < 1.0
@@ -460,12 +460,12 @@ class TestCronSchedulerImperative:
     async def test_schedule_at_re_anchors_on_reupsert(self, app):
         """Calling schedule_at() again with the same name must honor the new
         first-run time instead of silently recomputing from the policy."""
-        scheduler = CronScheduler(app, on_unregistered="keep")
+        scheduler = Scheduler(app, on_unregistered="keep")
         first = datetime.now(timezone.utc) + timedelta(days=1)
-        await scheduler.schedule_at(noop, first, interval=60, name="reanchor")
+        await scheduler.schedule_at(noop, first, interval=60, _name="reanchor")
 
         second = datetime.now(timezone.utc) + timedelta(days=7)
-        updated = await scheduler.schedule_at(noop, second, interval=60, name="reanchor")
+        updated = await scheduler.schedule_at(noop, second, interval=60, _name="reanchor")
         assert updated.next_run_at is not None
         assert abs((updated.next_run_at - second).total_seconds()) < 1.0
 
@@ -473,30 +473,30 @@ class TestCronSchedulerImperative:
         assert abs((stored.next_run_at - second).total_seconds()) < 1.0
 
     async def test_schedule_at_normalizes_naive_datetime_to_utc(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
+        scheduler = Scheduler(app, on_unregistered="keep")
         naive = (datetime.now(timezone.utc) + timedelta(hours=1)).replace(tzinfo=None)
-        sched = await scheduler.schedule_at(noop, naive, interval=60, name="at-naive")
+        sched = await scheduler.schedule_at(noop, naive, interval=60, _name="at-naive")
         assert sched.next_run_at is not None
         assert sched.next_run_at.tzinfo is not None
 
     async def test_schedule_in_starts_after_delay(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
+        scheduler = Scheduler(app, on_unregistered="keep")
         before = datetime.now(timezone.utc)
-        sched = await scheduler.schedule_in(120, noop, interval=60, name="delay")
+        sched = await scheduler.schedule_in(120, noop, interval=60, _name="delay")
         assert sched.next_run_at is not None
         delta = (sched.next_run_at - before).total_seconds()
         assert 115 < delta < 125  # ~120s, allowing for clock drift & round-trip
 
     async def test_schedule_in_not_fired_before_delay(self, app):
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        await scheduler.schedule_in(3600, noop, interval=60, name="future")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        await scheduler.schedule_in(3600, noop, interval=60, _name="future")
         fired = await scheduler._tick()
         assert fired == 0
 
     async def test_schedule_in_repeat_uses_policy_after_first_run(self, app):
         """After the delayed first run fires, subsequent runs follow interval."""
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        await scheduler.schedule_in(0, noop, interval=3600, name="then-policy")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        await scheduler.schedule_in(0, noop, interval=3600, _name="then-policy")
         # Due now: first tick fires it.
         fired = await scheduler._tick()
         assert fired == 1
@@ -506,7 +506,7 @@ class TestCronSchedulerImperative:
         assert 3590 < delta < 3610
 
 
-class TestCronSchedulerRun:
+class TestSchedulerRun:
     async def test_run_ticks_then_stops(self, app):
         """Full run() path: schedule fires at least once, then stop() unblocks.
 
@@ -514,8 +514,8 @@ class TestCronSchedulerRun:
         promptly after trigger() makes the schedule due.
         """
         app.config.poll_interval = 0.1
-        scheduler = CronScheduler(app, on_unregistered="keep")
-        scheduler.register(noop, interval=3600, name="run-once")
+        scheduler = Scheduler(app, on_unregistered="keep")
+        scheduler.register(noop, interval=3600, _name="run-once")
 
         run_task = asyncio.create_task(scheduler.run())
         try:

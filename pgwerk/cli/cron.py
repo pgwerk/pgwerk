@@ -27,7 +27,7 @@ from ..logging import configure_logging
 def cron(scheduler: str, log_level: str, log_format: str, no_color: bool) -> None:
     """Start a cron scheduler process.
 
-    SCHEDULER is the CronScheduler instance to use, e.g. ``myapp.tasks:scheduler``
+    SCHEDULER is the Scheduler instance to use, e.g. ``myapp.tasks:scheduler``
     """
     configure_logging(level=log_level, format=log_format, color=False if no_color else None)
     cron_scheduler = load_app(scheduler)

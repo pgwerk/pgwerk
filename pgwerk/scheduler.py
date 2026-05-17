@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 ON_UNREGISTERED = ("keep", "pause", "delete")
 
 
-class CronScheduler:
+class Scheduler:
     """Postgres-backed cron scheduler.
 
     Schedule definitions live in ``_pgwerk_schedules``; all persistence and
@@ -40,7 +40,7 @@ class CronScheduler:
 
     Typical usage::
 
-        scheduler = CronScheduler(app, on_unregistered="pause")
+        scheduler = Scheduler(app, on_unregistered="pause")
 
         @scheduler.register(cron="0 9 * * *", queue="reports")
         async def send_report():
@@ -89,16 +89,16 @@ class CronScheduler:
         self,
         func: "Callable | None" = None,
         *,
-        queue: str = "default",
-        name: str | None = None,
+        cron: str | None = None,
+        interval: int | None = None,
+        _queue: str = "default",
+        _name: str | None = None,
         args: tuple | list | None = None,
         kwargs: dict | None = None,
-        interval: int | None = None,
-        cron: str | None = None,
-        timeout: int | None = None,
-        result_ttl: int | None = None,
-        failure_ttl: int | None = None,
-        meta: dict[str, Any] | None = None,
+        _timeout: int | None = None,
+        _result_ttl: int | None = None,
+        _failure_ttl: int | None = None,
+        _meta: dict[str, Any] | None = None,
     ) -> "Callable":
         """Register *func* to run on a schedule.
 
@@ -116,7 +116,7 @@ class CronScheduler:
                 this process.
         """
         def _register(f: Callable) -> Callable:
-            sched_name = name or fn_path(f)
+            sched_name = _name or fn_path(f)
             if sched_name in self._pending:
                 raise ValueError(
                     f"schedule {sched_name!r} is already registered in this process; "
@@ -127,15 +127,15 @@ class CronScheduler:
             self._pending[sched_name] = Schedule(
                 name=sched_name,
                 function=fn_path(f),
-                queue=queue,
+                queue=_queue,
                 args=list(args) if args else [],
                 kwargs=dict(kwargs) if kwargs else {},
                 interval_secs=interval,
                 cron=cron,
-                timeout_secs=timeout,
-                result_ttl=result_ttl,
-                failure_ttl=failure_ttl,
-                meta=meta,
+                timeout_secs=_timeout,
+                result_ttl=_result_ttl,
+                failure_ttl=_failure_ttl,
+                meta=_meta,
             )
             return f
 
@@ -191,16 +191,16 @@ class CronScheduler:
         self,
         func: "Callable | str",
         *,
-        queue: str = "default",
-        name: str | None = None,
+        cron: str | None = None,
+        interval: int | None = None,
+        _queue: str = "default",
+        _name: str | None = None,
         args: tuple | list | None = None,
         kwargs: dict | None = None,
-        interval: int | None = None,
-        cron: str | None = None,
-        timeout: int | None = None,
-        result_ttl: int | None = None,
-        failure_ttl: int | None = None,
-        meta: dict[str, Any] | None = None,
+        _timeout: int | None = None,
+        _result_ttl: int | None = None,
+        _failure_ttl: int | None = None,
+        _meta: dict[str, Any] | None = None,
     ) -> Schedule:
         """Imperatively upsert a schedule into the database.
 
@@ -214,16 +214,16 @@ class CronScheduler:
         """
         sched = self._build_schedule(
             func,
-            queue=queue,
-            name=name,
+            queue=_queue,
+            name=_name,
             args=args,
             kwargs=kwargs,
             interval=interval,
             cron=cron,
-            timeout=timeout,
-            result_ttl=result_ttl,
-            failure_ttl=failure_ttl,
-            meta=meta,
+            timeout=_timeout,
+            result_ttl=_result_ttl,
+            failure_ttl=_failure_ttl,
+            meta=_meta,
             next_run_at=None,
         )
         return await self.app._schedule_repo.upsert(sched)
@@ -233,16 +233,16 @@ class CronScheduler:
         func: "Callable | str",
         first_run_at: datetime,
         *,
-        queue: str = "default",
-        name: str | None = None,
+        cron: str | None = None,
+        interval: int | None = None,
+        _queue: str = "default",
+        _name: str | None = None,
         args: tuple | list | None = None,
         kwargs: dict | None = None,
-        interval: int | None = None,
-        cron: str | None = None,
-        timeout: int | None = None,
-        result_ttl: int | None = None,
-        failure_ttl: int | None = None,
-        meta: dict[str, Any] | None = None,
+        _timeout: int | None = None,
+        _result_ttl: int | None = None,
+        _failure_ttl: int | None = None,
+        _meta: dict[str, Any] | None = None,
     ) -> Schedule:
         """Like :meth:`schedule` but anchors the first run at ``first_run_at``.
 
@@ -253,16 +253,16 @@ class CronScheduler:
             first_run_at = first_run_at.replace(tzinfo=timezone.utc)
         sched = self._build_schedule(
             func,
-            queue=queue,
-            name=name,
+            queue=_queue,
+            name=_name,
             args=args,
             kwargs=kwargs,
             interval=interval,
             cron=cron,
-            timeout=timeout,
-            result_ttl=result_ttl,
-            failure_ttl=failure_ttl,
-            meta=meta,
+            timeout=_timeout,
+            result_ttl=_result_ttl,
+            failure_ttl=_failure_ttl,
+            meta=_meta,
             next_run_at=first_run_at,
         )
         return await self.app._schedule_repo.upsert(sched)
@@ -272,33 +272,111 @@ class CronScheduler:
         delay_secs: float,
         func: "Callable | str",
         *,
-        queue: str = "default",
-        name: str | None = None,
+        cron: str | None = None,
+        interval: int | None = None,
+        _queue: str = "default",
+        _name: str | None = None,
         args: tuple | list | None = None,
         kwargs: dict | None = None,
-        interval: int | None = None,
-        cron: str | None = None,
-        timeout: int | None = None,
-        result_ttl: int | None = None,
-        failure_ttl: int | None = None,
-        meta: dict[str, Any] | None = None,
+        _timeout: int | None = None,
+        _result_ttl: int | None = None,
+        _failure_ttl: int | None = None,
+        _meta: dict[str, Any] | None = None,
     ) -> Schedule:
         """Like :meth:`schedule` but starts the first run ``delay_secs`` from now."""
         first_run_at = datetime.now(timezone.utc) + timedelta(seconds=delay_secs)
         return await self.schedule_at(
             func,
             first_run_at,
-            queue=queue,
-            name=name,
+            cron=cron,
+            interval=interval,
+            _queue=_queue,
+            _name=_name,
             args=args,
             kwargs=kwargs,
-            interval=interval,
-            cron=cron,
-            timeout=timeout,
-            result_ttl=result_ttl,
-            failure_ttl=failure_ttl,
-            meta=meta,
+            _timeout=_timeout,
+            _result_ttl=_result_ttl,
+            _failure_ttl=_failure_ttl,
+            _meta=_meta,
         )
+
+    async def cron(
+        self,
+        cron_string: str,
+        func: "Callable | str",
+        *args: Any,
+        _queue: str = "default",
+        _name: str | None = None,
+        _timeout: int | None = None,
+        _result_ttl: int | None = None,
+        _failure_ttl: int | None = None,
+        _meta: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> Schedule:
+        """Upsert a cron schedule, writing immediately to the database.
+
+        The cron expression is the primary argument; all library options are
+        ``_``-prefixed to avoid colliding with function kwargs.
+
+        Example::
+
+            await scheduler.cron("0 9 * * *", send_report, _queue="reports")
+            await scheduler.cron("*/5 * * * *", poll_feed, feed_id=42, _timeout=30)
+        """
+        sched = self._build_schedule(
+            func,
+            queue=_queue,
+            name=_name,
+            args=list(args) if args else None,
+            kwargs=kwargs or None,
+            interval=None,
+            cron=cron_string,
+            timeout=_timeout,
+            result_ttl=_result_ttl,
+            failure_ttl=_failure_ttl,
+            meta=_meta,
+            next_run_at=None,
+        )
+        return await self.app._schedule_repo.upsert(sched)
+
+    async def interval(
+        self,
+        secs: int,
+        func: "Callable | str",
+        *args: Any,
+        _queue: str = "default",
+        _name: str | None = None,
+        _timeout: int | None = None,
+        _result_ttl: int | None = None,
+        _failure_ttl: int | None = None,
+        _meta: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> Schedule:
+        """Upsert an interval schedule, writing immediately to the database.
+
+        The interval in seconds is the primary argument; all library options
+        are ``_``-prefixed to avoid colliding with function kwargs.
+
+        Example::
+
+            await scheduler.interval(3600, sync_data, _queue="etl")
+            await scheduler.interval(300, cleanup, older_than_days=7, _timeout=60)
+        """
+        sched = self._build_schedule(
+            func,
+            queue=_queue,
+            name=_name,
+            args=list(args) if args else None,
+            kwargs=kwargs or None,
+            interval=secs,
+            cron=None,
+            timeout=_timeout,
+            result_ttl=_result_ttl,
+            failure_ttl=_failure_ttl,
+            meta=_meta,
+            next_run_at=None,
+        )
+        return await self.app._schedule_repo.upsert(sched)
 
     # ------------------------------------------------------------------
     # Direct DB operations (available once the app is connected)
@@ -338,7 +416,7 @@ class CronScheduler:
         )
         if reconciled:
             logger.info(
-                "CronScheduler: %s %d orphan schedule(s): %s",
+                "Scheduler: %s %d orphan schedule(s): %s",
                 "deleted" if self.on_unregistered == "delete" else "paused",
                 len(reconciled),
                 reconciled,
@@ -401,7 +479,7 @@ class CronScheduler:
             json.dumps({"pid": os.getpid()}),
             role="scheduler",
         )
-        logger.info("CronScheduler %s registered (%s)", self.name, self.id)
+        logger.info("Scheduler %s registered (%s)", self.name, self.id)
 
     async def _deregister_instance(self) -> None:
         if not self.app._connected:
@@ -409,7 +487,7 @@ class CronScheduler:
         try:
             await self.app._worker_repo.deregister(self.id)
         except Exception as exc:
-            logger.warning("CronScheduler %s: deregister failed: %s", self.name, exc)
+            logger.warning("Scheduler %s: deregister failed: %s", self.name, exc)
 
     async def _heartbeat_loop(self) -> None:
         interval = self.app.config.heartbeat_interval
@@ -417,7 +495,7 @@ class CronScheduler:
             try:
                 await self.app._worker_repo.update_heartbeat(self.id)
             except Exception as exc:
-                logger.warning("CronScheduler %s: heartbeat error: %s", self.name, exc)
+                logger.warning("Scheduler %s: heartbeat error: %s", self.name, exc)
             await asyncio.sleep(interval)
 
     async def _enqueue_due(self, schedule: Schedule) -> None:
@@ -439,7 +517,7 @@ class CronScheduler:
         try:
             return await self.app._schedule_repo.tick_once(self._enqueue_due)
         except Exception as exc:
-            logger.exception("CronScheduler: tick error: %s", exc)
+            logger.exception("Scheduler: tick error: %s", exc)
             return 0
 
     async def run(self) -> None:
@@ -466,7 +544,7 @@ class CronScheduler:
                 except asyncio.CancelledError:
                     break
                 except Exception as exc:
-                    logger.warning("CronScheduler: loop error: %s", exc)
+                    logger.warning("Scheduler: loop error: %s", exc)
                     await asyncio.sleep(poll_cap)
         finally:
             if self._heartbeat_task:
