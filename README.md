@@ -137,17 +137,23 @@ Workers register themselves in the database, send periodic heartbeats, auto-touc
 ### Cron
 
 ```python
-from pgwerk import CronScheduler, CronJob
+from pgwerk import Scheduler
 
-scheduler = CronScheduler(app)
-scheduler.register(CronJob(func=my_func, cron="*/15 * * * *"))  # every 15 min
-scheduler.register(CronJob(func=other_func, interval=3600))      # every hour
+scheduler = Scheduler(app)
+
+@scheduler.register(cron="*/15 * * * *")   # every 15 min
+async def my_func():
+    ...
+
+@scheduler.register(interval=3600)          # every hour
+async def other_func():
+    ...
 
 async with app:
     await scheduler.run()
 ```
 
-`CronScheduler` uses a Postgres advisory lock so only one process runs the scheduler at a time. Requires `croniter` for cron expressions.
+Multiple `Scheduler` instances can run simultaneously — they share load via `SELECT … FOR UPDATE SKIP LOCKED` with no primary election needed. Requires `croniter` for cron expressions.
 
 ### Serializers
 
@@ -232,6 +238,7 @@ All tables are prefixed (default `_pgwerk_`) and optionally placed in a named sc
 | `_pgwerk_worker_jobs` | Active claim tracking |
 | `_pgwerk_jobs_executions` | Per-attempt execution history |
 | `_pgwerk_job_deps` | Job dependency graph |
+| `_pgwerk_schedules` | Recurring schedule definitions |
 
 
 ### Job lifecycle

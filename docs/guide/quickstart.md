@@ -9,7 +9,7 @@ keywords: pgwerk quickstart, postgres job queue python tutorial, background jobs
 ## Install
 
 ```bash
-pip install werk
+pip install pgwerk
 ```
 
 Requires Python 3.11+ and Postgres 14+. For cron expression support, add the optional extra:
@@ -97,7 +97,7 @@ asyncio.run(main())
 Or start one from the CLI:
 
 ```bash
-werkworker myapp.tasks:app --queues default --concurrency 10
+werk worker myapp.tasks:app --queues default --concurrency 10
 ```
 
 `APP` is a `module:attribute` path to your `Werk` instance.

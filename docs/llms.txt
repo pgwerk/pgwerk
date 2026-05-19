@@ -15,7 +15,7 @@ pgwerk is a Postgres-backed job queue library for Python. It stores jobs as data
 - Background job execution with four worker types: AsyncWorker (asyncio), ThreadWorker, ProcessWorker, ForkWorker
 - Transactional enqueue — jobs can be enqueued inside a Postgres transaction; rollback cancels the job
 - Retry with configurable back-off intervals
-- Delayed jobs and cron scheduling (CronScheduler, requires pip install pgwerk[cron])
+- Delayed jobs and cron scheduling (Scheduler, requires pip install pgwerk[cron])
 - DAG-style job dependencies
 - Idempotency keys and concurrency groups
 - Built-in dashboard and CLI

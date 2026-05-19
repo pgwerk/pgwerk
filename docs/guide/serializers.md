@@ -28,6 +28,18 @@ app = Werk("postgresql://user:pass@localhost/mydb", serializer=PickleSerializer(
 !!! warning
     Pickle payloads are **not portable**. Workers must share the same codebase and Python version as the enqueueing process. Use `PickleSerializer` only when the payload genuinely cannot be expressed in JSON.
 
+## TypedJSONSerializer
+
+An extended JSON serializer that round-trips Python types not natively supported by JSON. Handles: `UUID`, `datetime`, `date`, `timedelta`, `Decimal`, `bytes`, `tuple`, `set`.
+
+```python
+from pgwerk import Werk, TypedJSONSerializer
+
+app = Werk("postgresql://user:pass@localhost/mydb", serializer=TypedJSONSerializer())
+```
+
+Use this when your job payloads contain Python-typed values and you want them to survive the round-trip without manual conversion. Unlike `PickleSerializer`, the output remains human-readable JSON.
+
 ## Custom serializers
 
 Any object that satisfies the `Serializer` protocol works:

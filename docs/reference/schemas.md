@@ -222,24 +222,28 @@ await app.enqueue_many([
 
 ---
 
-## CronJob
+## Schedule
 
-A function registered with `CronScheduler`.
+A recurring schedule row as stored in `_pgwerk_schedules`. Returned by `Scheduler` methods.
 
 | Field | Type | Description |
 |---|---|---|
-| `func` | `Callable` | Function to enqueue |
+| `name` | `str` | Unique primary key; defaults to `module.qualname` |
+| `function` | `str` | Dotted import path of the handler to enqueue |
 | `queue` | `str` | Target queue (default `"default"`) |
-| `args` | `tuple` | Positional arguments |
-| `kwargs` | `dict` | Keyword arguments |
-| `interval` | `int \| None` | Seconds between runs |
-| `cron` | `str \| None` | Cron expression |
-| `timeout` | `int \| None` | Job timeout in seconds |
-| `result_ttl` | `int \| None` | Completed-row retention |
-| `failure_ttl` | `int \| None` | Failed-row retention |
+| `args` | `list` | Positional arguments forwarded to the handler |
+| `kwargs` | `dict` | Keyword arguments forwarded to the handler |
+| `interval_secs` | `int \| None` | Seconds between runs (mutually exclusive with `cron`) |
+| `cron` | `str \| None` | Cron expression (mutually exclusive with `interval_secs`) |
+| `timeout_secs` | `int \| None` | Job timeout in seconds |
+| `result_ttl` | `int \| None` | Completed-row retention in seconds |
+| `failure_ttl` | `int \| None` | Failed-row retention in seconds |
 | `meta` | `dict \| None` | Metadata attached to every enqueued job |
-| `name` | `str` | Unique name (defaults to `module.qualname`) |
-| `paused` | `bool` | Whether this job is currently paused |
+| `paused` | `bool` | When True, the scheduler skips this entry |
+| `next_run_at` | `datetime \| None` | Wall-clock time of the next scheduled enqueue |
+| `last_run_at` | `datetime \| None` | Wall-clock time of the most recent enqueue |
+| `last_registered_at` | `datetime \| None` | When this row was last bumped by `register()` |
+| `created_at` | `datetime \| None` | Row creation time |
 
 ---
 

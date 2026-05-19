@@ -37,7 +37,7 @@ Integration tests expect a Postgres instance at `postgresql://pgwerk:pgwerk@loca
 
 ### Schema (both implementations)
 
-Four tables, prefixed (default `_pgwerk_`), optionally schema-qualified:
+Tables, prefixed (default `_pgwerk_`), optionally schema-qualified (default schema `pgwerk`):
 
 | Table | Purpose |
 |---|---|
@@ -45,7 +45,8 @@ Four tables, prefixed (default `_pgwerk_`), optionally schema-qualified:
 | `_pgwerk_jobs` | The job queue — all state lives here |
 | `_pgwerk_worker_jobs` | Claim tracking (worker ↔ job) |
 | `_pgwerk_jobs_executions` | Per-attempt execution history |
-| `_pgwerk_job_deps` | Job dependency graph (Python only) |
+| `_pgwerk_job_deps` | Job dependency graph |
+| `_pgwerk_schedules` | Recurring schedule definitions |
 
 Dequeue uses `SELECT … FOR UPDATE SKIP LOCKED` inside a transaction for safe concurrent polling. Workers also use `LISTEN/NOTIFY` for instant wake-up on enqueue.
 
@@ -59,7 +60,7 @@ Dequeue uses `SELECT … FOR UPDATE SKIP LOCKED` inside a transaction for safe c
 
 ### Python-only features vs Go
 
-The Python implementation adds: `Retry` (exponential back-off intervals), `Repeat` (recurring jobs), `Callback` (on_success/on_failure hooks), `Dependency` (DAG dependencies), `CronScheduler`, pluggable `Serializer` (JSON/Pickle), `heartbeat_secs` for long-running jobs, and a `CLI` (`werk` command via Click).
+The Python implementation adds: `Retry` (exponential back-off intervals), `Repeat` (recurring jobs), `Callback` (on_success/on_failure hooks), `Dependency` (DAG dependencies), `Scheduler` (cron/interval scheduling), pluggable `Serializer` (JSON/Pickle/TypedJSON), `heartbeat_secs` for long-running jobs, and a `CLI` (`werk` command via Click).
 
 The Go implementation is a leaner subset: enqueue, get, cancel, and a single goroutine-based `Worker`.
 

@@ -21,6 +21,7 @@ Werk(
     log_format: str | None = None,
     log_color: bool | None = None,
     log_fmt: str | None = None,
+    auto_migrate: bool = True,
 )
 ```
 
@@ -36,6 +37,7 @@ Werk(
 | `log_format` | `None` | `"text"` or `"json"` |
 | `log_color` | `None` | Enable/disable ANSI colour in text logs |
 | `log_fmt` | `None` | Custom log format string |
+| `auto_migrate` | `True` | Run schema migrations on `connect()`. Set to `False` when using `werk migrate` in CI/CD. |
 
 ### Lifecycle
 
@@ -204,7 +206,7 @@ app = Werk(dsn, config=config)
 
 | Attribute | Default | Description |
 |---|---|---|
-| `schema` | `None` | Postgres schema for table qualification |
+| `schema` | `"pgwerk"` | Postgres schema for table qualification |
 | `prefix` | `"_pgwerk"` | Table name prefix |
 | `max_active_secs` | `3600` | Stuck-job threshold for sweep |
 | `heartbeat_interval` | `10` | Worker heartbeat cadence (seconds) |
@@ -213,5 +215,6 @@ app = Werk(dsn, config=config)
 | `sweep_interval` | `60.0` | Maintenance sweep cadence (seconds) |
 | `shutdown_timeout` | `30.0` | Graceful shutdown timeout (seconds) |
 | `sigterm_grace` | `5` | ForkWorker SIGTERM→SIGKILL grace (seconds) |
-| `cron_standby_retry_interval` | `30.0` | Standby scheduler retry cadence (seconds) |
 | `ephemeral_tables` | `False` | Use UNLOGGED tables for worker/worker_jobs |
+| `default_retry_backoff` | `True` | Synthesize exponential backoff when `_retry` is an integer |
+| `allow_truncate` | `False` | Enable `truncate()` — useful in tests, dangerous in production |
