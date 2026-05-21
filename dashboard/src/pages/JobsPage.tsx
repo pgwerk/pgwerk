@@ -13,13 +13,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 const PAGE_SIZE = 50
 
 const STATUS_TABS: { label: string; value: JobStatus | '' }[] = [
-  { label: 'All',      value: '' },
-  { label: 'Queued',   value: 'queued' },
-  { label: 'Active',   value: 'active' },
-  { label: 'Waiting',  value: 'waiting' },
-  { label: 'Failed',   value: 'failed' },
-  { label: 'Complete', value: 'complete' },
-  { label: 'Aborted',  value: 'aborted' },
+  { label: 'All',       value: '' },
+  { label: 'Queued',    value: 'queued' },
+  { label: 'Scheduled', value: 'scheduled' },
+  { label: 'Active',    value: 'active' },
+  { label: 'Waiting',   value: 'waiting' },
+  { label: 'Failed',    value: 'failed' },
+  { label: 'Complete',  value: 'complete' },
+  { label: 'Aborted',   value: 'aborted' },
 ]
 
 function sumStatus(queues: QueueStats[], status: JobStatus | ''): number {

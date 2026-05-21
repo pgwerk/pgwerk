@@ -80,7 +80,7 @@ class JobRepository:
     # Insert
     # ------------------------------------------------------------------
 
-    async def insert(self, data: JobInsert, conn: AsyncConnection | None = None) -> Job | None:
+    async def insert(self, data: JobInsert, conn: AsyncConnection | None = None, notify: bool = True) -> Job | None:
         async with self._conn(conn) as c, c.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 SQL(_INSERT_SQL + JOB_COLS).format(jobs=self._t["jobs"]),
@@ -92,7 +92,22 @@ class JobRepository:
 
             job = Job.from_row(row, self._serializer)
 
-            if data.dep_ids:
+            if notify:
+                if data.dep_ids:
+                    await cur.executemany(
+                        SQL("""
+                            INSERT INTO {deps} (job_id, depends_on, allow_failure)
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT DO NOTHING
+                        """).format(deps=self._t["deps"]),
+                        [(str(job.id), dep_id, allow_failure) for dep_id, allow_failure in data.dep_ids],
+                    )
+                    if await self._check_dependencies(cur, str(job.id)):
+                        for q in await self.settle_dependents(cur, data.dep_ids[0][0]):
+                            await c.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{q}")))
+                else:
+                    await c.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{data.queue}")))
+            elif data.dep_ids:
                 await cur.executemany(
                     SQL("""
                         INSERT INTO {deps} (job_id, depends_on, allow_failure)
@@ -101,11 +116,6 @@ class JobRepository:
                     """).format(deps=self._t["deps"]),
                     [(str(job.id), dep_id, allow_failure) for dep_id, allow_failure in data.dep_ids],
                 )
-                if await self._check_dependencies(cur, str(job.id)):
-                    for q in await self.settle_dependents(cur, data.dep_ids[0][0]):
-                        await c.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{q}")))
-            else:
-                await c.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{data.queue}")))
 
             return job
 
@@ -1159,7 +1169,7 @@ class StatsRepository:
                     self._SAMPLE_GRID
                     + """
                     , relevant_jobs AS (
-                        SELECT id, enqueued_at, started_at, completed_at
+                        SELECT id, enqueued_at, scheduled_at, started_at, completed_at
                         FROM {jobs}
                         WHERE enqueued_at <= NOW()
                           AND (
@@ -1171,6 +1181,7 @@ class StatsRepository:
                         s.ts AS time,
                         COUNT(j.id) FILTER (
                             WHERE j.enqueued_at <= s.ts
+                              AND j.scheduled_at <= s.ts
                               AND (j.started_at IS NULL OR j.started_at > s.ts)
                               AND (j.completed_at IS NULL OR j.completed_at > s.ts)
                         )::int AS queued,

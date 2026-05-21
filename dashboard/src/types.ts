@@ -1,5 +1,6 @@
 export type JobStatus =
   | 'queued'
+  | 'scheduled'
   | 'waiting'
   | 'active'
   | 'aborting'

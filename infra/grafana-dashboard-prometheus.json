@@ -272,7 +272,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(wrk_jobs{queue=~\"$queue\", status=~\"queued|scheduled\"})",
+          "expr": "sum(wrk_jobs{queue=~\"$queue\", status=\"queued\"})",
           "instant": true,
           "refId": "A"
         }
@@ -633,7 +633,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(wrk_jobs{queue=~\"$queue\", status=~\"queued|scheduled\"})",
+          "expr": "sum(wrk_jobs{queue=~\"$queue\", status=\"queued\"})",
           "legendFormat": "queued",
           "refId": "queued"
         },

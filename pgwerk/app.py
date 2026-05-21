@@ -359,7 +359,7 @@ class Werk:
             dep_ids=dep_ids,
         )
 
-        job = await self._job_repo.insert(data, conn=_conn)
+        job = await self._job_repo.insert(data, conn=_conn, notify=not _sync)
 
         if job is not None:
             await self._run_before_enqueue(job)
