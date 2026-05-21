@@ -7,6 +7,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.22] - 2026-05-21
+
+### Fixed
+
+- Queue depth history chart was counting `scheduled` (future-dated) jobs as queued because it used `started_at IS NULL` as a proxy for "not yet started". Fixed by also requiring `scheduled_at <= sample_time`.
+- Grafana dashboard "Queued (pending)" stat and Queue Depth timeseries were summing `status=~"queued|scheduled"`, inflating the queued signal with future-scheduled jobs. Both now filter on `status="queued"` only.
+- `scheduled` was missing from the `JobStatus` TypeScript type and had no tab on the Jobs page, making future-dated jobs invisible in the UI. A "Scheduled" tab is now present between Queued and Active.
+- `enqueue(..., _sync=True)` no longer sends a `NOTIFY`, preventing a background worker from stealing the job between insert and `claim_sync`.
+
+---
+
 ## [0.1.21] - 2026-05-17
 
 ### Changed
