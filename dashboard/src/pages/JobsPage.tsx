@@ -31,7 +31,7 @@ function sumStatus(queues: QueueStats[], status: JobStatus | ''): number {
 export function JobsPage() {
   const [page, setPage] = useState(0)
   const [sendDialogOpen, setSendDialogOpen] = useState(false)
-  const [filters, setFilters] = useState<JobFiltersState>({ queues: [], status: '', search: '' })
+  const [filters, setFilters] = useState<JobFiltersState>({ queues: [], status: '', search: '', retried: false })
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -49,11 +49,12 @@ export function JobsPage() {
 
   const queueParam = filters.queues.length > 0 ? filters.queues.join(',') : undefined
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['jobs', queueParam, filters.status, debouncedSearch, page],
+    queryKey: ['jobs', queueParam, filters.status, debouncedSearch, filters.retried, page],
     queryFn: () => api.listJobs({
       queue: queueParam,
       status: filters.status || undefined,
       search: debouncedSearch || undefined,
+      retried: filters.retried || undefined,
       limit: PAGE_SIZE + 1,
       offset: page * PAGE_SIZE,
     }),

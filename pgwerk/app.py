@@ -749,6 +749,7 @@ class Werk:
         worker_id: str | None = None,
         search: str | None = None,
         schedule_name: str | None = None,
+        retried: bool = False,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Job]:
@@ -768,7 +769,7 @@ class Werk:
         """
         return await self._job_repo.list_jobs(
             queue=queue, status=status, worker_id=worker_id, search=search,
-            schedule_name=schedule_name, limit=limit, offset=offset
+            schedule_name=schedule_name, retried=retried, limit=limit, offset=offset
         )
 
     async def cancel_job(self, job_id: str) -> bool:

@@ -8,11 +8,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
 
 export interface JobFiltersState {
   queues: string[]
   status: string
   search: string
+  retried: boolean
 }
 
 interface JobFiltersProps {
@@ -79,6 +81,18 @@ export function JobFilters({ filters, queues, onChange }: JobFiltersProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+
+      <button
+        onClick={() => onChange({ retried: !filters.retried })}
+        className={cn(
+          'flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition-colors',
+          filters.retried
+            ? 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+            : 'border-input bg-background text-muted-foreground hover:text-foreground',
+        )}
+      >
+        Retried
+      </button>
     </div>
   )
 }

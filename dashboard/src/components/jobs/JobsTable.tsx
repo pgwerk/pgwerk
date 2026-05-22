@@ -71,7 +71,14 @@ export function JobsTable({ jobs, isLoading, page, onPageChange, hasMore }: Jobs
                 {job.queue}
               </TableCell>
               <TableCell>
-                <StatusBadge status={job.status} />
+                <div className="flex items-center gap-1.5">
+                  <StatusBadge status={job.status} />
+                  {job.attempts > 0 && (job.status === 'queued' || job.status === 'scheduled') && (
+                    <span className="rounded px-1 py-0.5 font-mono text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                      retried
+                    </span>
+                  )}
+                </div>
               </TableCell>
               <TableCell className="text-right font-mono text-xs text-muted-foreground">
                 {job.priority}

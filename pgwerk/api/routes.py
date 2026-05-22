@@ -67,6 +67,7 @@ class JobController(Controller):
         worker_id: Annotated[str | None, Parameter(query="worker_id")] = None,
         search: Annotated[str | None, Parameter(query="search")] = None,
         schedule_name: Annotated[str | None, Parameter(query="schedule_name")] = None,
+        retried: Annotated[bool, Parameter(query="retried")] = False,
         limit: Annotated[int, Parameter(query="limit", ge=1, le=500)] = 50,
         offset: Annotated[int, Parameter(query="offset", ge=0)] = 0,
     ) -> list[JobResponse]:
@@ -94,6 +95,7 @@ class JobController(Controller):
             worker_id=worker_id,
             search=search,
             schedule_name=schedule_name,
+            retried=retried,
             limit=limit,
             offset=offset,
         )

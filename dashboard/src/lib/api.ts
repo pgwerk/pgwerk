@@ -40,6 +40,7 @@ export const api = {
     worker_id?: string
     search?: string
     schedule_name?: string
+    retried?: boolean
     limit?: number
     offset?: number
   }) => {
@@ -49,6 +50,7 @@ export const api = {
     if (params.worker_id) q.set('worker_id', params.worker_id)
     if (params.search) q.set('search', params.search)
     if (params.schedule_name) q.set('schedule_name', params.schedule_name)
+    if (params.retried) q.set('retried', 'true')
     if (params.limit != null) q.set('limit', String(params.limit))
     if (params.offset != null) q.set('offset', String(params.offset))
     return req<JobResponse[]>(`/api/jobs?${q}`)

@@ -178,6 +178,7 @@ class JobRepository:
         worker_id: str | None = None,
         search: str | None = None,
         schedule_name: str | None = None,
+        retried: bool = False,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Job]:
@@ -202,6 +203,8 @@ class JobRepository:
         if schedule_name:
             filters.append("schedule_name = %(schedule_name)s")
             params["schedule_name"] = schedule_name
+        if retried:
+            filters.append("attempts > 0")
         where = SQL("WHERE " + " AND ".join(filters)) if filters else SQL("")
         async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
