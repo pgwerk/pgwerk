@@ -290,7 +290,7 @@ class JobRepository:
                         completed_at = NULL,
                         expires_at = NULL,
                         scheduled_at = NOW(),
-                        attempts = 0,
+                        max_attempts = max_attempts + attempts,
                         worker_id = NULL
                     WHERE id = %(id)s
                       AND status IN ('failed', 'aborted')
@@ -480,7 +480,7 @@ class JobRepository:
                         completed_at = NULL,
                         expires_at = NULL,
                         scheduled_at = NOW(),
-                        attempts = 0,
+                        max_attempts = max_attempts + attempts,
                         worker_id = NULL
                     WHERE {where}
                     RETURNING queue
