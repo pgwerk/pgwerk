@@ -145,7 +145,7 @@ class TestWorkerRetry:
         assert requeued is True
         refreshed = await app.get_job(job.id)
         assert refreshed.status == JobStatus.Queued
-        assert refreshed.attempts == 0
+        assert refreshed.attempts == 1
         assert refreshed.error is None
 
     async def test_requeue_allows_job_to_run_again(self, app):
