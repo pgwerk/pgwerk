@@ -323,6 +323,8 @@ class BaseWorker(abc.ABC):
                 worker_repo = self.app._worker_repo
                 aborting = await worker_repo.get_aborting(list(self._active_jobs.keys()))
                 for job_id in aborting:
+                    if job_id in self._abort_requested:
+                        continue
                     task = self._active_jobs.get(job_id)
                     if task and not task.done():
                         logger.info("Worker %s: aborting job %s", self.name, job_id)
@@ -467,8 +469,10 @@ class BaseWorker(abc.ABC):
                 result = await self._execute(job, ctx)
             except asyncio.CancelledError:
                 if job.id in self._abort_requested:
-                    self._abort_requested.discard(job.id)
-                    await self._nack(job, "aborted", aborted=True)
+                    try:
+                        await self._nack(job, "aborted", aborted=True)
+                    finally:
+                        self._abort_requested.discard(job.id)
                 else:
                     await self._requeue_cancelled(job)
                 return
