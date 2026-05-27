@@ -41,6 +41,11 @@ class WerkConfig:
             ``_pgwerk_worker_jobs``. Faster writes; data is lost on a crash,
             which is safe because workers re-register on startup and the
             sweep re-establishes claims.
+        listen: When ``True`` (default), workers open a persistent
+            ``LISTEN`` connection for instant ``NOTIFY``-driven wake-up.
+            Set to ``False`` to fall back to pure polling — required when
+            routing connections through PgBouncer in transaction-pooling
+            mode, which does not support ``LISTEN``/``NOTIFY``.
         metrics: Enable Prometheus metrics at ``GET /metrics``.
         metrics_interval: Metrics scrape interval in seconds.
         ui: Serve the SPA dashboard (requires built static files).
@@ -85,6 +90,9 @@ class WerkConfig:
     ui_auth: str | None = None
     api_token: str | None = None
 
+    # LISTEN/NOTIFY
+    listen: bool = True
+
     # Retry behavior
     default_retry_backoff: bool = True
 
@@ -123,6 +131,7 @@ class WerkConfig:
             api_token=os.environ.get("PGWERK_API_TOKEN"),
             default_retry_backoff=_bool("PGWERK_DEFAULT_RETRY_BACKOFF", True),
             allow_truncate=_bool("PGWERK_ALLOW_TRUNCATE", False),
+            listen=_bool("PGWERK_LISTEN", True),
         )
 
     def to_env(self) -> None:
@@ -147,3 +156,4 @@ class WerkConfig:
             os.environ["PGWERK_API_TOKEN"] = self.api_token
         os.environ["PGWERK_DEFAULT_RETRY_BACKOFF"] = "true" if self.default_retry_backoff else "false"
         os.environ["PGWERK_ALLOW_TRUNCATE"] = "true" if self.allow_truncate else "false"
+        os.environ["PGWERK_LISTEN"] = "true" if self.listen else "false"

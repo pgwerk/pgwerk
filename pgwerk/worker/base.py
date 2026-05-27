@@ -58,6 +58,7 @@ class BaseWorker(abc.ABC):
         sweep_interval: float | None = None,
         abort_interval: float | None = None,
         shutdown_timeout: float | None = None,
+        listen: bool | None = None,
     ) -> None:
         """Initialise the worker with scheduling and concurrency settings.
 
@@ -79,6 +80,10 @@ class BaseWorker(abc.ABC):
                 falls back to ``app.config.abort_interval``.
             shutdown_timeout: Seconds to wait for active jobs to drain on shutdown;
                 falls back to ``app.config.shutdown_timeout``.
+            listen: Whether to open a persistent ``LISTEN`` connection for
+                instant ``NOTIFY``-driven wake-up. Falls back to
+                ``app.config.listen``. Set to ``False`` when using PgBouncer
+                in transaction-pooling mode.
         """
         self.app = app
         self.queues = queues or ["default"]
@@ -94,6 +99,7 @@ class BaseWorker(abc.ABC):
         self._sweep_interval = sweep_interval if sweep_interval is not None else app.config.sweep_interval
         self._abort_interval = abort_interval if abort_interval is not None else app.config.abort_interval
         self.shutdown_timeout = shutdown_timeout if shutdown_timeout is not None else app.config.shutdown_timeout
+        self.listen = listen if listen is not None else app.config.listen
 
         self.id = uuid.uuid4().hex
         self.name = f"{socket.gethostname()}.{os.getpid()}"
@@ -206,10 +212,11 @@ class BaseWorker(abc.ABC):
             await self._register()
             side_tasks = [
                 asyncio.ensure_future(self._heartbeat_loop()),
-                asyncio.ensure_future(self._listen_loop()),
                 asyncio.ensure_future(self._abort_loop()),
                 asyncio.ensure_future(self._sweep_loop()),
             ]
+            if self.listen:
+                side_tasks.append(asyncio.ensure_future(self._listen_loop()))
             try:
                 await self._main_loop()
             finally:

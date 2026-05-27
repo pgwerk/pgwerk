@@ -10,8 +10,6 @@ A Postgres-backed job queue. Durable, visible, transactional.
 
 Jobs are rows. Workers poll with `SELECT … FOR UPDATE SKIP LOCKED`. No external broker, no sidecar, just your existing Postgres instance. The schema is created automatically on first connect.
 
-pgwerk does not maintain an internal connection pool. Each operation uses a short-lived connection, making it compatible with external poolers like PgBouncer in transaction pooling mode.
-
 ![PGWerk dashboard overview](docs/assets/01-ss-home.png)
 
 ---
@@ -277,6 +275,36 @@ werk migrate --dsn postgresql://pgwerk_admin:...@localhost/mydb --schema pgwerk
 # Application runtime needs only DML
 app = Werk("postgresql://pgwerk_app:...@localhost/mydb", schema="pgwerk", auto_migrate=False)
 ```
+
+---
+
+## Connections
+
+pgwerk does not maintain an internal connection pool. Every operation — enqueue, dequeue, reads, writes — opens a short-lived `psycopg` connection, runs, and closes it. This makes the library compatible with any external pooler.
+
+The one exception is the worker's **LISTEN/NOTIFY connection**: a single long-lived connection held open per worker to receive instant wake-up signals when jobs are enqueued. This connection is incompatible with PgBouncer in **transaction-pooling mode**, because PgBouncer reclaims the server connection after each transaction, dropping the `LISTEN` subscription.
+
+### PgBouncer
+
+| Pooling mode | Compatible |
+|---|---|
+| Session | ✓ |
+| Transaction | ✓ with `listen=False` |
+| Statement | ✗ |
+
+To run in transaction-pooling mode, disable `LISTEN` and fall back to pure polling:
+
+```python
+worker = AsyncWorker(app=app, listen=False)
+```
+
+Or via environment variable:
+
+```bash
+PGWERK_LISTEN=false werk worker myapp.tasks:app
+```
+
+Without LISTEN, workers poll on the configured `poll_interval` (default 5 s). All other operations are unaffected.
 
 ---
 
