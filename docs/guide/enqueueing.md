@@ -208,6 +208,20 @@ async with await psycopg.AsyncConnection.connect(dsn) as conn:
     # both the INSERT and the enqueue commit or roll back together
 ```
 
+## Synchronous execution
+
+Pass `_sync=True` to run a job inline in the calling process instead of pushing it to the queue. The job goes through the full worker lifecycle (before/after hooks, callbacks) and the completed `Job` is returned when done.
+
+```python
+job = await app.enqueue(process_image, "/tmp/photo.jpg", _sync=True)
+# job.status == "complete" (or "failed")
+```
+
+This is useful in tests or one-off scripts where spinning up a separate worker is impractical. The job is inserted directly as `active` — it never enters the `queued` state, so no background worker can race to claim it. `connect()` is called implicitly if the app is not yet connected.
+
+!!! note
+    `_sync=True` is incompatible with `_delay`, `_at`, and `_repeat` — those options only make sense for queue-based jobs.
+
 ## Wait for a result
 
 `apply` enqueues a job and blocks until it finishes, returning its result:

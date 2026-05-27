@@ -97,6 +97,7 @@ Returns the inserted `Job`, or `None` if an idempotency key collision was detect
 | `_repeat` | `Repeat` | Repeat policy for recurring jobs |
 | `_depends_on` | `Dependency \| Job \| list` | Upstream jobs that must complete first |
 | `_failure_mode` | `str` | `"hold"` (default) or `"delete"` |
+| `_sync` | `bool` | Execute the job synchronously in the calling process instead of enqueueing it |
 
 #### `enqueue_many(specs, *, _conn=None) → list[Job | None]`
 
@@ -120,9 +121,9 @@ Block until a job reaches a terminal state. Uses `LISTEN/NOTIFY` for instant wak
 
 Fetch a single job by ID. Raises `JobNotFound` if missing.
 
-#### `list_jobs(queue, status, worker_id, search, limit, offset) → list[Job]`
+#### `list_jobs(queue, status, worker_id, search, schedule_name, retried, limit, offset) → list[Job]`
 
-List jobs with optional filters.
+List jobs with optional filters. Pass `retried=True` to return only jobs that have prior execution attempts (i.e. were requeued at least once).
 
 #### `cancel_job(job_id) → bool`
 
@@ -130,7 +131,7 @@ Cancel a queued or scheduled job. Returns `True` if found and cancelled.
 
 #### `requeue_job(job_id) → bool`
 
-Reset a completed or failed job back to `queued`.
+Reset a failed or aborted job back to `queued`. Execution history is preserved — prior attempts remain in `get_executions()` and the retry budget is extended rather than reset.
 
 #### `abort_job(job_id) → bool`
 
@@ -158,7 +159,7 @@ Detect stuck active jobs (no heartbeat within `max_active_secs`) and requeue the
 
 #### `bulk_requeue_jobs(queue, function_name) → int`
 
-Requeue multiple jobs at once, optionally filtered by queue or function name.
+Requeue multiple failed or aborted jobs at once, optionally filtered by queue or function name. Attempt history is preserved across bulk requeues.
 
 #### `bulk_cancel_jobs(queue) → int`
 

@@ -7,6 +7,26 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.23] - 2026-05-26
+
+### Added
+
+- Dashboard Jobs page now has a **Retried** toggle filter — clicking it narrows the list to jobs that have prior execution attempts (i.e. they were requeued at least once). Matching rows also show an amber "Retried" badge in the table.
+
+### Fixed
+
+- Requeuing a failed or aborted job now increments `max_attempts` by the current `attempts` count instead of resetting `attempts` to zero. Execution history is preserved across requeues, and retry budgets stack correctly.
+- `enqueue(_sync=True)` inserts the job directly as `active` (owned by the sync worker) instead of going through `queued` first, preventing a background worker from dequeuing the job before the sync path claims it. `connect()` is called implicitly, so `enqueue(_sync=True)` works without an explicit `await app.connect()`.
+- `enqueue_many` no longer raises when the batch contains a job whose key matches an existing `aborted` row — aborted-key conflicts are now handled the same way as other `ON CONFLICT DO NOTHING` cases.
+- `wait_for()` replaced two `asyncio.get_event_loop().time()` calls with `asyncio.get_running_loop().time()`, removing the deprecation warning raised by Python 3.10+ when no running loop is active.
+- Fixed a double-cancel race in the worker abort path: if a running task was cancelled twice in quick succession, the `on_stopped` callback was silently skipped. A guard now prevents the second cancellation from short-circuiting the callback.
+
+### Changed
+
+- Repositories (`JobRepository`, `WorkerRepository`, `ScheduleRepository`) now accept a `Serializer` instance directly instead of a `Callable[[], Serializer]` factory. The internal `_get_serializer` indirection and the `get_default()` helper function are removed; `Werk` defaults to `JSONSerializer()` inline.
+
+---
+
 ## [0.1.22] - 2026-05-21
 
 ### Fixed
