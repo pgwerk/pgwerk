@@ -57,16 +57,12 @@ class JobRepository:
         connect: Connect,
         tables: dict[str, Any],
         prefix: str,
-        get_serializer: Callable[[], Serializer],
+        serializer: Serializer,
     ) -> None:
         self._connect = connect
         self._t = tables
         self._prefix = prefix
-        self._get_serializer = get_serializer
-
-    @property
-    def _serializer(self) -> Serializer:
-        return self._get_serializer()
+        self._serializer = serializer
 
     @asynccontextmanager
     async def _conn(
@@ -697,18 +693,14 @@ class WorkerRepository:
         connect: Connect,
         tables: dict[str, Any],
         prefix: str,
-        get_serializer: Callable[[], Serializer],
+        serializer: Serializer,
         job_repo: JobRepository,
     ) -> None:
         self._connect = connect
         self._t = tables
         self._prefix = prefix
-        self._get_serializer = get_serializer
+        self._serializer = serializer
         self._job_repo = job_repo
-
-    @property
-    def _serializer(self) -> Serializer:
-        return self._get_serializer()
 
     # ------------------------------------------------------------------
     # Registration & heartbeat
@@ -1275,16 +1267,12 @@ class ScheduleRepository:
         connect: Connect,
         tables: dict[str, Any],
         prefix: str,
-        get_serializer: Callable[[], Serializer],
+        serializer: Serializer,
     ) -> None:
         self._connect = connect
         self._t = tables
         self._prefix = prefix
-        self._get_serializer = get_serializer
-
-    @property
-    def _serializer(self) -> Serializer:
-        return self._get_serializer()
+        self._serializer = serializer
 
     # ------------------------------------------------------------------
     # CRUD

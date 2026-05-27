@@ -45,8 +45,8 @@ from .connection import Connect
 from .connection import AsyncConnection
 from .exceptions import JobError
 from .serializers import Serializer
+from .serializers import JSONSerializer
 from .serializers import encode
-from .serializers import get_default
 
 
 logger = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ class Werk:
         self._connect: Connect = cast(Connect, lambda: psycopg.AsyncConnection.connect(self.dsn, autocommit=True))
         self.schema = schema if schema is not None else self.config.schema
         self.prefix = prefix if prefix is not None else self.config.prefix
-        self.serializer: Serializer = serializer or get_default()
+        self.serializer: Serializer = serializer or JSONSerializer()
         self.max_active_secs = max_active_secs if max_active_secs is not None else self.config.max_active_secs
         self.auto_migrate = auto_migrate
         self._connected = False
@@ -125,20 +125,16 @@ class Werk:
             )
 
     @property
-    def _get_serializer(self) -> Callable[[], Serializer]:
-        return lambda: self.serializer
-
-    @property
     def _job_repo(self) -> JobRepository:
         if self.__job_repo is None:
-            self.__job_repo = JobRepository(self._connect, self._t, self.prefix, self._get_serializer)
+            self.__job_repo = JobRepository(self._connect, self._t, self.prefix, self.serializer)
         return self.__job_repo
 
     @property
     def _worker_repo(self) -> WorkerRepository:
         if self.__worker_repo is None:
             self.__worker_repo = WorkerRepository(
-                self._connect, self._t, self.prefix, self._get_serializer, self._job_repo
+                self._connect, self._t, self.prefix, self.serializer, self._job_repo
             )
         return self.__worker_repo
 
@@ -151,7 +147,7 @@ class Werk:
     @property
     def _schedule_repo(self) -> ScheduleRepository:
         if self.__schedule_repo is None:
-            self.__schedule_repo = ScheduleRepository(self._connect, self._t, self.prefix, self._get_serializer)
+            self.__schedule_repo = ScheduleRepository(self._connect, self._t, self.prefix, self.serializer)
         return self.__schedule_repo
 
     # ------------------------------------------------------------------

@@ -187,9 +187,6 @@ class TypedJSONSerializer:
         return d
 
 
-_default: JSONSerializer | None = None
-
-
 def encode(serializer: "Serializer", value: Any) -> str | None:
     """Encode a value with *serializer* for JSONB storage.
 
@@ -241,13 +238,3 @@ def decode(serializer: "Serializer", value: Any) -> Any:
     return value
 
 
-def get_default() -> JSONSerializer:
-    """Return the process-wide default JSONSerializer, creating it if necessary.
-
-    Returns:
-        The singleton JSONSerializer instance.
-    """
-    global _default
-    if _default is None:
-        _default = JSONSerializer()
-    return _default

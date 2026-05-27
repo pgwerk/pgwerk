@@ -19,7 +19,7 @@ from pgwerk.schemas import Retry
 from pgwerk.schemas import Callback
 from pgwerk.schemas import Dependency
 from pgwerk.schemas import JobExecution
-from pgwerk.serializers import get_default
+from pgwerk.serializers import JSONSerializer
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ class TestNormalizeDependsOn:
 
 class TestJobFromRow:
     def test_basic(self, _job_row):
-        job = Job.from_row(_job_row, get_default())
+        job = Job.from_row(_job_row, JSONSerializer())
         assert job.id == _job_row["id"]
         assert job.function == _job_row["function"]
         assert isinstance(job.status, JobStatus)
@@ -124,12 +124,12 @@ class TestJobFromRow:
     def test_payload_passed_through(self, _job_row):
         # psycopg3 auto-decodes JSONB; Job.from_row receives an already-parsed dict
         _job_row["payload"] = {"args": [1], "kwargs": {}}
-        job = Job.from_row(_job_row, get_default())
+        job = Job.from_row(_job_row, JSONSerializer())
         assert job.payload == {"args": [1], "kwargs": {}}
 
     def test_none_payload(self, _job_row):
         _job_row["payload"] = None
-        job = Job.from_row(_job_row, get_default())
+        job = Job.from_row(_job_row, JSONSerializer())
         assert job.payload is None
 
     def test_worker_id_stringified(self, _job_row):
@@ -137,12 +137,12 @@ class TestJobFromRow:
 
         uid = uuid.uuid4()
         _job_row["worker_id"] = uid
-        job = Job.from_row(_job_row, get_default())
+        job = Job.from_row(_job_row, JSONSerializer())
         assert job.worker_id == str(uid)
 
     def test_worker_id_none(self, _job_row):
         _job_row["worker_id"] = None
-        job = Job.from_row(_job_row, get_default())
+        job = Job.from_row(_job_row, JSONSerializer())
         assert job.worker_id is None
 
 
@@ -153,7 +153,7 @@ class TestJobFromRow:
 
 class TestRowToExecution:
     def test_basic(self, _exec_row):
-        ex = JobExecution.from_row(_exec_row, get_default())
+        ex = JobExecution.from_row(_exec_row, JSONSerializer())
         assert ex.id == str(_exec_row["id"])
         assert ex.job_id == str(_exec_row["job_id"])
 
@@ -161,12 +161,12 @@ class TestRowToExecution:
         import json
 
         _exec_row["result"] = json.dumps(json.dumps(42))
-        ex = JobExecution.from_row(_exec_row, get_default())
+        ex = JobExecution.from_row(_exec_row, JSONSerializer())
         assert ex.result == 42
 
     def test_worker_id_none(self, _exec_row):
         _exec_row["worker_id"] = None
-        ex = JobExecution.from_row(_exec_row, get_default())
+        ex = JobExecution.from_row(_exec_row, JSONSerializer())
         assert ex.worker_id is None
 
 

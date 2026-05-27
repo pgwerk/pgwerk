@@ -8,7 +8,6 @@ from pgwerk.serializers import Serializer
 from pgwerk.serializers import JSONSerializer
 from pgwerk.serializers import PickleSerializer
 from pgwerk.serializers import TypedJSONSerializer
-from pgwerk.serializers import get_default
 
 
 class TestJSONSerializer:
@@ -167,15 +166,6 @@ class TestTypedJSONSerializer:
     def test_loads_bytes_input(self):
         v = {"x": 1}
         assert self.s.loads(self.s.dumps(v).encode()) == v
-
-
-class TestGetDefault:
-    def test_returns_json_serializer(self):
-        s = get_default()
-        assert isinstance(s, JSONSerializer)
-
-    def test_singleton(self):
-        assert get_default() is get_default()
 
 
 class TestEncodeDecodeHelpers:
