@@ -4,11 +4,11 @@ import logging
 import dataclasses
 
 from typing import Any
-from typing import cast
 from typing import Callable
-from typing import AsyncGenerator
-from typing import LiteralString
 from typing import Sequence
+from typing import LiteralString
+from typing import AsyncGenerator
+from typing import cast
 from datetime import datetime
 from datetime import timezone
 from datetime import timedelta
@@ -21,23 +21,25 @@ from psycopg.sql import Identifier
 from psycopg.sql import Placeholder
 from psycopg.rows import dict_row
 
+from .utils import compute_next_run
 from .commons import DequeueStrategy
-from .connection import AsyncConnection
-from .connection import Connect
-from .exceptions import JobNotFound
 from .schemas import JOB_COLS
 from .schemas import Job
+from .schemas import Schedule
 from .schemas import JobInsert
 from .schemas import JobExecution
-from .schemas import Schedule
+from .connection import Connect
+from .connection import AsyncConnection
+from .exceptions import JobNotFound
 from .serializers import Serializer
 from .serializers import encode
-from .utils import compute_next_run
 
 
 logger = logging.getLogger(__name__)
 
+
 class JobRepository:
+
     _INSERT_COLS: list[str] = [f.name for f in dataclasses.fields(JobInsert) if f.name != "dep_ids"]
     _INSERT_SQL: LiteralString = cast(  # type: ignore[redundant-cast]
         LiteralString,
@@ -45,8 +47,7 @@ class JobRepository:
         + ",\n    ".join(_INSERT_COLS)
         + "\n) VALUES (\n    "
         + ",\n    ".join(
-            f"COALESCE(%({col})s, NOW())" if col == "scheduled_at" else f"%({col})s"
-            for col in _INSERT_COLS
+            f"COALESCE(%({col})s, NOW())" if col == "scheduled_at" else f"%({col})s" for col in _INSERT_COLS
         )
         + "\n) ON CONFLICT (key) DO NOTHING RETURNING",
     )
@@ -68,7 +69,9 @@ class JobRepository:
         return self._get_serializer()
 
     @asynccontextmanager
-    async def _conn(self, conn: AsyncConnection | None, transaction: bool = False) -> AsyncGenerator[AsyncConnection, None]:
+    async def _conn(
+        self, conn: AsyncConnection | None, transaction: bool = False
+    ) -> AsyncGenerator[AsyncConnection, None]:
         if conn is not None:
             yield conn
         elif transaction:
@@ -1347,9 +1350,17 @@ class ScheduleRepository:
         explicitly to clear.
         """
         allowed = {
-            "function", "queue", "args", "kwargs",
-            "interval_secs", "cron",
-            "timeout_secs", "result_ttl", "failure_ttl", "meta", "paused",
+            "function",
+            "queue",
+            "args",
+            "kwargs",
+            "interval_secs",
+            "cron",
+            "timeout_secs",
+            "result_ttl",
+            "failure_ttl",
+            "meta",
+            "paused",
             "next_run_at",
         }
         updates: dict[str, Any] = {k: v for k, v in fields.items() if k in allowed}
@@ -1385,9 +1396,7 @@ class ScheduleRepository:
 
             if not updates:
                 await cur.execute(
-                    SQL("SELECT * FROM {schedules} WHERE name = %(name)s").format(
-                        schedules=self._t["schedules"]
-                    ),
+                    SQL("SELECT * FROM {schedules} WHERE name = %(name)s").format(schedules=self._t["schedules"]),
                     {"name": name},
                 )
                 row = await cur.fetchone()
@@ -1395,9 +1404,7 @@ class ScheduleRepository:
                     raise ScheduleNotFound(f"schedule {name!r} not found")
                 return Schedule.from_row(row, self._serializer)
 
-            set_sql = SQL(", ").join(
-                SQL("{c} = {p}").format(c=Identifier(k), p=Placeholder(k)) for k in updates
-            )
+            set_sql = SQL(", ").join(SQL("{c} = {p}").format(c=Identifier(k), p=Placeholder(k)) for k in updates)
             await cur.execute(
                 SQL("UPDATE {schedules} SET {set_sql} WHERE name = %(name)s RETURNING *").format(
                     schedules=self._t["schedules"], set_sql=set_sql
@@ -1439,9 +1446,7 @@ class ScheduleRepository:
     async def delete(self, name: str) -> bool:
         async with await self._connect() as conn, conn.cursor() as cur:
             await cur.execute(
-                SQL("DELETE FROM {schedules} WHERE name = %(name)s").format(
-                    schedules=self._t["schedules"]
-                ),
+                SQL("DELETE FROM {schedules} WHERE name = %(name)s").format(schedules=self._t["schedules"]),
                 {"name": name},
             )
             return cur.rowcount > 0
@@ -1449,9 +1454,7 @@ class ScheduleRepository:
     async def get(self, name: str) -> Schedule | None:
         async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                SQL("SELECT * FROM {schedules} WHERE name = %(name)s").format(
-                    schedules=self._t["schedules"]
-                ),
+                SQL("SELECT * FROM {schedules} WHERE name = %(name)s").format(schedules=self._t["schedules"]),
                 {"name": name},
             )
             row = await cur.fetchone()
@@ -1459,17 +1462,13 @@ class ScheduleRepository:
 
     async def list_all(self) -> list[Schedule]:
         async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                SQL("SELECT * FROM {schedules} ORDER BY name").format(schedules=self._t["schedules"])
-            )
+            await cur.execute(SQL("SELECT * FROM {schedules} ORDER BY name").format(schedules=self._t["schedules"]))
             rows = await cur.fetchall()
         return [Schedule.from_row(r, self._serializer) for r in rows]
 
     async def list_names(self) -> list[str]:
         async with await self._connect() as conn, conn.cursor() as cur:
-            await cur.execute(
-                SQL("SELECT name FROM {schedules}").format(schedules=self._t["schedules"])
-            )
+            await cur.execute(SQL("SELECT name FROM {schedules}").format(schedules=self._t["schedules"]))
             rows = await cur.fetchall()
         return [r[0] for r in rows]
 

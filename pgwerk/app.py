@@ -4,44 +4,45 @@ import asyncio
 import logging
 
 from typing import Any
-from typing import cast
 from typing import Callable
 from typing import Sequence
+from typing import cast
 from datetime import datetime
 from datetime import timezone
 from datetime import timedelta
 
 import psycopg
+
 from psycopg.sql import SQL
 from psycopg.sql import Identifier
 
-from .connection import AsyncConnection
-from .connection import Connect
-from .schemas import JobInsert
-from .schemas import Schedule
 from .repos import JobRepository
-from .repos import ScheduleRepository
 from .repos import StatsRepository
 from .repos import WorkerRepository
+from .repos import ScheduleRepository
 from .utils import fn_path
 from .utils import normalize_retry
 from .utils import normalize_callback
 from .utils import normalize_depends_on
 from .config import WerkConfig
+from .worker import ForkWorker
+from .worker import AsyncWorker
+from .worker import ThreadWorker
+from .worker import ProcessWorker
 from .commons import JobStatus
 from .logging import configure_logging
 from .schemas import Job
 from .schemas import Retry
 from .schemas import Repeat
 from .schemas import Callback
+from .schemas import Schedule
+from .schemas import JobInsert
 from .schemas import Dependency
 from .schemas import JobExecution
 from .schemas import EnqueueParams
-from .worker import AsyncWorker
-from .worker import ForkWorker
-from .worker import ThreadWorker
-from .worker import ProcessWorker
 from .database import DatabaseManager
+from .connection import Connect
+from .connection import AsyncConnection
 from .exceptions import JobError
 from .serializers import Serializer
 from .serializers import encode
@@ -423,7 +424,9 @@ class Werk:
             elif spec.delay is not None:
                 scheduled_at = datetime.now(timezone.utc) + timedelta(seconds=spec.delay)
 
-            max_attempts, retry_intervals = normalize_retry(spec.retry, default_backoff=self.config.default_retry_backoff)
+            max_attempts, retry_intervals = normalize_retry(
+                spec.retry, default_backoff=self.config.default_retry_backoff
+            )
             on_success_path, on_success_timeout = normalize_callback(spec.on_success)
             on_failure_path, on_failure_timeout = normalize_callback(spec.on_failure)
             on_stopped_path, on_stopped_timeout = normalize_callback(spec.on_stopped)
@@ -554,10 +557,10 @@ class Werk:
                     backoff = min(backoff * 2, 10.0)
 
         listener = asyncio.create_task(_listener())
-        start = asyncio.get_event_loop().time()
+        start = asyncio.get_running_loop().time()
         try:
             while True:
-                elapsed = asyncio.get_event_loop().time() - start
+                elapsed = asyncio.get_running_loop().time() - start
                 if timeout is not None and elapsed >= timeout:
                     raise asyncio.TimeoutError(f"job {job_id} did not complete within {timeout}s")
 
@@ -777,8 +780,14 @@ class Werk:
             List of matching :class:`Job` objects.
         """
         return await self._job_repo.list_jobs(
-            queue=queue, status=status, worker_id=worker_id, search=search,
-            schedule_name=schedule_name, retried=retried, limit=limit, offset=offset
+            queue=queue,
+            status=status,
+            worker_id=worker_id,
+            search=search,
+            schedule_name=schedule_name,
+            retried=retried,
+            limit=limit,
+            offset=offset,
         )
 
     async def cancel_job(self, job_id: str) -> bool:
@@ -1152,4 +1161,3 @@ class Werk:
     async def __aexit__(self, *_: Any) -> None:
         """Disconnect on exiting the async context manager."""
         await self.disconnect()
-
