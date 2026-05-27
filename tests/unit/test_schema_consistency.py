@@ -5,12 +5,14 @@ from __future__ import annotations
 import re
 import dataclasses
 
-from pgwerk.repos import _INSERT_SQL
-from pgwerk.repos import _INSERT_COLS
+from pgwerk.repos import JobRepository
 from pgwerk.schemas import JOB_COLS
 from pgwerk.schemas import Job
 from pgwerk.schemas import JobInsert
 
+
+_INSERT_SQL = JobRepository._INSERT_SQL
+_INSERT_COLS = JobRepository._INSERT_COLS
 
 # ---------------------------------------------------------------------------
 # Parsing helpers

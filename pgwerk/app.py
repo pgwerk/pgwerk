@@ -359,13 +359,12 @@ class Werk:
             dep_ids=dep_ids,
         )
 
-        job = await self._job_repo.insert(data, conn=_conn, notify=not _sync)
+        if _sync:
+            return await self.run_sync(data, _conn=_conn)
 
+        job = await self._job_repo.insert(data, conn=_conn, notify=True)
         if job is not None:
             await self._run_before_enqueue(job)
-            if _sync:
-                job = await self.run_sync(job)
-
         return job
 
     async def enqueue_at(
@@ -483,26 +482,36 @@ class Werk:
 
         return results
 
-    async def run_sync(self, job: Job) -> Job:
-        """Execute *job* synchronously in the current process and return the completed job.
+    async def run_sync(self, data: JobInsert, _conn: AsyncConnection | None = None) -> Job | None:
+        """Insert a job already claimed by the sync worker and run it inline.
 
-        The job is claimed by the app's singleton sync worker, executed through
-        the full worker lifecycle (before/after hooks, callbacks), and the
-        refreshed job row is returned when done.
+        This is the single synchronous-execution path, used by ``enqueue(_sync=True)``.
+        A ``_sync=True`` job runs in the calling process, so it is inserted directly as
+        ``active`` and owned by the singleton sync worker — it never passes through the
+        ``queued`` state a background worker could dequeue first. The job and its
+        ``running`` execution row are written, the job runs through the full worker
+        lifecycle (before/after hooks, callbacks), and the refreshed row is returned.
 
         Args:
-            job: A job in ``queued`` state, typically just returned by
-                :meth:`enqueue`.
+            data: Pre-processed job values; the ownership/status columns are set here.
+            _conn: Existing connection to insert within; opens its own when ``None``.
 
         Returns:
             The refreshed :class:`Job` after execution (status ``complete`` or
-            ``failed``).
+            ``failed``), or ``None`` if a key conflict suppressed the insert.
         """
-        if self._sync_worker is None:
-            raise RuntimeError("Not connected. Await app.connect() or use `async with app`.")
-        claimed = await self._worker_repo.claim_sync(self._sync_worker.id, job)
-        await self._sync_worker._handle_job(claimed)
-        return await self._job_repo.get(claimed.id)
+        await self.connect()
+        data.status = JobStatus.Active.value
+        data.worker_id = self._sync_worker.id  # type: ignore[union-attr]
+        data.started_at = datetime.now(timezone.utc)
+        data.attempts = 1
+        job = await self._job_repo.insert(data, conn=_conn, notify=False)
+        if job is None:
+            return None
+        await self._job_repo.record_execution(job.id, job.attempts, conn=_conn)
+        await self._run_before_enqueue(job)
+        await self._sync_worker._handle_job(job)  # type: ignore[union-attr]
+        return await self._job_repo.get(job.id)
 
     async def wait_for(self, job_id: str, *, timeout: float | None = None, poll_interval: float = 2.0) -> Job:
         """Block until a job reaches a terminal state.

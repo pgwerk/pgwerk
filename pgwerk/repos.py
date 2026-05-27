@@ -6,8 +6,8 @@ import dataclasses
 from typing import Any
 from typing import cast
 from typing import Callable
-from typing import LiteralString
 from typing import AsyncGenerator
+from typing import LiteralString
 from typing import Sequence
 from datetime import datetime
 from datetime import timezone
@@ -37,18 +37,20 @@ from .utils import compute_next_run
 
 logger = logging.getLogger(__name__)
 
-_INSERT_COLS = [f.name for f in dataclasses.fields(JobInsert) if f.name != "dep_ids"]
-_INSERT_SQL: LiteralString = cast(  # type: ignore[redundant-cast]
-    LiteralString,
-    "INSERT INTO {jobs} (\n    "
-    + ",\n    ".join(_INSERT_COLS)
-    + "\n) VALUES (\n    "
-    + ",\n    ".join(f"COALESCE(%({col})s, NOW())" if col == "scheduled_at" else f"%({col})s" for col in _INSERT_COLS)
-    + "\n) ON CONFLICT (key) DO NOTHING RETURNING",
-)
-
-
 class JobRepository:
+    _INSERT_COLS: list[str] = [f.name for f in dataclasses.fields(JobInsert) if f.name != "dep_ids"]
+    _INSERT_SQL: LiteralString = cast(  # type: ignore[redundant-cast]
+        LiteralString,
+        "INSERT INTO {jobs} (\n    "
+        + ",\n    ".join(_INSERT_COLS)
+        + "\n) VALUES (\n    "
+        + ",\n    ".join(
+            f"COALESCE(%({col})s, NOW())" if col == "scheduled_at" else f"%({col})s"
+            for col in _INSERT_COLS
+        )
+        + "\n) ON CONFLICT (key) DO NOTHING RETURNING",
+    )
+
     def __init__(
         self,
         connect: Connect,
@@ -81,9 +83,20 @@ class JobRepository:
     # ------------------------------------------------------------------
 
     async def insert(self, data: JobInsert, conn: AsyncConnection | None = None, notify: bool = True) -> Job | None:
+        """Insert a single job row and return the resulting :class:`Job`.
+
+        Args:
+            data: Pre-processed job values to insert.
+            conn: Existing connection to insert within; opens its own when ``None``.
+            notify: When ``True``, emit ``NOTIFY`` to wake listening workers (and
+                settle dependents when the job has dependencies).
+
+        Returns:
+            The inserted :class:`Job`, or ``None`` if a key conflict suppressed the insert.
+        """
         async with self._conn(conn) as c, c.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                SQL(_INSERT_SQL + JOB_COLS).format(jobs=self._t["jobs"]),
+                SQL(self._INSERT_SQL + JOB_COLS).format(jobs=self._t["jobs"]),
                 data.as_params(),
             )
             row = await cur.fetchone()
@@ -119,6 +132,33 @@ class JobRepository:
 
             return job
 
+    async def record_execution(
+        self,
+        job_id: str,
+        attempt: int,
+        worker_id: str | None = None,
+        conn: AsyncConnection | None = None,
+    ) -> None:
+        """Write the initial ``running`` execution row for an attempt.
+
+        Mirrors the row the worker creates at dequeue time, for jobs claimed
+        outside the dequeue path (the ``_sync=True`` inline-execution path).
+
+        Args:
+            job_id: ID of the job being executed.
+            attempt: 1-based attempt number this execution row represents.
+            worker_id: Worker that owns the attempt, or ``None`` to leave it unset.
+            conn: Existing connection to write within; opens its own when ``None``.
+        """
+        async with self._conn(conn) as c:
+            await c.execute(
+                SQL("""
+                    INSERT INTO {executions} (job_id, worker_id, attempt, status)
+                    VALUES (%(jid)s, %(wid)s, %(attempt)s, 'running')
+                """).format(executions=self._t["executions"]),
+                {"jid": job_id, "wid": worker_id, "attempt": attempt},
+            )
+
     async def insert_many(self, jobs: list[JobInsert], conn: AsyncConnection | None = None) -> list[Job | None]:
         results: list[Job | None] = []
         notify_queues: set[str] = set()
@@ -126,7 +166,7 @@ class JobRepository:
         async with self._conn(conn, transaction=conn is None) as c, c.cursor(row_factory=dict_row) as cur:
             for data in jobs:
                 await cur.execute(
-                    SQL(_INSERT_SQL + JOB_COLS).format(jobs=self._t["jobs"]),
+                    SQL(self._INSERT_SQL + JOB_COLS).format(jobs=self._t["jobs"]),
                     data.as_params(),
                 )
                 row = await cur.fetchone()
@@ -932,37 +972,6 @@ class WorkerRepository:
                 SQL("DELETE FROM {jobs} WHERE id = %(id)s").format(jobs=self._t["jobs"]),
                 {"id": job_id},
             )
-
-    async def claim_sync(self, worker_id: str, job: Job) -> Job:
-        async with await self._connect() as conn, conn.transaction(), conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                SQL(
-                    """
-                    UPDATE {jobs}
-                    SET status = 'active',
-                        worker_id = %(wid)s,
-                        attempts = attempts + 1,
-                        started_at = NOW()
-                    WHERE id = %(id)s AND status = 'queued'
-                    RETURNING """
-                    + JOB_COLS
-                ).format(jobs=self._t["jobs"]),
-                {"wid": worker_id, "id": job.id},
-            )
-            row = await cur.fetchone()
-            if row is None:
-                raise RuntimeError(f"sync claim failed for job {job.id}: not found or not in queued state")
-            claimed = Job.from_row(row, self._serializer)
-
-            await cur.execute(
-                SQL("""
-                    INSERT INTO {executions} (job_id, worker_id, attempt, status)
-                    VALUES (%(jid)s, NULL, %(attempt)s, 'running')
-                """).format(executions=self._t["executions"]),
-                {"jid": claimed.id, "attempt": claimed.attempts},
-            )
-
-        return claimed
 
     async def requeue_cancelled(self, worker_id: str, job: Job) -> None:
         async with await self._connect() as conn, conn.transaction(), conn.cursor() as cur:

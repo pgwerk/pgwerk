@@ -165,6 +165,9 @@ class JobInsert:
     repeat_interval_secs: int | None = None
     repeat_intervals: str | None = None
     schedule_name: str | None = None
+    worker_id: str | None = None
+    started_at: datetime | None = None
+    attempts: int = 0
 
     def as_params(self) -> dict[str, Any]:
         """Return a dict of all fields except ``dep_ids`` for use as DB query parameters.

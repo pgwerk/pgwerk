@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
 from pgwerk.commons import JobStatus
 
 from .tasks import add
@@ -17,25 +15,25 @@ from .conftest import make_worker
 
 class TestRunSync:
     async def test_run_sync_returns_completed_job(self, app):
-        job = await app.enqueue(add, 3, 4)
-        done = await app.run_sync(job)
+        done = await app.enqueue(add, 3, 4, _sync=True)
+        assert done is not None
         assert done.status == JobStatus.Complete
         assert done.result == 7
 
     async def test_run_sync_async_function(self, app):
-        job = await app.enqueue(async_add, 5, 6)
-        done = await app.run_sync(job)
+        done = await app.enqueue(async_add, 5, 6, _sync=True)
+        assert done is not None
         assert done.status == JobStatus.Complete
         assert done.result == 11
 
     async def test_run_sync_failure_returns_failed_job(self, app):
-        job = await app.enqueue(fail_always)
-        done = await app.run_sync(job)
+        done = await app.enqueue(fail_always, _sync=True)
+        assert done is not None
         assert done.status == JobStatus.Failed
 
     async def test_run_sync_increments_attempts(self, app):
-        job = await app.enqueue(noop)
-        done = await app.run_sync(job)
+        done = await app.enqueue(noop, _sync=True)
+        assert done is not None
         assert done.attempts == 1
 
     async def test_enqueue_sync_flag_executes_inline(self, app):
@@ -48,14 +46,6 @@ class TestRunSync:
         done = await app.enqueue(fail_always, _sync=True)
         assert done is not None
         assert done.status == JobStatus.Failed
-
-    async def test_run_sync_raises_when_disconnected(self):
-        from pgwerk.app import Werk
-
-        app = Werk("postgresql://pgwerk:pgwerk@localhost/pgwerk_test")
-        job_stub = object()
-        with pytest.raises(RuntimeError, match="Not connected"):
-            await app.run_sync(job_stub)  # type: ignore[arg-type]
 
 
 async def _start_worker(app) -> asyncio.Task:
@@ -75,11 +65,12 @@ async def _stop_worker(task: asyncio.Task) -> None:
 
 
 class TestRunSyncWithConcurrentWorker:
-    """Regression tests for the race where a background worker steals a _sync=True job.
+    """Regression tests guarding against a background worker stealing a _sync=True job.
 
-    Root cause: insert() sent NOTIFY, which immediately woke up any LISTEN-ing worker.
-    The worker could claim the job between insert and claim_sync, causing claim_sync to
-    fail with "not found or not in queued state". Fix: skip NOTIFY when _sync=True.
+    A _sync=True job is inserted directly as 'active' and owned by the sync worker, so it
+    never enters the 'queued' state a polling or LISTEN-ing background worker could
+    dequeue. These tests run a background worker on the same queue while enqueuing sync
+    jobs to ensure none are stolen or run twice.
     """
 
     async def test_sync_flag_not_stolen_by_background_worker(self, app):
@@ -125,6 +116,6 @@ class TestRunSyncWithConcurrentWorker:
 
         assert done is not None
         assert done.status == JobStatus.Complete
-        # Exactly one attempt — if the background worker had stolen and re-tried,
-        # attempts could be higher or the claim_sync error would have fired.
+        # Exactly one attempt — the job was never queued, so no background worker
+        # could have stolen and re-run it.
         assert done.attempts == 1
