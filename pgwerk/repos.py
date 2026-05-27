@@ -502,7 +502,20 @@ class JobRepository:
             )
 
     async def bulk_requeue(self, queue: str | None = None, function_name: str | None = None) -> int:
-        filters = ["status = 'failed'"]
+        """Reset all failed or aborted jobs back to the queued state.
+
+        Mirrors the single-job :meth:`requeue` logic: ``max_attempts`` is bumped
+        by the current ``attempts`` count so prior attempt history is preserved.
+
+        Args:
+            queue: Restrict to this queue name; ``None`` targets all queues.
+            function_name: Restrict to jobs with this function path; ``None``
+                targets all functions.
+
+        Returns:
+            Number of jobs requeued.
+        """
+        filters = ["status IN ('failed', 'aborted')"]
         params: dict[str, Any] = {}
         if queue:
             filters.append("queue = %(queue)s")
