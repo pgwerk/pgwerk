@@ -861,6 +861,52 @@ class Werk:
         """
         await self._job_repo.delete(job_id)
 
+    async def update_job(
+        self,
+        job_id: str | None = None,
+        *,
+        key: str | None = None,
+        at: datetime | None = None,
+        delay: int | None = None,
+        priority: int | None = None,
+        meta: dict[str, Any] | None = None,
+    ) -> Job | None:
+        """Update a pending job by ID or deduplication key.
+
+        Exactly one of *job_id* or *key* must be provided.  Only jobs in
+        ``scheduled``, ``queued``, or ``waiting`` status can be updated.  When
+        *at* or *delay* moves the job into the past the status is automatically
+        flipped to ``queued`` and waiting workers are notified.
+
+        Args:
+            job_id: UUID of the job to update.
+            key: Deduplication key of the job to update.
+            at: New absolute UTC datetime at which the job becomes eligible.
+            delay: Seconds from now before the job becomes eligible.
+            priority: New dequeue priority — higher values run first.
+            meta: New metadata dict to store alongside the job.
+
+        Returns:
+            The updated :class:`Job`, or ``None`` if no matching pending job
+            exists.
+        """
+        if (job_id is None) == (key is None):
+            raise ValueError("exactly one of job_id or key must be provided")
+
+        scheduled_at: datetime | None = None
+        if at is not None:
+            scheduled_at = at
+        elif delay is not None:
+            scheduled_at = datetime.now(timezone.utc) + timedelta(seconds=delay)
+
+        return await self._job_repo.update_job(
+            job_id,
+            key=key,
+            scheduled_at=scheduled_at,
+            priority=priority,
+            meta=meta,
+        )
+
     async def bulk_requeue_jobs(self, queue: str | None = None, function_name: str | None = None) -> int:
         """Requeue all matching failed/aborted jobs back to ``queued`` status.
 
