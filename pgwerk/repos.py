@@ -500,6 +500,59 @@ class JobRepository:
                 {"id": job_id},
             )
 
+    async def update_job(
+        self,
+        job_id: str | None = None,
+        *,
+        key: str | None = None,
+        scheduled_at: datetime | None = None,
+        priority: int | None = None,
+        meta: Any = None,
+    ) -> Job | None:
+        sets: list[str] = []
+        params: dict[str, Any] = {}
+
+        if job_id is not None:
+            where = SQL("id = %(job_id)s")
+            params["job_id"] = job_id
+        else:
+            where = SQL("key = %(key)s")
+            params["key"] = key
+
+        if scheduled_at is not None:
+            sets.append("scheduled_at = %(scheduled_at)s")
+            sets.append("status = CASE WHEN %(scheduled_at)s > NOW() THEN 'scheduled' ELSE 'queued' END")
+            params["scheduled_at"] = scheduled_at
+        if priority is not None:
+            sets.append("priority = %(priority)s")
+            params["priority"] = priority
+        if meta is not None:
+            sets.append("meta = %(meta)s")
+            params["meta"] = encode(self._serializer, meta)
+
+        if not sets:
+            return None
+
+        set_sql = SQL(", ".join(sets))
+
+        async with await self._connect() as conn, conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                SQL("""
+                    UPDATE {jobs}
+                    SET {sets}
+                    WHERE {where}
+                      AND status IN ('scheduled', 'queued', 'waiting')
+                    RETURNING
+                """ + JOB_COLS).format(jobs=self._t["jobs"], sets=set_sql, where=where),
+                params,
+            )
+            row = await cur.fetchone()
+            if row is None:
+                return None
+            if scheduled_at is not None and row["status"] == "queued":
+                await conn.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{row['queue']}")))
+        return Job.from_row(row, self._serializer)
+
     async def bulk_requeue(self, queue: str | None = None, function_name: str | None = None) -> int:
         """Reset all failed or aborted jobs back to the queued state.
 
