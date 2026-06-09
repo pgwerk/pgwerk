@@ -7,6 +7,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.24] - 2026-06-09
+
+### Added
+
+- `Werk.update_job()` lets callers change `scheduled_at`, `priority`, and `meta` on any job that has not yet started, addressed by either its UUID or its deduplication key. When rescheduling moves a job into the past the status is automatically flipped to `queued` and waiting workers are notified via `NOTIFY`.
+- New `enable_listen` config flag (default `True`) — set to `False` to disable `LISTEN/NOTIFY` wake-ups, required when running behind PgBouncer in transaction-pooling mode.
+
+---
+
 ## [0.1.23] - 2026-05-26
 
 ### Added
