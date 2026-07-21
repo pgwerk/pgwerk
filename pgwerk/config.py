@@ -56,7 +56,7 @@ class WerkConfig:
             than retrying immediately. An explicit :class:`Retry` always wins.
     """
 
-    schema_version: ClassVar[int] = 6
+    schema_version: ClassVar[int] = 7
     min_compatible_db_version: ClassVar[int] = 6
     max_compatible_db_version: ClassVar[int | None] = None
 

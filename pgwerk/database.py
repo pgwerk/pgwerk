@@ -125,6 +125,14 @@ class DatabaseManager:
             SQL(
                 "CREATE INDEX IF NOT EXISTS {idx} ON {jobs} (queue, status, group_key) WHERE group_key IS NOT NULL"
             ).format(idx=idx("jobs_group_key_idx"), jobs=t("jobs")),
+            SQL(
+                "CREATE INDEX IF NOT EXISTS {idx} ON {jobs} (queue, status) "
+                "WHERE status NOT IN ('complete', 'aborted', 'aborting')"
+            ).format(idx=idx("jobs_backlog_idx"), jobs=t("jobs")),
+            SQL(
+                "CREATE INDEX IF NOT EXISTS {idx} ON {jobs} (queue, completed_at) "
+                "WHERE completed_at IS NOT NULL"
+            ).format(idx=idx("jobs_completed_at_idx"), jobs=t("jobs")),
             # --- worker_jobs --------------------------------------------------
             SQL(
                 "CREATE {unlogged}TABLE IF NOT EXISTS {worker_jobs} ("
@@ -300,6 +308,19 @@ class DatabaseManager:
                         "CREATE INDEX IF NOT EXISTS {idx} ON {jobs} (schedule_name) "
                         "WHERE schedule_name IS NOT NULL"
                     ).format(idx=idx("jobs_schedule_name_idx"), jobs=t("jobs")),
+                ],
+            ),
+            (
+                7,
+                [
+                    SQL(
+                        "CREATE INDEX IF NOT EXISTS {idx} ON {jobs} (queue, status) "
+                        "WHERE status NOT IN ('complete', 'aborted', 'aborting')"
+                    ).format(idx=idx("jobs_backlog_idx"), jobs=t("jobs")),
+                    SQL(
+                        "CREATE INDEX IF NOT EXISTS {idx} ON {jobs} (queue, completed_at) "
+                        "WHERE completed_at IS NOT NULL"
+                    ).format(idx=idx("jobs_completed_at_idx"), jobs=t("jobs")),
                 ],
             ),
         ]
