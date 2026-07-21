@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_STATUSES = ("scheduled", "queued", "active", "waiting", "failed", "complete", "aborted", "aborting")
+_BACKLOG_STATUSES = ("scheduled", "queued", "active", "waiting", "failed")
 
 
 class WerkExporter:
@@ -149,17 +149,15 @@ class WerkExporter:
                             COUNT(*) FILTER (WHERE status = 'queued')   AS queued,
                             COUNT(*) FILTER (WHERE status = 'active')   AS active,
                             COUNT(*) FILTER (WHERE status = 'waiting')  AS waiting,
-                            COUNT(*) FILTER (WHERE status = 'failed')   AS failed,
-                            COUNT(*) FILTER (WHERE status = 'complete') AS complete,
-                            COUNT(*) FILTER (WHERE status = 'aborted')  AS aborted,
-                            COUNT(*) FILTER (WHERE status = 'aborting') AS aborting
+                            COUNT(*) FILTER (WHERE status = 'failed')   AS failed
                         FROM {jobs}
+                        WHERE status NOT IN ('complete', 'aborted', 'aborting')
                         GROUP BY queue
                     """).format(jobs=t["jobs"])
                 )
                 for row in await cur.fetchall():
                     q = row["queue"]
-                    for status in _STATUSES:
+                    for status in _BACKLOG_STATUSES:
                         self._jobs.labels(queue=q, status=status).set(row[status])
 
                 # --- worker counts ---

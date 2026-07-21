@@ -132,7 +132,7 @@
         },
         "textMode": "auto"
       },
-      "title": "Total Jobs (all statuses)",
+      "title": "Total Backlog (in-flight statuses)",
       "type": "stat",
       "targets": [
         {
@@ -783,7 +783,7 @@
           "sort": "none"
         }
       },
-      "title": "Jobs by Status (stacked, all queues)",
+      "title": "Backlog by Status (stacked, all queues)",
       "type": "timeseries",
       "targets": [
         {
@@ -1512,16 +1512,6 @@
           "legendFormat": "{{queue}}",
           "instant": true,
           "refId": "scheduled"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "wrk_jobs{queue=~\"$queue\", status=\"complete\"}",
-          "legendFormat": "{{queue}}",
-          "instant": true,
-          "refId": "complete"
         },
         {
           "datasource": {
