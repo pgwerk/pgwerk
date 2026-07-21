@@ -38,7 +38,7 @@ class TestWerkExporterCollect:
         )
         assert queued == 2
 
-    async def test_collect_counts_completed_jobs(self, app):
+    async def test_collect_excludes_completed_jobs_from_backlog(self, app):
         await app.enqueue(add, 1, 2)
         await make_worker(app).run()
 
@@ -50,7 +50,7 @@ class TestWerkExporterCollect:
             for labels, g in exporter._jobs._metrics.items()
             if "complete" in labels
         )
-        assert complete == 1
+        assert complete == 0
 
     async def test_collect_populates_throughput_after_completion(self, app):
         await app.enqueue(add, 1, 2)
