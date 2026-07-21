@@ -7,6 +7,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- Two partial indexes on the jobs table (schema version 7, applied automatically on connect): `jobs_backlog_idx` over in-flight statuses only, and `jobs_completed_at_idx` over rows with a `completed_at`. These keep the Prometheus exporter's backlog and latency/throughput queries off the completed-job tombstones that dominate a long-running table.
+
+### Changed
+
+- The Prometheus exporter's `wrk_jobs` backlog gauge now reports only in-flight statuses (`scheduled`, `queued`, `active`, `waiting`, `failed`); the `complete`, `aborted`, and `aborting` series are no longer emitted. Completion volume remains available via the windowed `wrk_jobs_completed_total` / `wrk_jobs_failed_total` counters. The bundled Prometheus Grafana dashboard was updated to match.
+
+---
+
 ## [0.1.24] - 2026-06-09
 
 ### Added
