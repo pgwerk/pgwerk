@@ -79,13 +79,13 @@ class WerkExporter:
             ["queue"],
         )
         self._throughput = _g(
-            "jobs_completed_total",
-            f"Jobs completed in the last {latency_window_secs}s, by queue",
+            "jobs_completed_recent",
+            f"Jobs completed in the last {latency_window_secs}s, by queue (windowed gauge, not a monotonic counter)",
             ["queue"],
         )
         self._failed_total = _g(
-            "jobs_failed_total",
-            f"Jobs failed in the last {latency_window_secs}s, by queue",
+            "jobs_failed_recent",
+            f"Jobs failed in the last {latency_window_secs}s, by queue (windowed gauge, not a monotonic counter)",
             ["queue"],
         )
 

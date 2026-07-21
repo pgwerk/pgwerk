@@ -338,7 +338,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(wrk_jobs_failed_total{queue=~\"$queue\"})",
+          "expr": "sum(wrk_jobs_failed_recent{queue=~\"$queue\"})",
           "instant": true,
           "refId": "A"
         }
@@ -406,7 +406,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "100 * sum(wrk_jobs_completed_total{queue=~\"$queue\"}) / clamp_min(sum(wrk_jobs_completed_total{queue=~\"$queue\"}) + sum(wrk_jobs_failed_total{queue=~\"$queue\"}), 1)",
+          "expr": "100 * sum(wrk_jobs_completed_recent{queue=~\"$queue\"}) / clamp_min(sum(wrk_jobs_completed_recent{queue=~\"$queue\"}) + sum(wrk_jobs_failed_recent{queue=~\"$queue\"}), 1)",
           "instant": true,
           "refId": "A"
         }
@@ -543,7 +543,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "wrk_jobs_completed_total{queue=~\"$queue\"}",
+          "expr": "wrk_jobs_completed_recent{queue=~\"$queue\"}",
           "legendFormat": "{{queue}}",
           "refId": "A"
         }
@@ -858,7 +858,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "wrk_jobs_failed_total{queue=~\"$queue\"}",
+          "expr": "wrk_jobs_failed_recent{queue=~\"$queue\"}",
           "legendFormat": "{{queue}}",
           "instant": true,
           "refId": "A"
@@ -1229,7 +1229,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "wrk_jobs_failed_total{queue=~\"$queue\"} / clamp_min(wrk_jobs_completed_total{queue=~\"$queue\"} + wrk_jobs_failed_total{queue=~\"$queue\"}, 1)",
+          "expr": "wrk_jobs_failed_recent{queue=~\"$queue\"} / clamp_min(wrk_jobs_completed_recent{queue=~\"$queue\"} + wrk_jobs_failed_recent{queue=~\"$queue\"}, 1)",
           "legendFormat": "{{queue}}",
           "refId": "A"
         }
@@ -1317,7 +1317,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(wrk_jobs_completed_total{queue=~\"$queue\"})",
+          "expr": "sum(wrk_jobs_completed_recent{queue=~\"$queue\"})",
           "legendFormat": "completed",
           "refId": "completed"
         },
@@ -1326,7 +1326,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(wrk_jobs_failed_total{queue=~\"$queue\"})",
+          "expr": "sum(wrk_jobs_failed_recent{queue=~\"$queue\"})",
           "legendFormat": "failed",
           "refId": "failed"
         }

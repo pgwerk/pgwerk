@@ -15,7 +15,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- The Prometheus exporter's `wrk_jobs` backlog gauge now reports only in-flight statuses (`scheduled`, `queued`, `active`, `waiting`, `failed`); the `complete`, `aborted`, and `aborting` series are no longer emitted. Completion volume remains available via the windowed `wrk_jobs_completed_total` / `wrk_jobs_failed_total` counters. The bundled Prometheus Grafana dashboard was updated to match.
+- The Prometheus exporter's `wrk_jobs` backlog gauge now reports only in-flight statuses (`scheduled`, `queued`, `active`, `waiting`, `failed`); the `complete`, `aborted`, and `aborting` series are no longer emitted. Completion volume remains available via the windowed `wrk_jobs_completed_recent` / `wrk_jobs_failed_recent` gauges. The bundled Prometheus Grafana dashboard was updated to match.
+
+### Breaking
+
+- **Renamed exporter metrics** `wrk_jobs_completed_total` → `wrk_jobs_completed_recent` and `wrk_jobs_failed_total` → `wrk_jobs_failed_recent`. These are windowed gauges (jobs in the last `latency_window_secs`), not monotonic counters, so the `_total` suffix was misleading — `rate()`/`increase()` over them returned garbage. Any dashboards, alerts, or recording rules referencing the old names must be updated; the bundled Prometheus Grafana dashboard already is.
 
 ---
 
