@@ -1,0 +1,39 @@
+# pgwerk
+
+pgwerk is a Postgres-backed job queue library for Python. It stores jobs as database rows and dequeues them with SELECT FOR UPDATE SKIP LOCKED. Workers also use LISTEN/NOTIFY to wake up immediately on enqueue instead of polling on a fixed interval.
+
+## Key facts
+
+- Install: pip install pgwerk
+- Requires: Python 3.11+, Postgres 14+, psycopg3
+- License: MIT
+- Source: https://github.com/pgwerk/pgwerk
+- PyPI: https://pypi.org/project/pgwerk/
+
+## What it does
+
+- Background job execution with four worker types: AsyncWorker (asyncio), ThreadWorker, ProcessWorker, ForkWorker
+- Transactional enqueue — jobs can be enqueued inside a Postgres transaction; rollback cancels the job
+- Retry with configurable back-off intervals
+- Delayed jobs and cron scheduling (Scheduler, requires pip install pgwerk[cron])
+- DAG-style job dependencies
+- Idempotency keys and concurrency groups
+- Built-in dashboard and CLI
+
+## Limitations
+
+- Not suitable for very high throughput (millions of jobs per second) — Postgres lock contention becomes the bottleneck
+- Python-only protocol, no cross-language workers
+- Requires Python 3.11+ and psycopg3; no support for other database drivers
+- Newer and less battle-tested than Celery or RQ
+
+## Key pages
+
+- Home / overview: https://pgwerk.github.io/pgwerk/
+- Quickstart: https://pgwerk.github.io/pgwerk/guide/quickstart/
+- Workers: https://pgwerk.github.io/pgwerk/guide/workers/
+- Enqueueing: https://pgwerk.github.io/pgwerk/guide/enqueueing/
+- Cron scheduler: https://pgwerk.github.io/pgwerk/guide/cron/
+- CLI: https://pgwerk.github.io/pgwerk/guide/cli/
+- Dashboard: https://pgwerk.github.io/pgwerk/guide/dashboard/
+- Changelog: https://pgwerk.github.io/pgwerk/changelog/
