@@ -204,6 +204,39 @@ def raise_if_second_attempt(ctx):
 # Deterministic worker-coordination helpers
 # ---------------------------------------------------------------------------
 
+@dataclasses.dataclass
+class AsyncJobControl:
+    started: asyncio.Event = dataclasses.field(default_factory=asyncio.Event)
+    release: asyncio.Event = dataclasses.field(default_factory=asyncio.Event)
+    cancelled: asyncio.Event = dataclasses.field(default_factory=asyncio.Event)
+    calls: int = 0
+    completed: int = 0
+
+
+_async_job_control: AsyncJobControl | None = None
+
+
+def reset_async_job_control() -> AsyncJobControl:
+    global _async_job_control
+    _async_job_control = AsyncJobControl()
+    return _async_job_control
+
+
+async def controlled_async(ctx):
+    """Stay in the handler until the test releases it or the worker cancels it."""
+    control = _async_job_control
+    assert control is not None, "use the async_job_control fixture"
+    control.calls += 1
+    control.started.set()
+    try:
+        await control.release.wait()
+    except asyncio.CancelledError:
+        control.cancelled.set()
+        raise
+    control.completed += 1
+    return "done"
+
+
 _blocking_started = threading.Event()
 _blocking_release = threading.Event()
 _execution_log: list[tuple[str, int, str]] = []

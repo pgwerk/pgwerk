@@ -5,11 +5,15 @@ import asyncio
 import pytest
 
 from pgwerk.commons import JobStatus
+from pgwerk.commons import ExecutionStatus
 
 from .tasks import noop
+from .tasks import on_success
+from .tasks import on_failure
 from .tasks import on_stopped
 from .tasks import slow_async
 from .tasks import _callback_log
+from .tasks import controlled_async
 from .tasks import clear_callback_log
 from .conftest import make_worker
 
@@ -39,34 +43,55 @@ class TestJobTermination:
         result = await app.cancel_job(job.id)
         assert result is False
 
-    async def test_abort_running_job(self, app):
-        job = await app.enqueue(slow_async, seconds=1.0)
-        worker = make_worker(app, burst=True, abort_interval=0.05, poll_interval=0.05)
+    async def test_abort_running_job(self, app, async_job_control):
+        job = await app.enqueue(controlled_async, _retry=3)
+        worker = make_worker(app)
         worker_task = asyncio.create_task(worker.run())
 
-        await asyncio.sleep(0.15)
-        aborted = await app.abort_job(job.id)
-        assert aborted is True
+        try:
+            await asyncio.wait_for(async_job_control.started.wait(), timeout=5.0)
+            assert (await app.get_job(job.id)).status == JobStatus.Active
+            assert await app.abort_job(job.id) is True
+            await asyncio.wait_for(async_job_control.cancelled.wait(), timeout=5.0)
+            await asyncio.wait_for(asyncio.shield(worker_task), timeout=5.0)
 
-        await asyncio.wait_for(worker_task, timeout=3.0)
-        done = await app.get_job(job.id)
-        assert done.status == JobStatus.Aborted
+            done = await app.get_job(job.id)
+            assert done.status == JobStatus.Aborted
+            assert done.worker_id is None
+            assert done.completed_at is not None
+            assert done.attempts == 1
+            executions = await app.get_executions(job.id)
+            assert len(executions) == 1
+            assert executions[0].status == ExecutionStatus.Aborted
+            assert executions[0].completed_at is not None
+            assert async_job_control.calls == 1
+            assert async_job_control.completed == 0
+        finally:
+            async_job_control.release.set()
+            worker._request_shutdown()
+            await asyncio.wait_for(worker_task, timeout=5.0)
 
     async def test_abort_returns_false_for_non_active_job(self, app):
         job = await app.enqueue(noop)
         result = await app.abort_job(job.id)
         assert result is False
 
-    async def test_abort_triggers_on_stopped_callback(self, app):
-        job = await app.enqueue(slow_async, seconds=1.0, _on_stopped=on_stopped)
-        worker = make_worker(app, burst=True, abort_interval=0.05, poll_interval=0.05)
+    async def test_abort_triggers_on_stopped_callback(self, app, async_job_control):
+        job = await app.enqueue(
+            controlled_async, _on_stopped=on_stopped, _on_success=on_success, _on_failure=on_failure
+        )
+        worker = make_worker(app)
         worker_task = asyncio.create_task(worker.run())
 
-        await asyncio.sleep(0.15)
-        await app.abort_job(job.id)
-        await asyncio.wait_for(worker_task, timeout=3.0)
-
-        assert any(ev == "stopped" and jid == job.id for ev, jid in _callback_log)
+        try:
+            await asyncio.wait_for(async_job_control.started.wait(), timeout=5.0)
+            assert await app.abort_job(job.id) is True
+            await asyncio.wait_for(asyncio.shield(worker_task), timeout=5.0)
+            assert _callback_log == [("stopped", job.id)]
+        finally:
+            async_job_control.release.set()
+            worker._request_shutdown()
+            await asyncio.wait_for(worker_task, timeout=5.0)
 
     async def test_job_requeued_when_worker_shutdown_during_execution(self, app):
         """When a worker drains and the drain timeout expires, running jobs are cancelled

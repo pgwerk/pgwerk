@@ -7,12 +7,13 @@ import asyncio
 import pytest
 
 from pgwerk.commons import JobStatus
+from pgwerk.exceptions import JobNotFound
 
 from .tasks import on_failure
 from .tasks import on_stopped
-from .tasks import slow_async
 from .tasks import fail_always
 from .tasks import _callback_log
+from .tasks import controlled_async
 from .tasks import clear_callback_log
 from .conftest import make_worker
 
@@ -42,11 +43,20 @@ class TestFailureMode:
         done = await app.get_job(job.id)
         assert done.status == JobStatus.Failed
 
-    async def test_aborted_failure_mode_delete_calls_on_stopped(self, app):
-        job = await app.enqueue(slow_async, seconds=1.0, _failure_mode="delete", _on_stopped=on_stopped)
-        worker = make_worker(app, burst=True, abort_interval=0.05, poll_interval=0.05)
+    async def test_aborted_failure_mode_delete_calls_on_stopped(self, app, async_job_control):
+        job = await app.enqueue(controlled_async, _failure_mode="delete", _on_stopped=on_stopped)
+        worker = make_worker(app)
         worker_task = asyncio.create_task(worker.run())
-        await asyncio.sleep(0.15)
-        await app.abort_job(job.id)
-        await asyncio.wait_for(worker_task, timeout=3.0)
-        assert any(ev == "stopped" and jid == job.id for ev, jid in _callback_log)
+        try:
+            await asyncio.wait_for(async_job_control.started.wait(), timeout=5.0)
+            assert await app.abort_job(job.id) is True
+            await asyncio.wait_for(asyncio.shield(worker_task), timeout=5.0)
+            assert _callback_log == [("stopped", job.id)]
+            assert async_job_control.cancelled.is_set()
+            assert async_job_control.completed == 0
+            with pytest.raises(JobNotFound):
+                await app.get_job(job.id)
+        finally:
+            async_job_control.release.set()
+            worker._request_shutdown()
+            await asyncio.wait_for(worker_task, timeout=5.0)

@@ -11,6 +11,8 @@ from pgwerk.app import Werk
 from pgwerk.config import WerkConfig
 from pgwerk.worker import AsyncWorker
 
+from .tasks import reset_async_job_control
+
 
 _TEST_DSN = os.environ.get("PGWERK_TEST_DSN", "postgresql://pgwerk:pgwerk@localhost/pgwerk_test")
 _TEST_SCHEMA = "pgwerk"
@@ -54,6 +56,13 @@ async def app():
 
     yield a
     await a.disconnect()
+
+
+@pytest.fixture
+def async_job_control():
+    control = reset_async_job_control()
+    yield control
+    control.release.set()
 
 
 def make_worker(app: Werk, queues: list[str] | None = None, **kwargs) -> AsyncWorker:
