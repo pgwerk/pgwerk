@@ -25,6 +25,7 @@ from psycopg.sql import Identifier
 
 from ..utils import call_hook
 from ..utils import invoke_callback
+from ..commons import JobStatus
 from ..commons import DequeueStrategy
 from ..logging import job_id_var
 from ..schemas import Job
@@ -107,6 +108,7 @@ class BaseWorker(abc.ABC):
         self._active: set[asyncio.Task] = set()
         self._active_jobs: dict[str, asyncio.Task] = {}
         self._abort_requested: set[str] = set()
+        self._acknowledging_jobs: set[str] = set()
         self._wakeup = asyncio.Event()
         self._exception_handlers: list[Callable] = []
         self._rr_offset = 0
@@ -330,7 +332,9 @@ class BaseWorker(abc.ABC):
                 worker_repo = self.app._worker_repo
                 aborting = await worker_repo.get_aborting(list(self._active_jobs.keys()))
                 for job_id in aborting:
-                    if job_id in self._abort_requested:
+                    # The handler has returned: let the acknowledgement transaction
+                    # settle the abort instead of cancelling persistence or callbacks.
+                    if job_id in self._abort_requested or job_id in self._acknowledging_jobs:
                         continue
                     task = self._active_jobs.get(job_id)
                     if task and not task.done():
@@ -476,10 +480,7 @@ class BaseWorker(abc.ABC):
                 result = await self._execute(job, ctx)
             except asyncio.CancelledError:
                 if job.id in self._abort_requested:
-                    try:
-                        await self._nack(job, "aborted", aborted=True)
-                    finally:
-                        self._abort_requested.discard(job.id)
+                    await self._nack(job, "aborted", aborted=True)
                 else:
                     await self._requeue_cancelled(job)
                 return
@@ -499,20 +500,35 @@ class BaseWorker(abc.ABC):
                 await self._nack(job, traceback.format_exc())
                 return
 
-            await self._ack_with_retry(job, result)
-            logger.info("Worker %s: completed %s [%s]", self.name, job.function, job.id)
+            self._acknowledging_jobs.add(job.id)
+            # The handler has returned. Finish persistence even if a drain timeout
+            # cancels this task; requeueing here would execute its side effects again.
+            ack_task = asyncio.create_task(self._ack_with_retry(job, result))
+            while True:
+                try:
+                    await asyncio.shield(ack_task)
+                    break
+                except asyncio.CancelledError:
+                    if ack_task.cancelled():
+                        raise
         except asyncio.CancelledError:
+            if job.id in self._acknowledging_jobs:
+                raise
             await self._requeue_cancelled(job)
         finally:
-            job_id_var.reset(token)
-            if heartbeat_task is not None:
-                heartbeat_task.cancel()
-                await asyncio.gather(heartbeat_task, return_exceptions=True)
-            for hook in self._after_process:
-                try:
-                    await call_hook(hook, ctx)
-                except Exception:
-                    logger.exception("Worker %s: after_process hook error", self.name)
+            try:
+                job_id_var.reset(token)
+                if heartbeat_task is not None:
+                    heartbeat_task.cancel()
+                    await asyncio.gather(heartbeat_task, return_exceptions=True)
+                for hook in self._after_process:
+                    try:
+                        await call_hook(hook, ctx)
+                    except Exception:
+                        logger.exception("Worker %s: after_process hook error", self.name)
+            finally:
+                self._acknowledging_jobs.discard(job.id)
+                self._abort_requested.discard(job.id)
 
     @abc.abstractmethod
     async def _execute(self, job: Job, ctx: Context) -> Any:
@@ -563,14 +579,22 @@ class BaseWorker(abc.ABC):
         )
 
         worker_repo = self.app._worker_repo
-        if not await worker_repo.ack(self.id, job, result_json, expires_at):
+        status = await worker_repo.ack(self.id, job, result_json, expires_at)
+        if status is None:
             return  # race detected; logged by repo
+
+        if status == JobStatus.Aborted:
+            logger.info("Worker %s: aborted %s [%s]", self.name, job.function, job.id)
+            if job.on_stopped:
+                await invoke_callback(job.on_stopped, job, timeout=job.on_stopped_timeout)
+            return
 
         if job.repeat_remaining and job.repeat_remaining > 0:
             await self.app._reenqueue_repeat(job)
 
         if job.on_success:
             await invoke_callback(job.on_success, job, timeout=job.on_success_timeout)
+        logger.info("Worker %s: completed %s [%s]", self.name, job.function, job.id)
 
     async def _nack(self, job: Job, error: str, *, aborted: bool = False) -> None:
         worker_repo = self.app._worker_repo

@@ -146,6 +146,11 @@ Handlers are called in reverse push order (most recently pushed first). Use `pop
 
 Workers install handlers for `SIGTERM` and `SIGINT`. On receipt, the worker stops accepting new jobs and waits up to `shutdown_timeout` seconds for in-flight jobs to finish before cancelling them.
 
+Once a handler has returned, the worker lets acknowledgement and its callbacks
+finish, including the existing retries for transient database errors. This can
+extend shutdown beyond `shutdown_timeout`; cancelling acknowledgement must not
+requeue a handler that has already performed its work.
+
 ## Running alongside a web server
 
 Workers can run in the same process as an ASGI/WSGI application using background tasks or a separate asyncio task:

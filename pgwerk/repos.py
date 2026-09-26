@@ -22,6 +22,7 @@ from psycopg.sql import Placeholder
 from psycopg.rows import dict_row
 
 from .utils import compute_next_run
+from .commons import JobStatus
 from .commons import DequeueStrategy
 from .schemas import JOB_COLS
 from .schemas import Job
@@ -905,22 +906,30 @@ class WorkerRepository:
         job: Job,
         result_json: str | None,
         expires_at: datetime | None,
-    ) -> bool:
+    ) -> JobStatus | None:
+        """Settle a returned handler, honoring an abort committed before this UPDATE."""
         async with await self._connect() as conn, conn.transaction(), conn.cursor() as cur:
             await cur.execute(
                 SQL("""
                     UPDATE {jobs}
-                    SET status = 'complete', result = %(result)s,
-                        completed_at = NOW(), expires_at = %(expires_at)s,
-                        worker_id = NULL
+                    SET status = CASE WHEN status = 'aborting' THEN 'aborted' ELSE 'complete' END,
+                        result = CASE WHEN status = 'aborting' THEN NULL ELSE %(result)s::jsonb END,
+                        error = CASE WHEN status = 'aborting' THEN 'aborted' ELSE error END,
+                        completed_at = NOW(),
+                        expires_at = CASE WHEN status = 'aborting'
+                                          THEN NOW() + failure_ttl * INTERVAL '1 second'
+                                          ELSE %(expires_at)s END,
+                        worker_id = NULL,
+                        touched_at = CASE WHEN status = 'aborting' THEN NULL ELSE touched_at END
                     WHERE id = %(id)s
                       AND worker_id = %(wid)s::uuid
                       AND status IN ('active', 'aborting')
-                    RETURNING 1
+                    RETURNING status
                 """).format(jobs=self._t["jobs"]),
                 {"id": job.id, "result": result_json, "expires_at": expires_at, "wid": worker_id},
             )
-            if not await cur.fetchone():
+            row = await cur.fetchone()
+            if row is None:
                 await cur.execute(
                     SQL("SELECT status, worker_id FROM {jobs} WHERE id = %(id)s").format(jobs=self._t["jobs"]),
                     {"id": job.id},
@@ -932,15 +941,24 @@ class WorkerRepository:
                     job.id,
                     state,
                 )
-                return False
+                return None
 
+            status = JobStatus(row[0])
             await cur.execute(
                 SQL("""
                     UPDATE {executions}
-                    SET status = 'complete', result = %(result)s, completed_at = NOW()
+                    SET status = %(status)s, result = %(result)s,
+                        error = %(error)s, completed_at = NOW()
                     WHERE job_id = %(jid)s AND attempt = %(attempt)s AND worker_id = %(wid)s::uuid
                 """).format(executions=self._t["executions"]),
-                {"jid": job.id, "attempt": job.attempts, "result": result_json, "wid": worker_id},
+                {
+                    "jid": job.id,
+                    "attempt": job.attempts,
+                    "status": status.value,
+                    "result": result_json if status == JobStatus.Complete else None,
+                    "error": "aborted" if status == JobStatus.Aborted else None,
+                    "wid": worker_id,
+                },
             )
             await cur.execute(
                 SQL("DELETE FROM {wj} WHERE worker_id = %(wid)s AND job_id = %(jid)s").format(
@@ -949,10 +967,15 @@ class WorkerRepository:
                 {"wid": worker_id, "jid": job.id},
             )
             unblocked_queues = await self._job_repo.settle_dependents(cur, job.id)
+            if status == JobStatus.Aborted and job.failure_mode == "delete":
+                await cur.execute(
+                    SQL("DELETE FROM {jobs} WHERE id = %(id)s").format(jobs=self._t["jobs"]),
+                    {"id": job.id},
+                )
             for q in unblocked_queues:
                 await conn.execute(SQL("NOTIFY {ch}").format(ch=Identifier(f"{self._prefix}:{q}")))
 
-        return True
+        return status
 
     async def nack(
         self,

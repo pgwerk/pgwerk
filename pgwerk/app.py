@@ -829,6 +829,11 @@ class Werk:
     async def abort_job(self, job_id: str) -> bool:
         """Request an active job to stop and mark it as aborted.
 
+        If the request commits before successful acknowledgement, the worker
+        settles the job as aborted even if its handler has already returned.
+        If acknowledgement commits first, the request is rejected. Aborting
+        does not roll back side effects the handler has already performed.
+
         Args:
             job_id: ID of the running job to abort.
 

@@ -137,6 +137,12 @@ Reset a failed or aborted job back to `queued`. Execution history is preserved â
 
 Request an active job to stop and mark it `aborted`.
 
+Returns `True` when the request is recorded, and `False` when the job is missing
+or no longer active. If the request commits before successful acknowledgement,
+acknowledgement settles the job as `aborted`, calls `on_stopped`, and does not
+enqueue a repeat. If acknowledgement commits first, abort returns `False`.
+Aborting does not roll back side effects the handler has already performed.
+
 #### `delete_job(job_id) â†’ None`
 
 Permanently delete a job row.
