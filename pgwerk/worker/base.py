@@ -463,16 +463,16 @@ class BaseWorker(abc.ABC):
         ctx = Context(app=self.app, worker=self, job=job)
         heartbeat_task: asyncio.Task | None = None
 
-        for hook in self._before_process:
-            try:
-                await call_hook(hook, ctx)
-            except Exception:
-                logger.exception("Worker %s: before_process hook error", self.name)
-
         try:
-            if job.heartbeat_secs:
-                heartbeat_task = asyncio.create_task(self._job_heartbeat_loop(job.id, job.heartbeat_secs))
             try:
+                for hook in self._before_process:
+                    try:
+                        await call_hook(hook, ctx)
+                    except Exception:
+                        logger.exception("Worker %s: before_process hook error", self.name)
+
+                if job.heartbeat_secs:
+                    heartbeat_task = asyncio.create_task(self._job_heartbeat_loop(job.id, job.heartbeat_secs))
                 result = await self._execute(job, ctx)
             except asyncio.CancelledError:
                 if job.id in self._abort_requested:

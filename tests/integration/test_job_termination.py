@@ -93,6 +93,46 @@ class TestJobTermination:
             worker._request_shutdown()
             await asyncio.wait_for(worker_task, timeout=5.0)
 
+    async def test_abort_during_before_process_hook(self, app, async_job_control):
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        after_calls = []
+
+        async def before(ctx):
+            entered.set()
+            await release.wait()
+
+        async def after(ctx):
+            after_calls.append(ctx.job.id)
+
+        job = await app.enqueue(
+            controlled_async, _on_stopped=on_stopped, _on_success=on_success, _on_failure=on_failure
+        )
+        worker = make_worker(app, before_process=[before], after_process=[after])
+        worker_task = asyncio.create_task(worker.run())
+        try:
+            await asyncio.wait_for(entered.wait(), timeout=5.0)
+            assert (await app.get_job(job.id)).status == JobStatus.Active
+            assert await app.abort_job(job.id) is True
+            await asyncio.wait_for(asyncio.shield(worker_task), timeout=5.0)
+
+            done = await app.get_job(job.id)
+            assert done.status == JobStatus.Aborted
+            assert done.worker_id is None
+            assert done.completed_at is not None
+            executions = await app.get_executions(job.id)
+            assert len(executions) == 1
+            assert executions[0].status == ExecutionStatus.Aborted
+            assert executions[0].completed_at is not None
+            assert async_job_control.calls == 0
+            assert _callback_log == [("stopped", job.id)]
+            assert after_calls == [job.id]
+        finally:
+            release.set()
+            async_job_control.release.set()
+            worker._request_shutdown()
+            await asyncio.wait_for(worker_task, timeout=5.0)
+
     async def test_job_requeued_when_worker_shutdown_during_execution(self, app):
         """When a worker drains and the drain timeout expires, running jobs are cancelled
         and re-queued (not marked failed), and attempts is decremented back."""
