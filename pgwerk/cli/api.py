@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import click
 
 from ..logging import configure_logging
@@ -67,7 +69,8 @@ def api(
 
     from ..config import WerkConfig
 
-    config = WerkConfig(
+    config = replace(
+        WerkConfig.from_env(),
         dsn=dsn,
         schema=schema or "pgwerk",
         prefix=prefix or "_pgwerk",

@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- `werk api` no longer overwrites environment-only settings (e.g. `PGWERK_ALLOW_TRUNCATE`, `PGWERK_EPHEMERAL_TABLES`, `PGWERK_LISTEN`) with their defaults before starting the server.
 - `Werk.wait_for()` now respects `config.listen`. With `listen=False` it no longer opens a `LISTEN` connection and relies on polling alone, so it behaves correctly behind PgBouncer in transaction-pooling mode.
 
 ---

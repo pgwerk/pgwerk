@@ -104,3 +104,58 @@ class TestCliCommands:
         result = runner.invoke(cli, ["cron", "os:no_such_attr_xyz"])
         assert result.exit_code == 1
         assert "no attribute" in result.output
+
+
+_PGWERK_KEYS = (
+    "PGWERK_DSN",
+    "PGWERK_SCHEMA",
+    "PGWERK_PREFIX",
+    "PGWERK_MAX_ACTIVE_SECS",
+    "PGWERK_HEARTBEAT_INTERVAL",
+    "PGWERK_POLL_INTERVAL",
+    "PGWERK_ABORT_INTERVAL",
+    "PGWERK_SWEEP_INTERVAL",
+    "PGWERK_SHUTDOWN_TIMEOUT",
+    "PGWERK_SIGTERM_GRACE",
+    "PGWERK_EPHEMERAL_TABLES",
+    "PGWERK_METRICS",
+    "PGWERK_METRICS_INTERVAL",
+    "PGWERK_NO_UI",
+    "PGWERK_UI_AUTH",
+    "PGWERK_API_TOKEN",
+    "PGWERK_DEFAULT_RETRY_BACKOFF",
+    "PGWERK_ALLOW_TRUNCATE",
+    "PGWERK_LISTEN",
+)
+
+
+class TestApiCommand:
+    @pytest.fixture(autouse=True)
+    def _isolate_env(self, monkeypatch):
+        # to_env() writes os.environ directly; registering every key with monkeypatch undoes those writes.
+        for key in _PGWERK_KEYS:
+            monkeypatch.delenv(key, raising=False)
+
+    def test_api_preserves_env_only_config(self, monkeypatch):
+        import sys
+
+        from pgwerk.config import WerkConfig
+
+        fake_uvicorn = MagicMock()
+        monkeypatch.setitem(sys.modules, "uvicorn", fake_uvicorn)
+        monkeypatch.setenv("PGWERK_ALLOW_TRUNCATE", "true")
+        monkeypatch.setenv("PGWERK_EPHEMERAL_TABLES", "true")
+        monkeypatch.setenv("PGWERK_LISTEN", "false")
+        monkeypatch.setenv("PGWERK_POLL_INTERVAL", "1.5")
+
+        result = CliRunner().invoke(cli, ["api", "--dsn", "postgresql://x/y", "--schema", "custom"])
+
+        assert result.exit_code == 0, result.output
+        fake_uvicorn.run.assert_called_once()
+        cfg = WerkConfig.from_env()
+        assert cfg.allow_truncate is True
+        assert cfg.ephemeral_tables is True
+        assert cfg.listen is False
+        assert cfg.poll_interval == 1.5
+        assert cfg.schema == "custom"
+        assert cfg.dsn == "postgresql://x/y"
