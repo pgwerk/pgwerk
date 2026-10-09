@@ -12,12 +12,15 @@ from pgwerk.utils import fn_path
 from pgwerk.utils import import_fn
 from pgwerk.utils import normalize_retry
 from pgwerk.utils import normalize_callback
+from pgwerk.utils import normalize_failure_mode
 from pgwerk.utils import normalize_depends_on
 from pgwerk.commons import JobStatus
+from pgwerk.commons import FailureMode
 from pgwerk.schemas import Job
 from pgwerk.schemas import Retry
 from pgwerk.schemas import Callback
 from pgwerk.schemas import Dependency
+from pgwerk.schemas import EnqueueParams
 from pgwerk.schemas import JobExecution
 from pgwerk.serializers import JSONSerializer
 
@@ -25,6 +28,31 @@ from pgwerk.serializers import JSONSerializer
 # ---------------------------------------------------------------------------
 # _normalize_retry
 # ---------------------------------------------------------------------------
+
+
+class TestNormalizeFailureMode:
+    @pytest.mark.parametrize("value", ["hold", "delete"])
+    def test_valid_strings(self, value):
+        assert normalize_failure_mode(value) == value
+
+    def test_enum_members(self):
+        assert normalize_failure_mode(FailureMode.Hold) == "hold"
+        assert normalize_failure_mode(FailureMode.Delete) == "delete"
+
+    @pytest.mark.parametrize("value", ["cancel", "Hold", "", "dlete"])
+    def test_invalid_raises(self, value):
+        with pytest.raises(ValueError, match="hold.*delete"):
+            normalize_failure_mode(value)
+
+    async def test_enqueue_rejects_invalid_before_db(self):
+        wrk = Werk("postgresql://localhost/test")
+        with pytest.raises(ValueError, match="failure_mode"):
+            await wrk.enqueue("m.f", _failure_mode="cancel")
+
+    async def test_enqueue_many_rejects_invalid_before_db(self):
+        wrk = Werk("postgresql://localhost/test")
+        with pytest.raises(ValueError, match="failure_mode"):
+            await wrk.enqueue_many([EnqueueParams(func="m.f", failure_mode="cancel")])
 
 
 class TestNormalizeRetry:

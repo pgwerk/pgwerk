@@ -23,6 +23,7 @@ from .repos import ScheduleRepository
 from .utils import fn_path
 from .utils import normalize_retry
 from .utils import normalize_callback
+from .utils import normalize_failure_mode
 from .utils import normalize_depends_on
 from .config import WerkConfig
 from .worker import ForkWorker
@@ -30,6 +31,7 @@ from .worker import AsyncWorker
 from .worker import ThreadWorker
 from .worker import ProcessWorker
 from .commons import JobStatus
+from .commons import FailureMode
 from .logging import configure_logging
 from .schemas import Job
 from .schemas import Retry
@@ -253,7 +255,7 @@ class Werk:
         _repeat: Repeat | None = None,
         _depends_on: list[Dependency | str | Job] | Dependency | str | Job | None = None,
         _schedule_name: str | None = None,
-        _failure_mode: str = "hold",
+        _failure_mode: FailureMode | str = "hold",
         _sync: bool = False,
         **kwargs: Any,
     ) -> Job | None:
@@ -287,8 +289,8 @@ class Werk:
             _repeat: Repeat policy for recurring jobs.
             _depends_on: Job(s) that must complete before this one runs.
             _schedule_name: Name of the Schedule this job was enqueued from.
-            _failure_mode: What to do with dependents when this job fails
-                (``"hold"`` or ``"cancel"``).
+            _failure_mode: What to do with the job row on terminal failure —
+                ``"hold"`` keeps it for inspection/retry, ``"delete"`` removes it.
             **kwargs: Keyword arguments forwarded to *func*.
 
         Returns:
@@ -303,6 +305,7 @@ class Werk:
         elif _delay is not None:
             scheduled_at = datetime.now(timezone.utc) + timedelta(seconds=_delay)
 
+        failure_mode = normalize_failure_mode(_failure_mode)
         max_attempts, retry_intervals = normalize_retry(_retry, default_backoff=self.config.default_retry_backoff)
         on_success_path, on_success_timeout = normalize_callback(_on_success)
         on_failure_path, on_failure_timeout = normalize_callback(_on_failure)
@@ -340,7 +343,7 @@ class Werk:
             meta=encode(self.serializer, _meta),
             result_ttl=_result_ttl,
             failure_ttl=_failure_ttl,
-            failure_mode=_failure_mode,
+            failure_mode=failure_mode,
             ttl=_ttl,
             on_success=on_success_path,
             on_failure=on_failure_path,
@@ -420,6 +423,7 @@ class Werk:
             elif spec.delay is not None:
                 scheduled_at = datetime.now(timezone.utc) + timedelta(seconds=spec.delay)
 
+            failure_mode = normalize_failure_mode(spec.failure_mode)
             max_attempts, retry_intervals = normalize_retry(
                 spec.retry, default_backoff=self.config.default_retry_backoff
             )
@@ -456,7 +460,7 @@ class Werk:
                     meta=encode(self.serializer, spec.meta),
                     result_ttl=spec.result_ttl,
                     failure_ttl=spec.failure_ttl,
-                    failure_mode=spec.failure_mode,
+                    failure_mode=failure_mode,
                     ttl=spec.ttl,
                     on_success=on_success_path,
                     on_failure=on_failure_path,

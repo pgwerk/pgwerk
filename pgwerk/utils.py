@@ -15,6 +15,7 @@ from datetime import datetime
 from datetime import timezone
 from datetime import timedelta
 
+from pgwerk.commons import FailureMode
 from pgwerk.schemas import Job
 from pgwerk.schemas import Retry
 from pgwerk.schemas import Context
@@ -286,6 +287,25 @@ def normalize_callback(
     if callable(cb):
         return fn_path(cb), None
     return cb, None
+
+
+def normalize_failure_mode(value: "FailureMode | str") -> str:
+    """Validate a failure mode and return its string value.
+
+    Args:
+        value: A :class:`~wrk.commons.FailureMode` member or its string value.
+
+    Returns:
+        ``"hold"`` or ``"delete"``.
+
+    Raises:
+        ValueError: If *value* is not a valid failure mode.
+    """
+    try:
+        return FailureMode(value).value
+    except ValueError:
+        valid = ", ".join(repr(m.value) for m in FailureMode)
+        raise ValueError(f"Invalid failure_mode {value!r}; expected one of: {valid}") from None
 
 
 def normalize_depends_on(
