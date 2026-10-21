@@ -12,6 +12,20 @@ Jobs are rows. Workers poll with `SELECT … FOR UPDATE SKIP LOCKED`. No externa
 
 ![PGWerk dashboard overview](docs/assets/01-ss-home.png)
 
+### Enqueue in the same transaction as your data
+
+Because jobs live in your database, an enqueue can commit or roll back together with the write that caused it. No more jobs for orders that never got saved, or saved orders whose job was lost because Redis was down.
+
+```python
+async with await psycopg.AsyncConnection.connect(dsn) as conn:
+    async with conn.transaction():
+        await conn.execute("INSERT INTO orders (id, total) VALUES (%s, %s)", (order_id, total))
+        await app.enqueue(send_receipt, order_id=order_id, _conn=conn)
+    # rollback above means no order and no job
+```
+
+Workers are notified on commit, so the job is picked up immediately.
+
 ---
 
 ## Python
