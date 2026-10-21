@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pgwerk"
-version = "0.1.25"
+version = "0.1.26"
 description = "Postgres-backed job queue. Durable, visible, transactional."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -42,7 +42,7 @@ classifiers = [
     "Topic :: Internet",
     "Typing :: Typed",
 ]
-dependencies = ["psycopg[async]>=3.1", "click>=8.0"]
+dependencies = ["psycopg>=3.1", "click>=8.0"]
 
 [project.urls]
 Repository = "https://github.com/pgwerk/pgwerk"

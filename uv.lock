@@ -853,7 +853,7 @@ wheels = [
 
 [[package]]
 name = "pgwerk"
-version = "0.1.25"
+version = "0.1.26"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -904,7 +904,7 @@ requires-dist = [
     { name = "plotext", marker = "extra == 'dev'", specifier = ">=5.0" },
     { name = "prometheus-client", marker = "extra == 'dev'", specifier = ">=0.8" },
     { name = "prometheus-client", marker = "extra == 'exporter'", specifier = ">=0.8" },
-    { name = "psycopg", extras = ["async"], specifier = ">=3.1" },
+    { name = "psycopg", specifier = ">=3.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },

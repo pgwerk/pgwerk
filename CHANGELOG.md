@@ -7,13 +7,20 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
-## [Unreleased]
+## [0.1.26] - 2026-10-21
 
 ### Fixed
 
+- Aborting a job whose handler has already returned is now settled atomically in the acknowledgement transaction. If the abort commits first the job ends as `aborted` (honoring `failure_ttl`, callbacks, dependents, and repeat suppression); if acknowledgement commits first the abort is rejected. Previously the worker could cancel the acknowledgement mid-flight.
+- Aborts requested while `before_process` hooks are running are now honored.
 - `werk api` no longer overwrites environment-only settings (e.g. `PGWERK_ALLOW_TRUNCATE`, `PGWERK_EPHEMERAL_TABLES`, `PGWERK_LISTEN`) with their defaults before starting the server.
 - `Werk.wait_for()` now respects `config.listen`. With `listen=False` it no longer opens a `LISTEN` connection and relies on polling alone, so it behaves correctly behind PgBouncer in transaction-pooling mode.
 - `enqueue()` / `enqueue_many()` now reject unknown `failure_mode` values instead of silently treating them as `hold`, and the `_failure_mode` docstring lists the real values (`hold`, `delete`).
+
+### Changed
+
+- PyPI classifier moved from Alpha to Beta.
+- Dropped the nonexistent `async` extra from the `psycopg` dependency.
 
 ---
 
